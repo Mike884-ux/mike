@@ -1,0 +1,148 @@
+@import "tailwindcss";
+
+@theme {
+  --color-bg: #0a0a10;
+  --color-surface: rgba(255, 255, 255, 0.055);
+  --color-surface-2: rgba(255, 255, 255, 0.095);
+  --color-fg: #f5f3ef;
+  --color-muted: #a5a3ad;
+  --color-faint: #78767f;
+  --color-border: rgba(255, 255, 255, 0.09);
+  --color-primary: #eceae4;
+  --color-primary-fg: #0c0c0e;
+  --color-long: #7fc290;
+  --color-short: #e08078;
+  --color-wait: #e0bc72;
+
+  --font-sans: "Segoe UI", system-ui, sans-serif;
+  --font-display: Georgia, "Times New Roman", serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, monospace;
+
+  --radius-sm: 10px;
+  --radius-md: 16px;
+  --radius-lg: 22px;
+  --radius-xl: 30px;
+
+  --shadow-border:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.18),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.06),
+    0 12px 34px -16px rgba(0, 0, 0, 0.6);
+
+  --motion-quick: 150ms;
+  --motion-fast: 250ms;
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  html,
+  body,
+  #app {
+    min-height: 100%;
+    color: var(--color-fg);
+  }
+
+  html {
+    background: var(--color-bg);
+  }
+
+  #app {
+    background: transparent;
+  }
+
+  body {
+    font-family: var(--font-sans);
+    background:
+      radial-gradient(1000px 620px at 10% -10%, rgba(90, 150, 220, 0.5), transparent 58%),
+      radial-gradient(1000px 620px at 92% 0%, rgba(160, 110, 230, 0.42), transparent 58%),
+      radial-gradient(900px 700px at 45% 115%, rgba(90, 210, 150, 0.38), transparent 60%),
+      radial-gradient(700px 500px at 75% 65%, rgba(230, 150, 110, 0.22), transparent 60%),
+      var(--color-bg);
+    background-attachment: fixed;
+    background-blend-mode: screen, screen, screen, screen, normal;
+    min-height: 100vh;
+  }
+
+  /* Glassmorphism: every surface card/panel gets a frosted blur of whatever
+     sits behind it, so the colored gradients above show through softly. */
+  .bg-surface,
+  .bg-surface-2 {
+    backdrop-filter: blur(24px) saturate(150%);
+    -webkit-backdrop-filter: blur(24px) saturate(150%);
+  }
+
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+    transition:
+      transform var(--motion-quick) var(--ease-out),
+      filter var(--motion-quick) var(--ease-out);
+  }
+
+  button:not(:disabled):hover,
+  [role="button"]:not(:disabled):hover {
+    filter: brightness(1.14);
+  }
+
+  button:not(:disabled):active,
+  [role="button"]:not(:disabled):active {
+    transform: scale(0.97);
+    filter: brightness(0.94);
+  }
+
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+}
+
+.font-display {
+  font-family: var(--font-display);
+}
+
+.shimmer-text {
+  background: linear-gradient(
+    90deg,
+    var(--color-muted) 0%,
+    var(--color-fg) 45%,
+    var(--color-muted) 90%
+  );
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: shimmer 1.6s linear infinite;
+}
+
+@keyframes shimmer {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: -100% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shimmer-text {
+    animation: none;
+    color: var(--color-muted);
+    background: none;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
