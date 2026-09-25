@@ -48,7 +48,7 @@ export function ScoreBar({ score, className }: { score: number; className?: stri
   );
 }
 
-const AI_ERROR_KEYS = new Set(["no_key", "bad_key", "no_credit", "rate_limited", "refused", "unavailable", "too_often", "no_data", "empty"]);
+const AI_ERROR_KEYS = new Set(["no_key", "bad_key", "no_credit", "gateway_setup", "rate_limited", "refused", "unavailable", "too_often", "no_data", "empty"]);
 
 /** Message key for an AI failure reason coming back from the server. */
 export function aiErrorKey(reason: string | undefined): MessageKey {

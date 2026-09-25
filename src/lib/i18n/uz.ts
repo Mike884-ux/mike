@@ -110,9 +110,10 @@ export const uz: Record<MessageKey, string> = {
   "ai.simple": "Soddaroq tushuntiring",
   "ai.simplifying": "Soddalashtiryapman…",
 
-  "aiErr.no_key": "SI ulanmagan: sayt egasi Vercel sozlamalariga ANTHROPIC_API_KEY qo‘shishi kerak.",
+  "aiErr.no_key": "SI ulanmagan. Sayt Vercel’da ishlashi kerak (u yerda SI o‘zi ulanadi) yoki ANTHROPIC_API_KEY qo‘shing.",
   "aiErr.bad_key": "SI kaliti noto‘g‘ri yoki bekor qilingan. Sayt egasi ANTHROPIC_API_KEY ni almashtirishi kerak.",
   "aiErr.no_credit": "SI hisobida mablag‘ tugadi. console.anthropic.com da to‘ldiring.",
+  "aiErr.gateway_setup": "Vercel ichki SI hali yoqilmagan. Sayt egasi: Vercel’da AI Gateway bo‘limini ochib, uni faollashtiring (oyiga $5 bepul).",
   "aiErr.rate_limited": "SI band. Bir daqiqadan keyin urinib ko‘ring.",
   "aiErr.refused": "SI bu so‘rovga javob berishdan bosh tortdi.",
   "aiErr.unavailable": "SI javob bermadi. Qayta urinib ko‘ring.",

@@ -110,9 +110,10 @@ export const tg: Record<MessageKey, string> = {
   "ai.simple": "Соддатар фаҳмонед",
   "ai.simplifying": "Сода мекунам…",
 
-  "aiErr.no_key": "ЗИ пайваст нест: соҳиби сайт бояд ANTHROPIC_API_KEY-ро дар Vercel илова кунад.",
+  "aiErr.no_key": "ЗИ пайваст нест. Сайт бояд дар Vercel кор кунад (он ҷо ЗИ худаш пайваст мешавад) ё ANTHROPIC_API_KEY илова кунед.",
   "aiErr.bad_key": "Калиди ЗИ нодуруст ё бекоршуда аст. Соҳиби сайт бояд ANTHROPIC_API_KEY-ро иваз кунад.",
   "aiErr.no_credit": "Маблағи ҳисоби ЗИ тамом шуд. Дар console.anthropic.com пур кунед.",
+  "aiErr.gateway_setup": "ЗИ-и дохилии Vercel ҳанӯз фаъол нест. Соҳиби сайт: дар Vercel ҷадвали AI Gateway-ро кушоед ва фаъол кунед (ҳар моҳ $5 ройгон).",
   "aiErr.rate_limited": "ЗИ серкор аст. Пас аз як дақиқа кӯшиш кунед.",
   "aiErr.refused": "ЗИ ба ин дархост ҷавоб доданро рад кард.",
   "aiErr.unavailable": "ЗИ ҷавоб надод. Боз кӯшиш кунед.",

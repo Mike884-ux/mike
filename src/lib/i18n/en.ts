@@ -110,9 +110,10 @@ export const en: Record<MessageKey, string> = {
   "ai.simple": "Explain simply",
   "ai.simplifying": "Simplifying…",
 
-  "aiErr.no_key": "AI isn't connected: the site owner must add ANTHROPIC_API_KEY in Vercel settings.",
+  "aiErr.no_key": "AI isn't connected. Run the site on Vercel (AI connects there by itself) or add ANTHROPIC_API_KEY.",
   "aiErr.bad_key": "The AI key is wrong or revoked. The site owner needs to replace ANTHROPIC_API_KEY.",
   "aiErr.no_credit": "The AI account is out of credit. Top up at console.anthropic.com.",
+  "aiErr.gateway_setup": "Vercel's built-in AI isn't switched on yet. Site owner: open the AI Gateway tab in Vercel and activate it (free $5 a month).",
   "aiErr.rate_limited": "The AI is busy. Try again in a minute.",
   "aiErr.refused": "The AI declined to answer this request.",
   "aiErr.unavailable": "The AI didn't answer. Please try again.",
