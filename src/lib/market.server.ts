@@ -102,6 +102,7 @@ const YAHOO_INTERVAL: Record<string, { interval: string; range: string }> = {
   "1h": { interval: "60m", range: "3mo" },
   "4h": { interval: "60m", range: "6mo" },
   "1d": { interval: "1d", range: "1y" },
+  "1w": { interval: "1wk", range: "5y" },
 };
 
 function foldTo4h(candles: Candle[]): Candle[] {

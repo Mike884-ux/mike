@@ -11,17 +11,22 @@ import {
 } from "lightweight-charts";
 import type { AiLevels, Candle } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { useT, type MessageKey } from "@/lib/i18n";
+
+const UP = "#2fd08a";
+const DOWN = "#ff6b6b";
 
 const LEVEL_META: {
-  key: "resistance" | "target" | "entry" | "support" | "stopLoss";
-  label: string;
+  key: "resistance" | "target" | "target2" | "entry" | "support" | "stopLoss";
+  label: MessageKey;
   color: string;
 }[] = [
-  { key: "resistance", label: "Сопротивление", color: "#c86a64" },
-  { key: "target", label: "Цель", color: "#6ea37a" },
-  { key: "entry", label: "Вход", color: "#f3f1ec" },
-  { key: "support", label: "Поддержка", color: "#6ea37a" },
-  { key: "stopLoss", label: "Стоп", color: "#c86a64" },
+  { key: "resistance", label: "ai.resistance", color: "#ff8f8f" },
+  { key: "target2", label: "ai.target2", color: "#7ee0b0" },
+  { key: "target", label: "ai.target", color: UP },
+  { key: "entry", label: "ai.entry", color: "#b7bbff" },
+  { key: "support", label: "ai.support", color: "#7ee0b0" },
+  { key: "stopLoss", label: "ai.stop", color: DOWN },
 ];
 
 /** One real candlestick chart — the AI's levels are drawn directly on it as price lines. */
@@ -39,13 +44,14 @@ export function CoinChart({
   const seriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
   const volumeRef = useRef<ISeriesApi<"Histogram"> | null>(null);
   const linesRef = useRef<IPriceLine[]>([]);
+  const t = useT();
 
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
 
     const chart = createChart(container, {
-      layout: { background: { color: "transparent" }, textColor: "#9a9892", attributionLogo: false },
+      layout: { background: { color: "transparent" }, textColor: "#8f98b3", attributionLogo: false },
       grid: {
         vertLines: { color: "rgba(255,255,255,0.04)" },
         horzLines: { color: "rgba(255,255,255,0.04)" },
@@ -56,16 +62,16 @@ export function CoinChart({
       height: container.clientHeight || 420,
     });
     const series = chart.addSeries(CandlestickSeries, {
-      upColor: "#6ea37a",
-      downColor: "#c86a64",
+      upColor: UP,
+      downColor: DOWN,
       borderVisible: false,
-      wickUpColor: "#6ea37a",
-      wickDownColor: "#c86a64",
+      wickUpColor: UP,
+      wickDownColor: DOWN,
     });
     const volume = chart.addSeries(HistogramSeries, {
       priceFormat: { type: "volume" },
       priceScaleId: "",
-      color: "#6ea37a",
+      color: UP,
     });
     volume.priceScale().applyOptions({ scaleMargins: { top: 0.82, bottom: 0 } });
     chartRef.current = chart;
@@ -107,7 +113,7 @@ export function CoinChart({
       rows.map((row) => ({
         time: row.time,
         value: row.v,
-        color: row.close >= row.open ? "rgba(110,163,122,0.5)" : "rgba(200,106,100,0.5)",
+        color: row.close >= row.open ? "rgba(47,208,138,0.45)" : "rgba(255,107,107,0.45)",
       })),
     );
     chartRef.current?.timeScale().fitContent();
@@ -129,11 +135,11 @@ export function CoinChart({
           lineWidth: 1,
           lineStyle: LineStyle.Dashed,
           axisLabelVisible: true,
-          title: meta.label,
+          title: t(meta.label),
         }),
       );
     }
-  }, [levels]);
+  }, [levels, t]);
 
   return <div ref={containerRef} className={cn("h-[420px] w-full overflow-hidden rounded-lg bg-surface-2", className)} />;
 }

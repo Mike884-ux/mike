@@ -1,7 +1,9 @@
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from "node:crypto";
 import { buildSchema, graphql } from "graphql";
 import { HEADLINES_QUERY } from "./news-query";
-import { assetOf } from "./markets";
+import { assetOf, detectBaseInText } from "./markets";
+import { z } from "zod";
+import type { Lang } from "./lang";
 import type { NewsItem } from "./types";
 
 const NEWS_TTL = 180_000;
@@ -113,7 +115,15 @@ function parseRss(xml: string): NewsItem[] {
     if (!t) continue;
     const url = clean(link);
     if (url && !url.startsWith("https://")) continue;
-    out.push({ title: t, source: clean(source) || "лента", url });
+    const pub = Date.parse(clean(chunk.match(/<pubDate>([\s\S]*?)<\/pubDate>/i)?.[1]));
+    const base = detectBaseInText(t);
+    out.push({
+      title: t,
+      source: clean(source) || "лента",
+      url,
+      ...(Number.isFinite(pub) ? { publishedAt: pub } : {}),
+      ...(base ? { bases: [base] } : {}),
+    });
     if (out.length >= 10) break;
   }
   return out;
@@ -202,47 +212,50 @@ function filterBase(all: NewsItem[], base?: string | null): NewsItem[] {
   return all.filter((item) => patterns.some((re) => re.test(item.title.toUpperCase()))).slice(0, 8);
 }
 
-const translateCache = new Map<string, { at: number; value: NewsItem[] }>();
+const enrichCache = new Map<string, { at: number; value: NewsItem[] }>();
+
+const EnrichSchema = z.object({
+  items: z.array(z.object({ index: z.number(), title: z.string(), tone: z.enum(["bull", "bear", "neutral"]) })),
+});
 
 /**
- * Titles come from English-language RSS feeds; translate them for a Russian-speaking reader.
- * Plain numbered lines instead of JSON: if Gemini's output gets cut off mid-way (it does,
- * often), we still keep the translated lines that did make it through instead of discarding
- * the whole batch over one unparsable trailing fragment.
+ * One AI pass per batch: translate titles into the reader's language and tag
+ * each headline's market mood. If the AI is unavailable the original English
+ * headlines are returned untouched — news still works without a key.
  */
-async function translateTitles(items: NewsItem[]): Promise<NewsItem[]> {
+async function enrichHeadlines(items: NewsItem[], lang: Lang): Promise<NewsItem[]> {
   if (!items.length) return items;
-  const key = items.map((item) => item.title).join("|");
-  const hit = translateCache.get(key);
+  const key = `${lang}|${items.map((item) => item.title).join("|")}`;
+  const hit = enrichCache.get(key);
   if (hit && Date.now() - hit.at < NEWS_TTL) return hit.value;
-  const { completeAi } = await import("./ai.server");
-  const raw = await completeAi({
-    system:
-      "Переведи каждый заголовок новости на русский язык, сохраняя смысл и названия компаний/монет. Ответь построчно: ровно одна переведённая строка на каждый исходный заголовок, в том же порядке и с той же нумерацией, без пояснений, без markdown.",
-    user: items.map((item, i) => `${i + 1}. ${item.title}`).join("\n"),
-    maxTokens: 2200,
-    temperature: 0.2,
+  const { completeJson } = await import("./ai.server");
+  const result = await completeJson(
+    {
+      system:
+        "You process market headlines. For each numbered headline return its index, the title rewritten in the target language (keep company and coin names; if the target language is English keep the original title), and tone: bull if it is likely good for prices of the assets it mentions, bear if likely bad, neutral otherwise.",
+      messages: [{ role: "user", text: items.map((item, i) => `${i}. ${item.title}`).join("\n") }],
+      effort: "low",
+      maxTokens: 4000,
+      lang,
+    },
+    EnrichSchema,
+  );
+  if (!result.ok) return items;
+  const byIndex = new Map(result.value.items.map((row) => [row.index, row]));
+  const enriched = items.map((item, i) => {
+    const row = byIndex.get(i);
+    return row ? { ...item, title: row.title.trim() || item.title, tone: row.tone } : item;
   });
-  if (!raw) return items;
-  const byIndex = new Map<number, string>();
-  for (const line of raw.split("\n")) {
-    const match = line.match(/^\s*(\d+)[.)]\s*(.+)$/);
-    if (!match) continue;
-    const idx = Number(match[1]) - 1;
-    const text = match[2]!.trim();
-    if (text) byIndex.set(idx, text);
-  }
-  if (!byIndex.size) return items;
-  const result = items.map((item, i) => ({ ...item, title: byIndex.get(i) ?? item.title }));
-  translateCache.set(key, { at: Date.now(), value: result });
-  return result;
+  enrichCache.set(key, { at: Date.now(), value: enriched });
+  return enriched;
 }
 
 const root = {
-  headlines: async ({ base }: { base?: string | null }) => translateTitles(filterBase(await loadTape(), base)),
+  headlines: async ({ base }: { base?: string | null }) => filterBase(await loadTape(), base),
 };
 
-export async function queryHeadlines(base?: string): Promise<NewsItem[]> {
+/** Headlines (optionally about one asset), translated and mood-tagged for `lang`. Pass "en" plus `raw` for AI prompts. */
+export async function queryHeadlines(base?: string, lang: Lang | "raw" = "ru"): Promise<NewsItem[]> {
   const result = await graphql({
     schema,
     source: HEADLINES_QUERY,
@@ -250,7 +263,8 @@ export async function queryHeadlines(base?: string): Promise<NewsItem[]> {
     variableValues: { base: base ?? null },
   });
   const rows = (result.data as { headlines?: NewsItem[] } | undefined)?.headlines;
-  return Array.isArray(rows) ? rows : [];
+  const list = Array.isArray(rows) ? rows : [];
+  return lang === "raw" ? list : enrichHeadlines(list, lang);
 }
 
 export async function fetchHeadlineTape(): Promise<NewsItem[]> {

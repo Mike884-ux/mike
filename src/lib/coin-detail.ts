@@ -1,20 +1,17 @@
 import { createServerFn } from "@tanstack/react-start";
+import { z } from "zod";
 import { authMiddleware } from "@/lib/auth/middleware";
-import { computeTechnicals, technicalSignal } from "./indicators";
+import type { AiFailure } from "./ai.server";
+import type { CoinContext } from "./coin-context.server";
+import { factorTextRu } from "./indicators";
+import { asLang } from "./lang";
 import { assetOf, symbolOf } from "./markets";
 import { allow } from "./rate-limit";
-import { asInterval, type AiLevels, type Candle, type Signal } from "./types";
+import { asInterval, type AiLevels } from "./types";
 
-export type CoinChartData = {
-  price: number;
-  change24h: number;
-  rsi: number;
-  trend: "up" | "down" | "side";
-  signal: Signal;
-  confidence: number;
-  reason: string;
-  candles: Candle[];
-};
+export type CoinChartData = Omit<CoinContext, "symbol">;
+
+export type AiFailureReason = AiFailure | "too_often" | "no_data";
 
 /** Lets the detail view switch timeframe on its own, independent of the scanner's global interval. */
 export const getCoinChart = createServerFn({ method: "POST" })
@@ -24,39 +21,13 @@ export const getCoinChart = createServerFn({ method: "POST" })
     interval: asInterval(input.interval),
   }))
   .handler(async ({ data }): Promise<CoinChartData | null> => {
-    const asset = assetOf(data.base);
-    if (!data.base || !asset) return null;
-    const marketMod = await import("./market.server");
-    const symbol = symbolOf(asset);
-    let [candles, tickers] = await Promise.all([
-      marketMod.fetchKlines(symbol, data.interval, 60),
-      marketMod.fetchTickers([symbol]),
-    ]);
-    // A flaky network hop can starve a single fetch — worth one retry before
-    // giving up and showing the user a "couldn't load this timeframe" state.
-    if (candles.length < 20) {
-      await new Promise((resolve) => setTimeout(resolve, 400));
-      [candles, tickers] = await Promise.all([
-        marketMod.fetchKlines(symbol, data.interval, 60),
-        tickers.length ? Promise.resolve(tickers) : marketMod.fetchTickers([symbol]),
-      ]);
-    }
-    if (candles.length < 20) return null;
-    const ticker = tickers[0];
-    const price = ticker?.price || candles.at(-1)?.c || 0;
-    if (!price) return null;
-    const tech = computeTechnicals(candles);
-    const verdict = technicalSignal(tech);
-    return {
-      price,
-      change24h: ticker?.change24h ?? 0,
-      rsi: tech.rsi,
-      trend: tech.trend,
-      signal: verdict.signal,
-      confidence: verdict.confidence,
-      reason: verdict.reason,
-      candles: candles.slice(-60),
-    };
+    if (!data.base) return null;
+    const { loadCoinContext } = await import("./coin-context.server");
+    const ctx = await loadCoinContext(data.base, data.interval);
+    if (!ctx) return null;
+    const rest: Partial<CoinContext> = { ...ctx };
+    delete rest.symbol;
+    return rest as CoinChartData;
   });
 
 export type CoinExtras = {
@@ -89,137 +60,176 @@ export const getCoinExtras = createServerFn({ method: "POST" })
     };
   });
 
+const LevelsSchema = z.object({
+  direction: z.enum(["LONG", "SHORT", "WAIT"]),
+  confidence: z.number(),
+  verdict: z.string(),
+  summary: z.string(),
+  reasons: z.array(z.string()),
+  risks: z.array(z.string()),
+  bullCase: z.string(),
+  bearCase: z.string(),
+  invalidation: z.string(),
+  horizon: z.string(),
+  support: z.number().nullable(),
+  resistance: z.number().nullable(),
+  entry: z.number().nullable(),
+  stopLoss: z.number().nullable(),
+  target: z.number().nullable(),
+  target2: z.number().nullable(),
+});
+
+type RawLevels = z.infer<typeof LevelsSchema>;
+
+/**
+ * Keep only levels that make sense for the call: near the price, and stop /
+ * target on the correct sides of the entry. A long with the stop above entry
+ * is worse than no stop at all.
+ */
+export function sanitizeLevels(raw: RawLevels, price: number, technicalScore: number): AiLevels {
+  const near = (v: number | null | undefined) =>
+    typeof v === "number" && Number.isFinite(v) && v > price * 0.5 && v < price * 1.5 ? v : undefined;
+  let entry = near(raw.entry);
+  let stopLoss = near(raw.stopLoss);
+  let target = near(raw.target);
+  let target2 = near(raw.target2);
+  const direction = raw.direction;
+  if (direction === "LONG" && entry !== undefined) {
+    if (stopLoss !== undefined && stopLoss >= entry) stopLoss = undefined;
+    if (target !== undefined && target <= entry) target = undefined;
+    if (target2 !== undefined && (target === undefined || target2 <= target)) target2 = undefined;
+  } else if (direction === "SHORT" && entry !== undefined) {
+    if (stopLoss !== undefined && stopLoss <= entry) stopLoss = undefined;
+    if (target !== undefined && target >= entry) target = undefined;
+    if (target2 !== undefined && (target === undefined || target2 >= target)) target2 = undefined;
+  } else if (direction === "WAIT") {
+    // No trade, no trade plan — only the reference levels stay.
+    entry = stopLoss = target = target2 = undefined;
+  }
+  const riskReward =
+    entry !== undefined && stopLoss !== undefined && target !== undefined && entry !== stopLoss
+      ? Number((Math.abs(target - entry) / Math.abs(entry - stopLoss)).toFixed(2))
+      : undefined;
+
+  const technicalDirection = technicalScore >= 30 ? "LONG" : technicalScore <= -30 ? "SHORT" : "WAIT";
+  const agrees = direction === technicalDirection || (direction === "WAIT" && Math.abs(technicalScore) < 30);
+  let confidence = Math.max(0, Math.min(100, Math.round(raw.confidence)));
+  // Overconfidence guard: a call the indicators don't back is capped lower.
+  confidence = Math.min(confidence, agrees ? 90 : 65);
+
+  const clean = (list: string[], max: number) => list.map((s) => s.trim()).filter(Boolean).slice(0, max);
+  return {
+    direction,
+    confidence,
+    support: near(raw.support),
+    resistance: near(raw.resistance),
+    entry,
+    stopLoss,
+    target,
+    target2,
+    riskReward,
+    verdict: raw.verdict.trim(),
+    summary: raw.summary.trim(),
+    reasons: clean(raw.reasons, 5),
+    risks: clean(raw.risks, 4),
+    bullCase: raw.bullCase.trim(),
+    bearCase: raw.bearCase.trim(),
+    invalidation: raw.invalidation.trim(),
+    horizon: raw.horizon.trim(),
+    agreesWithIndicators: agrees,
+  };
+}
+
 const chartCache = new Map<string, { at: number; value: AiLevels }>();
 const CHART_TTL = 180_000;
 
-/**
- * Best-effort recovery for a response cut short mid-stream (seen on this network:
- * a local proxy sometimes truncates AI responses to a few dozen bytes). Pulls
- * whatever fields did arrive via regex instead of requiring valid JSON.
- */
-function salvageLevels(raw: string): AiLevels | null {
-  const str = (key: string) => raw.match(new RegExp(`"${key}"\\s*:\\s*"((?:[^"\\\\]|\\\\.)*)"`))?.[1];
-  const num = (key: string) => {
-    const m = raw.match(new RegExp(`"${key}"\\s*:\\s*(-?\\d+(?:\\.\\d+)?)`));
-    return m ? Number(m[1]) : undefined;
-  };
-  const reasons: string[] = [];
-  const reasonsBlock = raw.match(/"reasons"\s*:\s*\[([\s\S]*)/)?.[1];
-  if (reasonsBlock) {
-    const re = /"((?:[^"\\]|\\.)*)"/g;
-    let m: RegExpExecArray | null;
-    while ((m = re.exec(reasonsBlock)) && reasons.length < 3) reasons.push(m[1]);
-  }
-  const directionRaw = raw.match(/"direction"\s*:\s*"(LONG|SHORT|WAIT)"/)?.[1];
-  const verdict = str("verdict");
-  if (!directionRaw && !verdict) return null;
-  const confidence = num("confidence");
-  return {
-    direction: directionRaw === "LONG" || directionRaw === "SHORT" ? directionRaw : "WAIT",
-    confidence: confidence !== undefined ? Math.max(0, Math.min(100, Math.round(confidence))) : 50,
-    support: num("support"),
-    resistance: num("resistance"),
-    entry: num("entry"),
-    stopLoss: num("stopLoss"),
-    target: num("target"),
-    verdict: verdict?.trim() || "Связь оборвалась до того, как ИИ закончил ответ — вот что успело прийти.",
-    reasons,
-  };
+const ANALYST_SYSTEM = `You are a senior crypto and equity market analyst writing for a retail trader.
+You get fresh numbers computed from real candles: indicators, a points-based technical score, the trend on the next higher timeframe, a walk-forward backtest of the indicator rule on this very asset, buyer/seller volume share, the Fear & Greed index and recent headlines.
+
+How to think:
+- Weigh everything together. Say where the evidence agrees and where it conflicts.
+- Respect the higher timeframe: trading against it needs a strong reason.
+- Treat the backtest hit rate as evidence about how reliable indicator signals have been on this asset. Below ~50% or under 8 trades means low reliability — lower your confidence.
+- A relevant headline can outweigh neutral technicals; ignore headlines that are not about this asset.
+- Choose WAIT when the edge is unclear. WAIT is a good answer, not a failure.
+- Levels must be realistic and close to the current price, derived from ATR and recent structure: for LONG stopLoss < entry < target < target2; for SHORT the reverse. For WAIT set entry, stopLoss, target and target2 to null.
+- confidence is 0–100 and must reflect real uncertainty; above 80 only when almost everything agrees.
+- Every reason cites a concrete number or fact from the data. No generic filler.
+- This is analysis, not financial advice. Never promise outcomes.
+
+Fields: verdict = one decisive sentence; summary = 3–5 sentences of reasoning; reasons = 3–5 bullet points; risks = 2–4 bullet points; bullCase / bearCase = what would happen and at what price; invalidation = the price or event that proves the call wrong; horizon = how long the idea should take to play out.`;
+
+function describeContext(ctx: CoinContext, extras: { buyRatio: number | null; fng?: { value: number; label: string }; headlines: string[] }): string {
+  const t = ctx.technicals;
+  const lines = [
+    `Asset: ${ctx.base}.`,
+    `Price: ${ctx.price}. 24h change: ${ctx.change24h.toFixed(2)}%. 10-candle change: ${t.roc10}%.`,
+    `Trend (EMA 9/21/50): ${t.trend}. EMA9 ${t.ema9}, EMA21 ${t.ema21}, EMA50 ${t.ema50}.`,
+    `RSI ${t.rsi}. Stoch RSI %K ${t.stochK}. MACD ${t.macd} vs signal ${t.macdSignal}, histogram slope ${t.macdHistSlope}.`,
+    `ADX ${t.adx} (+DI ${t.plusDI}, −DI ${t.minusDI}). Bollinger %B ${t.bbPercentB}, band width ${t.bbWidth}%.`,
+    `ATR ${t.atr} (${t.atrPct}% of price). Volume vs 20-candle average: ${t.volumeRatio}x. OBV: ${t.obvTrend}.`,
+    `Technical score: ${ctx.score} (−100…+100) → ${ctx.signal}. Main factors: ${ctx.factors.slice(0, 6).map(factorTextRu).join("; ")}.`,
+    ctx.higherTf ? `Higher timeframe (${ctx.higherTf.interval}) trend: ${ctx.higherTf.trend}.` : "Higher timeframe: no data.",
+    ctx.backtest.trades
+      ? `Backtest of the indicator rule on this asset: ${ctx.backtest.wins}/${ctx.backtest.trades} signals worked (${ctx.backtest.hitRate}%), average move ${ctx.backtest.avgMovePct}%.`
+      : "Backtest: not enough signals in history.",
+    extras.buyRatio !== null ? `Taker buy share of recent volume: ${Math.round(extras.buyRatio * 100)}%.` : "",
+    extras.fng ? `Crypto Fear & Greed: ${extras.fng.value} (${extras.fng.label}).` : "",
+    `Recent swing high/low (last 50 candles): ${Math.max(...ctx.candles.slice(-50).map((c) => c.h))} / ${Math.min(...ctx.candles.slice(-50).map((c) => c.l))}.`,
+    extras.headlines.length ? `Headlines about this asset:\n${extras.headlines.map((h) => `- ${h}`).join("\n")}` : "No recent headlines about this asset.",
+  ];
+  return lines.filter(Boolean).join("\n");
 }
 
 export const analyzeChartAi = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .validator(
-    (input: {
-      base?: string;
-      interval?: string;
-      price?: number;
-      rsi?: number;
-      trend?: string;
-      signal?: string;
-      change24h?: number;
-      technicalReason?: string;
-    }) => ({
-      base: String(input.base ?? "").toUpperCase(),
-      interval: asInterval(input.interval),
-      price: Number(input.price ?? 0),
-      rsi: Number(input.rsi ?? 50),
-      trend: String(input.trend ?? "side"),
-      signal: String(input.signal ?? "WAIT"),
-      change24h: Number(input.change24h ?? 0),
-      technicalReason: String(input.technicalReason ?? "").slice(0, 300),
-    }),
-  )
-  .handler(async ({ data, context }): Promise<{ ok: true; levels: AiLevels } | { ok: false; error: string }> => {
-    if (!data.base || !data.price) return { ok: false, error: "Нет данных по монете." };
-    const key = `${data.base}:${data.interval}`;
+  .validator((input: { base?: string; interval?: string; lang?: string }) => ({
+    base: String(input.base ?? "").toUpperCase(),
+    interval: asInterval(input.interval),
+    lang: asLang(input.lang),
+  }))
+  .handler(async ({ data, context }): Promise<{ ok: true; levels: AiLevels } | { ok: false; reason: AiFailureReason }> => {
+    if (!data.base || !assetOf(data.base)) return { ok: false, reason: "no_data" };
+    const key = `${data.base}:${data.interval}:${data.lang}`;
     const hit = chartCache.get(key);
     if (hit && Date.now() - hit.at < CHART_TTL) return { ok: true, levels: hit.value };
-    if (!allow(context.userId, "chart-ai", 15, 180_000)) {
-      return { ok: false, error: "Слишком часто. Подожди немного." };
-    }
-    const { completeAi } = await import("./ai.server");
+    if (!allow(context.userId, "chart-ai", 10, 180_000)) return { ok: false, reason: "too_often" };
+
+    const { loadCoinContext } = await import("./coin-context.server");
+    const marketMod = await import("./market.server");
     const { queryHeadlines } = await import("./news.server");
-    const headlines = await queryHeadlines(data.base).catch(() => []);
-    const newsBlock = headlines.length
-      ? headlines
-          .slice(0, 5)
-          .map((h) => `- ${h.title}`)
-          .join("\n")
-      : "";
+    const ctx = await loadCoinContext(data.base, data.interval);
+    if (!ctx) return { ok: false, reason: "no_data" };
+    const [buyRatio, fng, headlines] = await Promise.all([
+      marketMod.fetchBuyPressure(ctx.symbol, data.interval).catch(() => null),
+      assetOf(data.base)?.kind === "crypto" ? marketMod.fetchFearGreed().catch(() => undefined) : Promise.resolve(undefined),
+      queryHeadlines(data.base, "raw").catch(() => []),
+    ]);
 
-    const system =
-      'Ты трейдер-аналитик. Учитывай и технические индикаторы, и свежие новости по активу (если они есть) — новости могут перевесить технику (например позитивная/негативная новость важнее нейтрального RSI). Верни СТРОГО один JSON-объект, без текста вокруг и без markdown, поля СТРОГО в этом порядке: {"direction":"LONG|SHORT|WAIT","confidence":0-100,"verdict":"1 предложение по-русски с конкретным выводом","reasons":["причина1","причина2","причина3"],"support":число,"resistance":число,"entry":число,"stopLoss":число,"target":число}. Каждая причина (2-3 шт, 5-12 слов) называет конкретную цифру или факт из присланных данных (RSI, % за 24ч, уровень цены, ИЛИ конкретную новость) — без общих фраз вроде "рынок нестабилен". Если среди новостей есть релевантная — хотя бы одна причина должна ссылаться на неё. Цены в support/resistance/entry/stopLoss/target — реалистичные, рядом с текущей ценой. Без инвестиционных советов.';
-    const user = [
-      `Актив: ${data.base}, таймфрейм ${data.interval}.`,
-      `Текущая цена: ${data.price}. Изменение за 24ч: ${data.change24h.toFixed(2)}%.`,
-      `RSI: ${data.rsi}. Тренд: ${data.trend}. Технический сигнал: ${data.signal}.`,
-      data.technicalReason ? `Технический разбор индикаторов: ${data.technicalReason}` : "",
-      newsBlock ? `Свежие новости по активу:\n${newsBlock}` : "Свежих новостей по активу не нашлось.",
-    ]
-      .filter(Boolean)
-      .join("\n");
-
-    let lastError = "ИИ сейчас недоступен. Попробуй через минуту.";
-    for (let attempt = 0; attempt < 3; attempt++) {
-      const raw = await completeAi({ system, user, json: true, maxTokens: 700, temperature: 0.3 });
-      if (!raw) continue;
-      try {
-        const jsonText = raw
-          .replace(/^```json\s*/i, "")
-          .replace(/^```\s*/i, "")
-          .replace(/```\s*$/i, "")
-          .trim();
-        const parsed = JSON.parse(jsonText) as Partial<AiLevels>;
-        const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : Number(v) || undefined);
-        const reasons = Array.isArray(parsed.reasons)
-          ? parsed.reasons.map((r) => String(r).trim()).filter(Boolean).slice(0, 3)
-          : [];
-        const confidence = num(parsed.confidence);
-        const levels: AiLevels = {
-          direction: parsed.direction === "LONG" || parsed.direction === "SHORT" ? parsed.direction : "WAIT",
-          confidence: confidence !== undefined ? Math.max(0, Math.min(100, Math.round(confidence))) : 50,
-          support: num(parsed.support),
-          resistance: num(parsed.resistance),
-          entry: num(parsed.entry),
-          stopLoss: num(parsed.stopLoss),
-          target: num(parsed.target),
-          verdict: String(parsed.verdict ?? "").trim() || "ИИ не дал пояснения.",
-          reasons,
-        };
-        chartCache.set(key, { at: Date.now(), value: levels });
-        return { ok: true, levels };
-      } catch (err) {
-        console.error("[chart-ai] parse failed:", err instanceof Error ? err.message : err, raw.slice(0, 300));
-        const salvaged = salvageLevels(raw);
-        if (salvaged) {
-          chartCache.set(key, { at: Date.now(), value: salvaged });
-          return { ok: true, levels: salvaged };
-        }
-        lastError = "Связь с ИИ оборвалась на полуслове. Попробуй ещё раз.";
-      }
-    }
-    return { ok: false, error: lastError };
+    const { completeJson } = await import("./ai.server");
+    const result = await completeJson(
+      {
+        system: ANALYST_SYSTEM,
+        messages: [
+          {
+            role: "user",
+            text: `Timeframe: ${data.interval}.\n${describeContext(ctx, {
+              buyRatio,
+              fng,
+              headlines: headlines.slice(0, 6).map((h) => h.title),
+            })}`,
+          },
+        ],
+        effort: "high",
+        maxTokens: 12000,
+        lang: data.lang,
+      },
+      LevelsSchema,
+    );
+    if (!result.ok) return { ok: false, reason: result.reason };
+    const levels = sanitizeLevels(result.value, ctx.price, ctx.score);
+    chartCache.set(key, { at: Date.now(), value: levels });
+    return { ok: true, levels };
   });
 
 const simpleCache = new Map<string, { at: number; value: string }>();
@@ -228,51 +238,45 @@ const SIMPLE_TTL = 180_000;
 /** Rephrases an already-generated AI verdict in plain, jargon-free language for a non-trader. */
 export const explainSimple = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .validator((input: { base?: string; interval?: string; direction?: string; verdict?: string; reasons?: string[] }) => ({
-    base: String(input.base ?? "").toUpperCase(),
-    interval: asInterval(input.interval),
-    direction: input.direction === "LONG" || input.direction === "SHORT" ? input.direction : "WAIT",
-    verdict: String(input.verdict ?? "").slice(0, 400),
-    reasons: Array.isArray(input.reasons) ? input.reasons.map((r) => String(r).slice(0, 200)).slice(0, 3) : [],
-  }))
-  .handler(async ({ data, context }): Promise<{ ok: true; text: string } | { ok: false; error: string }> => {
-    if (!data.base || !data.verdict) return { ok: false, error: "Сначала сделай анализ ИИ." };
-    const key = `${data.base}:${data.interval}:${data.verdict}`;
+  .validator(
+    (input: { base?: string; interval?: string; direction?: string; verdict?: string; reasons?: string[]; lang?: string }) => ({
+      base: String(input.base ?? "").toUpperCase(),
+      interval: asInterval(input.interval),
+      direction: input.direction === "LONG" || input.direction === "SHORT" ? input.direction : "WAIT",
+      verdict: String(input.verdict ?? "").slice(0, 600),
+      reasons: Array.isArray(input.reasons) ? input.reasons.map((r) => String(r).slice(0, 300)).slice(0, 5) : [],
+      lang: asLang(input.lang),
+    }),
+  )
+  .handler(async ({ data, context }): Promise<{ ok: true; text: string } | { ok: false; reason: AiFailureReason }> => {
+    if (!data.base || !data.verdict) return { ok: false, reason: "no_data" };
+    const key = `${data.base}:${data.interval}:${data.lang}:${data.verdict}`;
     const hit = simpleCache.get(key);
     if (hit && Date.now() - hit.at < SIMPLE_TTL) return { ok: true, text: hit.value };
-    if (!allow(context.userId, "chart-ai", 15, 180_000)) {
-      return { ok: false, error: "Слишком часто. Подожди немного." };
-    }
-    const { completeAi } = await import("./ai.server");
-    const directionRu = data.direction === "LONG" ? "покупать" : data.direction === "SHORT" ? "продавать" : "подождать";
-    const system =
-      "Объясни вывод трейдера-аналитика простыми словами человеку, который совсем не разбирается в бирже и первый раз видит такой график. Никаких терминов (RSI, MACD, EMA, support/resistance, лонг/шорт и т.п.) — переведи их смысл на бытовой язык. 2-4 коротких предложения по-русски, как будто объясняешь другу. Без гарантий и инвестиционных советов. Ответь только самим объяснением, без заголовков, без JSON, без markdown.";
-    const user = [
-      `Монета: ${data.base}.`,
-      `Вывод аналитика: ${data.verdict}`,
-      data.reasons.length ? `Причины вывода: ${data.reasons.join("; ")}` : "",
-      `Рекомендация: ${directionRu}.`,
-    ]
-      .filter(Boolean)
-      .join("\n");
-
-    // A local network proxy occasionally cuts AI responses short mid-sentence —
-    // one more try usually gets a complete answer.
-    const looksComplete = (t: string) => t.length >= 40 && /[.!?…]["')]?$/.test(t) && /^[А-ЯA-Z]/.test(t);
-    let best = "";
-    for (let attempt = 0; attempt < 3; attempt++) {
-      const raw = await completeAi({ system, user, json: false, maxTokens: 400, temperature: 0.4 });
-      if (!raw) continue;
-      const text = raw.trim();
-      if (text.length > best.length) best = text;
-      if (looksComplete(text)) {
-        simpleCache.set(key, { at: Date.now(), value: text });
-        return { ok: true, text };
-      }
-    }
-    if (best) {
-      simpleCache.set(key, { at: Date.now(), value: best });
-      return { ok: true, text: best };
-    }
-    return { ok: false, error: "ИИ сейчас не ответил. Попробуй ещё раз." };
+    if (!allow(context.userId, "chart-ai", 10, 180_000)) return { ok: false, reason: "too_often" };
+    const { completeText } = await import("./ai.server");
+    const direction = data.direction === "LONG" ? "buy" : data.direction === "SHORT" ? "sell" : "wait";
+    const result = await completeText({
+      system:
+        "Explain a market analyst's conclusion to someone who has never traded, as if to a friend. No jargon (RSI, MACD, EMA, support, long/short) — translate their meaning into everyday words. 3–5 short sentences. No guarantees, no investment advice. Plain text only: no headings, no markdown, no JSON.",
+      messages: [
+        {
+          role: "user",
+          text: [
+            `Asset: ${data.base}.`,
+            `Analyst conclusion: ${data.verdict}`,
+            data.reasons.length ? `Reasons: ${data.reasons.join("; ")}` : "",
+            `Suggested action: ${direction}.`,
+          ]
+            .filter(Boolean)
+            .join("\n"),
+        },
+      ],
+      effort: "low",
+      maxTokens: 2000,
+      lang: data.lang,
+    });
+    if (!result.ok) return { ok: false, reason: result.reason };
+    simpleCache.set(key, { at: Date.now(), value: result.text });
+    return { ok: true, text: result.text };
   });

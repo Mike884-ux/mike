@@ -14,10 +14,11 @@
     "preview": "node scripts/with-app-env.mjs vite preview",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
-    "test": "node --experimental-strip-types --test src/lib/portfolio-math.test.ts src/lib/indicators.test.ts",
+    "test": "node --experimental-strip-types --test src/lib/portfolio-math.test.ts src/lib/indicators.test.ts src/lib/account-store.test.ts",
     "format": "prettier --write ."
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.128.0",
     "@electric-sql/pglite": "^0.5.4",
     "@radix-ui/react-slot": "^1.2.4",
     "@tailwindcss/vite": "^4.3.0",

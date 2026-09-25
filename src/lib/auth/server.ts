@@ -82,9 +82,29 @@ export const auth = betterAuth({
   database,
   trustedOrigins,
   session: { cookieCache: { enabled: true, maxAge: 300 } },
-  emailAndPassword: { enabled: true },
+  emailAndPassword: { enabled: true, minPasswordLength: 8, maxPasswordLength: 128 },
+  /**
+   * Per-IP limits, counted in the database so every serverless instance shares
+   * them. Password guessing gets 5 tries a minute; account creation 5 an hour.
+   */
+  rateLimit: {
+    enabled: isProduction || process.env.AUTH_RATE_LIMIT === "on",
+    storage: "database",
+    window: 60,
+    max: 120,
+    customRules: {
+      "/sign-in/email": { window: 60, max: 5 },
+      "/sign-up/email": { window: 3600, max: 5 },
+      "/change-password": { window: 600, max: 5 },
+    },
+  },
   advanced: {
     defaultCookieAttributes: { sameSite: "lax", path: "/" },
+    useSecureCookies: isProduction,
+    ipAddress: {
+      // Vercel sets x-vercel-forwarded-for / x-real-ip itself; clients can't forge them there.
+      ipAddressHeaders: ["x-vercel-forwarded-for", "x-real-ip", "x-forwarded-for"],
+    },
   },
   plugins: [bearer(), tanstackStartCookies()],
 });

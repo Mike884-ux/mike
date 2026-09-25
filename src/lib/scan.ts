@@ -3,7 +3,7 @@ import { authMiddleware } from "@/lib/auth/middleware";
 import { computeTechnicals, technicalSignal } from "./indicators";
 import { assetOf, symbolOf, TAPE_CRYPTOS, TAPE_STOCKS } from "./markets";
 import type { AssetKind } from "./markets";
-import { asInterval, type Candle, type FearGreed, type Signal } from "./types";
+import { asInterval, type Candle, type FearGreed, type Signal, type SignalFactor } from "./types";
 
 export type CoinRow = {
   symbol: string;
@@ -15,7 +15,11 @@ export type CoinRow = {
   trend: "up" | "down" | "side";
   signal: Signal;
   confidence: number;
+  score: number;
+  factors: SignalFactor[];
   reason: string;
+  volumeRatio: number;
+  adx: number;
   candles: Candle[];
 };
 
@@ -57,7 +61,7 @@ export const scanMarket = createServerFn({ method: "POST" })
         break;
       }
       const batch = symbols.slice(i, i + BATCH);
-      const results = await Promise.all(batch.map((symbol) => marketMod.fetchKlines(symbol, data.interval, 60)));
+      const results = await Promise.all(batch.map((symbol) => marketMod.fetchKlines(symbol, data.interval, 100)));
       empty += results.filter((r) => r.length === 0).length;
       klineLists.push(...results);
       if (i + BATCH < symbols.length) await new Promise((resolve) => setTimeout(resolve, 150));
@@ -86,7 +90,11 @@ export const scanMarket = createServerFn({ method: "POST" })
         trend: tech.trend,
         signal: verdict.signal,
         confidence: verdict.confidence,
+        score: verdict.score,
+        factors: verdict.factors,
         reason: verdict.reason,
+        volumeRatio: tech.volumeRatio,
+        adx: tech.adx,
         candles: candles.slice(-60),
       });
     });
@@ -94,7 +102,7 @@ export const scanMarket = createServerFn({ method: "POST" })
     rows.sort((a, b) => {
       const rank = (s: Signal) => (s === "WAIT" ? 0 : 1);
       if (rank(a.signal) !== rank(b.signal)) return rank(b.signal) - rank(a.signal);
-      return b.confidence - a.confidence;
+      return Math.abs(b.score) - Math.abs(a.score);
     });
 
     // Don't cache a mostly-empty result — a bad network window shouldn't force

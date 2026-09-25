@@ -1,6 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
 import { authMiddleware } from "@/lib/auth/middleware";
 import { allow } from "./rate-limit";
+import type { AiFailureReason } from "./coin-detail";
+import { asLang } from "./lang";
 import { portfolioSeries } from "./portfolio-math";
 import type { Ticker } from "./types";
 
@@ -18,63 +20,64 @@ export const getPrices = createServerFn({ method: "POST" })
     return marketMod.fetchTickers(data.symbols);
   });
 
-export type WalletPositionInput = {
-  base: string;
-  qty: number;
-  entry: number;
-  price: number;
-  pnlPct: number;
-  daysHeld: number | null;
-};
+const WALLET_SYSTEM = `You review a retail investor's spot portfolio. You get each holding with its entry price, current price, P/L, days held, share of the portfolio and a fresh technical read (indicator score and daily trend).
+Think it through: concentration risk, positions deep in loss and for how long, holdings whose technicals turned against them, what is working.
+Answer with: a one-line overall verdict; then 3–6 short lines, one per notable holding or issue, each naming the asset and a concrete number; then one line on what to watch next.
+Plain text, simple dashes for lines, no markdown headings or bold. No guarantees; this is not financial advice.`;
 
+/** AI review of the signed-in user's saved wallet. Positions are read from the database, not the browser. */
 export const getWalletAdvice = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .validator((input: { positions?: WalletPositionInput[]; totalPnlPct?: number }) => ({
-    // Numbers are formatted into the AI prompt, so coerce everything: a string
-    // or null here used to crash `.toFixed` and could smuggle text into the prompt.
-    positions: (Array.isArray(input.positions) ? input.positions : []).slice(0, 30).map((p) => {
-      const n = (v: unknown) => (Number.isFinite(Number(v)) ? Number(v) : 0);
-      return {
-        base: String(p?.base ?? "").replace(/[^A-Za-z0-9=.^-]/g, "").slice(0, 12),
-        qty: n(p?.qty),
-        entry: n(p?.entry),
-        price: n(p?.price),
-        pnlPct: n(p?.pnlPct),
-        daysHeld: p?.daysHeld == null ? null : Math.max(0, Math.floor(n(p.daysHeld))),
-      };
-    }),
-    totalPnlPct: Number.isFinite(Number(input.totalPnlPct)) ? Number(input.totalPnlPct) : 0,
-  }))
-  .handler(async ({ data, context }): Promise<{ ok: true; text: string } | { ok: false; error: string }> => {
-    if (!data.positions.length) return { ok: false, error: "Кошелёк пуст." };
-    if (!allow(context.userId, "wallet-advice", 10, 180_000)) {
-      return { ok: false, error: "Слишком часто. Подожди немного." };
-    }
-    const { completeAi } = await import("./ai.server");
-    const lines = data.positions.map(
-      (p) =>
-        `${p.base}: кол-во ${p.qty}, вход ${p.entry}, сейчас ${p.price}, P/L ${p.pnlPct.toFixed(1)}%, в позиции ${
-          p.daysHeld ?? "?"
-        } дн.`,
-    );
-    const raw = await completeAi({
-      system:
-        "Ты аналитик, который кратко разбирает портфель пользователя. Русский язык, без markdown, 3-5 предложений. Отметь какие позиции в минусе и сколько дней уже, где риск выше, дай общий вывод по портфелю. Без гарантий и инвестиционных советов, это не финансовая рекомендация.",
-      user: [
-        `Портфель (${data.positions.length} позиций), общий P/L ${data.totalPnlPct.toFixed(1)}%:`,
-        ...lines,
-        "Разбери портфель: что в минусе и как долго, что делать осторожнее, общий вывод.",
-      ].join("\n"),
-      maxTokens: 700,
-      temperature: 0.3,
+  .validator((input: { lang?: string }) => ({ lang: asLang(input?.lang) }))
+  .handler(async ({ data, context }): Promise<{ ok: true; text: string } | { ok: false; reason: AiFailureReason | "empty" }> => {
+    const [{ getSql }, store] = await Promise.all([import("./db"), import("./account-store.server")]);
+    const { positions } = await store.loadAccount(await getSql(), context.userId);
+    if (!positions.length) return { ok: false, reason: "empty" };
+    if (!allow(context.userId, "wallet-advice", 6, 180_000)) return { ok: false, reason: "too_often" };
+
+    const marketMod = await import("./market.server");
+    const { loadCoinContext } = await import("./coin-context.server");
+    const tickers = await marketMod.fetchTickers(positions.map((p) => p.symbol));
+    const priceOf = new Map(tickers.map((t) => [t.symbol, t.price]));
+    const rows = positions.map((p) => {
+      const price = priceOf.get(p.symbol) || p.entry;
+      return { ...p, price, value: price * p.qty, pnlPct: ((price - p.entry) / p.entry) * 100 };
     });
-    if (!raw) return { ok: false, error: "ИИ сейчас не ответил. Попробуй ещё раз." };
-    const clean = raw
-      .replace(/\*\*(.+?)\*\*/g, "$1")
-      .replace(/__(.+?)__/g, "$1")
-      .replace(/^#{1,6}\s+/gm, "")
-      .trim();
-    return { ok: true, text: clean };
+    const total = rows.reduce((s, r) => s + r.value, 0);
+    const cost = rows.reduce((s, r) => s + r.entry * r.qty, 0);
+    // Technical read for the largest holdings only — keeps the request fast.
+    const top = [...rows].sort((a, b) => b.value - a.value).slice(0, 8);
+    const reads = new Map(
+      await Promise.all(
+        top.map(async (r) => [r.base, await loadCoinContext(r.base, "4h").catch(() => null)] as const),
+      ),
+    );
+    const lines = rows.map((r) => {
+      const ctx = reads.get(r.base);
+      const days = Math.floor((Date.now() - r.openedAt) / 86_400_000);
+      return [
+        `${r.base}: qty ${r.qty}, entry ${r.entry}, now ${r.price}, P/L ${r.pnlPct.toFixed(1)}%, held ${days} days,`,
+        `share ${total > 0 ? ((r.value / total) * 100).toFixed(1) : "?"}%`,
+        ctx ? `, 4h score ${ctx.score} (${ctx.signal}), daily trend ${ctx.higherTf?.trend ?? "?"}` : "",
+      ].join(" ");
+    });
+    const { completeText } = await import("./ai.server");
+    const result = await completeText({
+      system: WALLET_SYSTEM,
+      messages: [
+        {
+          role: "user",
+          text: [
+            `Portfolio: ${rows.length} holdings, value ${total.toFixed(2)} USD, total P/L ${cost > 0 ? (((total - cost) / cost) * 100).toFixed(1) : "0"}%.`,
+            ...lines,
+          ].join("\n"),
+        },
+      ],
+      effort: "medium",
+      maxTokens: 8000,
+      lang: data.lang,
+    });
+    return result.ok ? { ok: true, text: result.text } : { ok: false, reason: result.reason };
   });
 
 export const PORTFOLIO_PERIODS = [

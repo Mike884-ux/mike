@@ -11,10 +11,13 @@ export const Route = createRootRoute({
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: APP_NAME },
-      { name: "theme-color", content: "#09090b" },
-      { name: "description", content: "Скан рынка по всем монетам сразу — график, сигнал, таймфрейм." },
+      { name: "theme-color", content: "#060912" },
+      { name: "description", content: "Скан рынка по 100 монетам и акциям: сигнал по 8 индикаторам, проверка на истории и разбор ИИ." },
     ],
-    links: [{ rel: "stylesheet", href: appCss }],
+    links: [
+      { rel: "stylesheet", href: appCss },
+      { rel: "icon", href: "/favicon.svg", type: "image/svg+xml" },
+    ],
   }),
   component: RootDocument,
 });

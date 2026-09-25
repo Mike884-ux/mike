@@ -1,24 +1,24 @@
 import { useEffect, useRef, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
-import { Loader2, Send, Sparkles } from "lucide-react";
+import { Loader2, RotateCcw, Send, Sparkles } from "lucide-react";
 import { chatWithAi, type ChatMessage } from "@/lib/chat";
+import { useT, type MessageKey } from "@/lib/i18n";
+import { useSettings } from "@/lib/settings-store";
 import { stripMd } from "@/lib/utils";
+import { aiErrorKey } from "@/components/ui-bits";
 
-const SUGGESTIONS = [
-  "Какая стратегия лучше при высокой волатильности?",
-  "Стоит ли усредняться, если позиция в минусе?",
-  "Как выставлять стоп-лосс, если торгую с плечом?",
-  "Объясни, что такое доминация биткоина и зачем на неё смотреть",
-];
+const SUGGESTIONS: MessageKey[] = ["chat.s1", "chat.s2", "chat.s3", "chat.s4"];
 
 export function Chat() {
+  const t = useT();
+  const lang = useSettings((s) => s.lang);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<MessageKey | null>(null);
   const bottomRef = useRef<HTMLDivElement | null>(null);
 
   const mutation = useMutation({
-    mutationFn: (next: ChatMessage[]) => chatWithAi({ data: { messages: next } }),
+    mutationFn: (next: ChatMessage[]) => chatWithAi({ data: { messages: next, lang } }),
   });
 
   useEffect(() => {
@@ -35,34 +35,47 @@ export function Chat() {
     mutation.mutate(next, {
       onSuccess: (res) => {
         if (res.ok) setMessages((m) => [...m, { role: "assistant", text: res.text }]);
-        else setError(res.error);
+        else setError(aiErrorKey(res.reason));
       },
-      onError: () => setError("ИИ сейчас не ответил. Попробуй ещё раз."),
+      onError: () => setError("aiErr.unavailable"),
     });
   }
 
   return (
     <div className="mx-auto flex h-full w-full max-w-3xl flex-col">
-      <div>
-        <h1 className="font-display text-2xl font-semibold tracking-tight text-fg">Чат с ИИ</h1>
-        <p className="mt-1 text-sm text-muted">
-          Обсуди стратегию, риски или рынок в свободной форме — это ассистент, а не гарантия результата.
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="font-display text-2xl font-bold text-fg sm:text-3xl">{t("chat.title")}</h1>
+          <p className="mt-1 text-sm text-muted">{t("chat.subtitle")}</p>
+        </div>
+        {messages.length ? (
+          <button
+            type="button"
+            onClick={() => {
+              setMessages([]);
+              setError(null);
+            }}
+            className="flex h-9 items-center gap-1.5 rounded-lg bg-surface-2 px-3 text-xs text-muted hover:text-fg"
+          >
+            <RotateCcw className="size-3.5" />
+            {t("chat.clear")}
+          </button>
+        ) : null}
       </div>
 
-      <div className="mt-4 flex-1 overflow-y-auto rounded-xl bg-surface p-4 shadow-[var(--shadow-border)]">
+      <div className="mt-4 flex-1 overflow-y-auto rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)]">
         {messages.length === 0 ? (
           <div className="flex flex-col gap-2">
-            <p className="text-sm text-muted">Например:</p>
-            {SUGGESTIONS.map((s) => (
+            <p className="text-sm text-muted">{t("chat.examples")}</p>
+            {SUGGESTIONS.map((key) => (
               <button
-                key={s}
+                key={key}
                 type="button"
-                onClick={() => submit(s)}
-                className="flex items-center gap-2 rounded-lg bg-surface-2 px-3 py-2 text-left text-xs text-muted outline-none transition-colors duration-[var(--motion-quick)] ease-[var(--ease-out)] hover:text-fg focus-visible:ring-2 focus-visible:ring-primary/30"
+                onClick={() => submit(t(key))}
+                className="flex items-center gap-2 rounded-xl bg-surface-2 px-3 py-2.5 text-left text-sm text-muted hover:text-fg focus-visible:ring-2 focus-visible:ring-primary/40"
               >
-                <Sparkles className="size-3 shrink-0" />
-                {s}
+                <Sparkles className="size-3.5 shrink-0 text-primary" />
+                {t(key)}
               </button>
             ))}
           </div>
@@ -71,7 +84,7 @@ export function Chat() {
             {messages.map((m, i) => (
               <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
                 <div
-                  className={`max-w-[85%] rounded-lg px-3 py-2 text-sm leading-relaxed whitespace-pre-wrap ${
+                  className={`max-w-[88%] rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed whitespace-pre-wrap ${
                     m.role === "user" ? "bg-primary text-primary-fg" : "bg-surface-2 text-fg"
                   }`}
                 >
@@ -79,36 +92,40 @@ export function Chat() {
                 </div>
               </div>
             ))}
-            {mutation.isPending ? <p className="shimmer-text text-xs">ИИ печатает…</p> : null}
-            {error ? <p className="text-xs text-short">{error}</p> : null}
+            {mutation.isPending ? <p className="shimmer-text text-xs">{t("chat.typing")}</p> : null}
+            {error ? (
+              <p role="alert" className="rounded-lg bg-short/10 px-3 py-2 text-xs text-short">
+                {t(error)}
+              </p>
+            ) : null}
           </div>
         )}
         <div ref={bottomRef} />
       </div>
 
-      <div className="mt-3 flex items-center gap-2 pb-1">
+      <form
+        className="mt-3 flex items-center gap-2 pb-1"
+        onSubmit={(event) => {
+          event.preventDefault();
+          submit(input);
+        }}
+      >
         <input
           value={input}
           onChange={(event) => setInput(event.target.value)}
-          onKeyDown={(event) => {
-            if (event.key === "Enter" && !event.shiftKey) {
-              event.preventDefault();
-              submit(input);
-            }
-          }}
-          placeholder="Спроси про стратегию, риск, рынок…"
-          className="h-11 flex-1 rounded-full bg-surface-2 px-4 text-sm text-fg outline-none placeholder:text-faint focus-visible:ring-2 focus-visible:ring-primary/30"
+          placeholder={t("chat.placeholder")}
+          aria-label={t("chat.placeholder")}
+          className="h-12 flex-1 rounded-full bg-surface-2 px-5 text-sm text-fg outline-none placeholder:text-faint focus-visible:ring-2 focus-visible:ring-primary/40"
         />
         <button
-          type="button"
-          onClick={() => submit(input)}
+          type="submit"
           disabled={!input.trim() || mutation.isPending}
-          aria-label="Отправить"
-          className="flex size-11 shrink-0 items-center justify-center rounded-full bg-primary text-primary-fg outline-none disabled:opacity-50"
+          aria-label={t("chat.send")}
+          className="bg-brand flex size-12 shrink-0 items-center justify-center rounded-full text-white shadow-[var(--shadow-glow)] disabled:opacity-50"
         >
           {mutation.isPending ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
         </button>
-      </div>
+      </form>
     </div>
   );
 }
