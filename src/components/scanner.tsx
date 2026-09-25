@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   ArrowDown,
@@ -72,19 +72,41 @@ const TABS = [
 ] as const;
 type TabId = (typeof TABS)[number]["id"];
 
-function CoinRowView({
-  row,
-  rank,
-  favorite,
-  onOpenDetail,
-  onToggleFavorite,
-}: {
+type RowProps = {
   row: CoinRow;
   rank: number;
   favorite: boolean;
-  onOpenDetail: () => void;
-  onToggleFavorite: () => void;
-}) {
+  onOpen: (row: CoinRow) => void;
+  onToggleFavorite: (base: string) => void;
+};
+
+/**
+ * Re-render a row only when something visible in it changed. Every rescan
+ * delivers fresh row objects; without this all 100 rows (with their charts)
+ * re-rendered every 30 seconds, which was a visible hitch on phones.
+ */
+const CoinRowView = memo(CoinRowViewInner, (a, b) => {
+  const x = a.row;
+  const y = b.row;
+  return (
+    a.rank === b.rank &&
+    a.favorite === b.favorite &&
+    a.onOpen === b.onOpen &&
+    a.onToggleFavorite === b.onToggleFavorite &&
+    x.price === y.price &&
+    x.change24h === y.change24h &&
+    x.rsi === y.rsi &&
+    x.trend === y.trend &&
+    x.signal === y.signal &&
+    x.score === y.score &&
+    x.volumeRatio === y.volumeRatio &&
+    x.spark.at(-1) === y.spark.at(-1) &&
+    x.spark[0] === y.spark[0]
+  );
+});
+
+function CoinRowViewInner({ row, rank, favorite, onOpen, onToggleFavorite }: RowProps) {
+  const onOpenDetail = () => onOpen(row);
   const t = useT();
   const TrendIcon = row.trend === "up" ? ArrowUp : row.trend === "down" ? ArrowDown : Minus;
   const prevPriceRef = useRef(row.price);
@@ -116,7 +138,7 @@ function CoinRowView({
           type="button"
           onClick={(event) => {
             event.stopPropagation();
-            onToggleFavorite();
+            onToggleFavorite(row.base);
           }}
           onKeyDown={(event) => event.stopPropagation()}
           aria-pressed={favorite}
@@ -152,7 +174,7 @@ function CoinRowView({
         </span>
       </td>
       <td className="hidden px-3 py-2.5 md:table-cell">
-        <Spark candles={row.candles} className="h-8 w-20" />
+        <Spark values={row.spark} className="h-8 w-20" />
       </td>
       <td className="hidden px-3 py-2.5 text-right lg:table-cell">
         <span className={`font-mono text-xs tabular-nums ${row.volumeRatio >= 1.8 ? "font-semibold text-accent" : "text-muted"}`}>
@@ -241,8 +263,8 @@ function ScanTab({ favorites, onToggleFavorite }: { favorites: string[]; onToggl
   const scan = useQuery({
     queryKey: ["scan", interval],
     queryFn: () => scanMarket({ data: { interval } }),
-    staleTime: 15_000,
-    refetchInterval: 20_000,
+    staleTime: 25_000,
+    refetchInterval: 30_000,
     refetchOnWindowFocus: false,
   });
 
@@ -285,6 +307,7 @@ function ScanTab({ favorites, onToggleFavorite }: { favorites: string[]; onToggl
   // the 20-second rescans instead of freezing at the moment it was clicked.
   const selectedRow = selected ? (scan.data?.find((row) => row.base === selected.base) ?? selected) : null;
   const closeDetail = useCallback(() => setSelected(null), []);
+  const openRow = useCallback((row: CoinRow) => setSelected(row), []);
 
   const longCount = rows.filter((r) => r.signal === "LONG").length;
   const shortCount = rows.filter((r) => r.signal === "SHORT").length;
@@ -481,8 +504,8 @@ function ScanTab({ favorites, onToggleFavorite }: { favorites: string[]; onToggl
                   row={row}
                   rank={i + 1}
                   favorite={favorites.includes(row.base)}
-                  onOpenDetail={() => setSelected(row)}
-                  onToggleFavorite={() => onToggleFavorite(row.base)}
+                  onOpen={openRow}
+                  onToggleFavorite={onToggleFavorite}
                 />
               ))}
             </tbody>
@@ -512,10 +535,18 @@ export function Scanner() {
     document.documentElement.lang = lang;
   }, [lang]);
 
-  const toggleFavorite = (base: string) => {
-    const next = favorites.includes(base) ? favorites.filter((b) => b !== base) : [...favorites, base];
-    saveSettings.mutate({ favorites: next });
-  };
+  // Stable identity so memoized table rows don't re-render on every parent render.
+  const favoritesRef = useRef(favorites);
+  favoritesRef.current = favorites;
+  const saveMutate = saveSettings.mutate;
+  const toggleFavorite = useCallback(
+    (base: string) => {
+      const current = favoritesRef.current;
+      const next = current.includes(base) ? current.filter((b) => b !== base) : [...current, base];
+      saveMutate({ favorites: next });
+    },
+    [saveMutate],
+  );
 
   return (
     <div className="flex h-dvh min-h-0 flex-col">

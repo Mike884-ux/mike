@@ -6,7 +6,7 @@
 import { betterAuth } from "better-auth";
 import { bearer } from "better-auth/plugins";
 import { tanstackStartCookies } from "better-auth/tanstack-start";
-import { randomBytes } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import { Pool } from "pg";
 import { ensureDbReady, getPglite } from "../db";
 import { pgliteDialect } from "./pglite-dialect";
@@ -15,16 +15,25 @@ void ensureDbReady();
 
 const isProduction = process.env.NODE_ENV === "production";
 
-/** Secret must survive HMR reloads so PGLite-backed sessions don't invalidate mid-dev. */
+/**
+ * The session-signing secret must be identical on every server instance.
+ * A random per-process fallback meant each Vercel instance signed sessions
+ * differently, so users were thrown back to the login screen whenever a
+ * request landed on another instance — it looked like the site "reloading
+ * itself". Without BETTER_AUTH_SECRET we now derive a stable secret from
+ * another secret the deployment already has; random is the last resort.
+ */
 const globalAuthRef = globalThis as typeof globalThis & { __scannerAuthSecret__?: string };
 function authSecret(): string {
   const configured = process.env.BETTER_AUTH_SECRET?.trim();
-  if (!configured && isProduction) {
-    // A random per-process secret signs everyone out on every cold start (and
-    // each serverless instance gets a different one). Say so loudly.
-    console.error("[auth] BETTER_AUTH_SECRET is not set — sessions will not survive a restart. Set it in the hosting env.");
+  if (configured) return configured;
+  const seed = process.env.ANTHROPIC_API_KEY?.trim() || process.env.DATABASE_URL?.trim() || process.env.GEMINI_API_KEY?.trim();
+  if (seed) {
+    if (isProduction) console.error("[auth] BETTER_AUTH_SECRET is not set — using a secret derived from another key. Set BETTER_AUTH_SECRET.");
+    return createHash("sha256").update(`scan-auth-secret:v1:${seed}`).digest("hex");
   }
-  globalAuthRef.__scannerAuthSecret__ ??= configured || randomBytes(32).toString("hex");
+  if (isProduction) console.error("[auth] BETTER_AUTH_SECRET is not set — sessions will not survive a restart. Set it in the hosting env.");
+  globalAuthRef.__scannerAuthSecret__ ??= randomBytes(32).toString("hex");
   return globalAuthRef.__scannerAuthSecret__;
 }
 

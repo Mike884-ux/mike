@@ -59,22 +59,27 @@
   body {
     font-family: var(--font-sans);
     font-feature-settings: "tnum" 1, "cv11" 1;
-    background:
-      radial-gradient(900px 560px at 8% -12%, rgba(124, 131, 255, 0.34), transparent 60%),
-      radial-gradient(900px 560px at 95% -5%, rgba(46, 230, 182, 0.18), transparent 60%),
-      radial-gradient(1000px 700px at 50% 120%, rgba(124, 131, 255, 0.16), transparent 60%),
-      var(--color-bg);
-    background-attachment: fixed;
+    background: var(--color-bg);
     min-height: 100vh;
   }
 
-  /* Glassmorphism: every surface card/panel gets a frosted blur of whatever
-     sits behind it, so the colored gradients above show through softly. */
-  .bg-surface,
-  .bg-surface-2 {
-    backdrop-filter: blur(24px) saturate(150%);
-    -webkit-backdrop-filter: blur(24px) saturate(150%);
+  /* The glow lives on its own fixed layer. background-attachment: fixed on
+     body forced a full repaint on every scroll frame. */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background:
+      radial-gradient(900px 560px at 8% -12%, rgba(124, 131, 255, 0.34), transparent 60%),
+      radial-gradient(900px 560px at 95% -5%, rgba(46, 230, 182, 0.18), transparent 60%),
+      radial-gradient(1000px 700px at 50% 120%, rgba(124, 131, 255, 0.16), transparent 60%);
   }
+
+  /* No backdrop blur on every card: hundreds of blurred cells (table badges,
+     score bars) made scrolling drop to ~20 fps on ordinary laptops and phones.
+     Only the header, menus and dialogs blur, via explicit backdrop-blur classes. */
 
   button:not(:disabled),
   [role="button"]:not(:disabled) {
@@ -131,7 +136,7 @@
     radial-gradient(40% 50% at 20% 30%, rgba(124, 131, 255, 0.45), transparent 70%),
     radial-gradient(35% 45% at 80% 20%, rgba(46, 230, 182, 0.3), transparent 70%),
     radial-gradient(45% 55% at 60% 90%, rgba(91, 140, 255, 0.35), transparent 70%);
-  filter: blur(30px);
+  will-change: transform;
   animation: aurora 18s ease-in-out infinite alternate;
 }
 

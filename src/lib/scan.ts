@@ -3,7 +3,7 @@ import { authMiddleware } from "@/lib/auth/middleware";
 import { computeTechnicals, technicalSignal } from "./indicators";
 import { assetOf, symbolOf, TAPE_CRYPTOS, TAPE_STOCKS } from "./markets";
 import type { AssetKind } from "./markets";
-import { asInterval, type Candle, type FearGreed, type Signal, type SignalFactor } from "./types";
+import { asInterval, type Candle, type FearGreed, type Signal } from "./types";
 
 export type CoinRow = {
   symbol: string;
@@ -16,11 +16,14 @@ export type CoinRow = {
   signal: Signal;
   confidence: number;
   score: number;
-  factors: SignalFactor[];
-  reason: string;
   volumeRatio: number;
   adx: number;
-  candles: Candle[];
+  /**
+   * Last 40 closes for the row's mini chart. The rows used to carry 60 full
+   * candles each plus signal factors: ~1.5 MB every refresh, which made the
+   * page stutter on phones and slow connections. This is ~30× smaller.
+   */
+  spark: number[];
 };
 
 const UNIVERSE = [...TAPE_CRYPTOS, ...TAPE_STOCKS];
@@ -91,11 +94,9 @@ export const scanMarket = createServerFn({ method: "POST" })
         signal: verdict.signal,
         confidence: verdict.confidence,
         score: verdict.score,
-        factors: verdict.factors,
-        reason: verdict.reason,
         volumeRatio: tech.volumeRatio,
         adx: tech.adx,
-        candles: candles.slice(-60),
+        spark: candles.slice(-40).map((c) => Number(c.c.toPrecision(6))),
       });
     });
 
