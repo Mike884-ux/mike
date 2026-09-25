@@ -3,7 +3,7 @@ import type { Candle, FearGreed, Ticker } from "./types";
 
 /** Stock/metal assets are quoted via Yahoo Finance instead of Binance. */
 function stockAssetOf(symbol: string) {
-  const asset = assetOf(symbol.replace(/USDT|USD|RUB$/, "")) ?? assetOf(symbol);
+  const asset = assetOf(symbol.replace(/(USDT|USD|RUB)$/, "")) ?? assetOf(symbol);
   return asset?.yahoo && !asset.binance ? asset : undefined;
 }
 

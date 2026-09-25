@@ -3,7 +3,7 @@ import { authMiddleware } from "@/lib/auth/middleware";
 import { computeTechnicals, technicalSignal } from "./indicators";
 import { assetOf, symbolOf, TAPE_CRYPTOS, TAPE_STOCKS } from "./markets";
 import type { AssetKind } from "./markets";
-import type { Candle, FearGreed, IntervalId, Signal } from "./types";
+import { asInterval, type Candle, type FearGreed, type Signal } from "./types";
 
 export type CoinRow = {
   symbol: string;
@@ -27,7 +27,7 @@ const SCAN_TTL = 20_000;
 export const scanMarket = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .validator((input: { interval?: string }) => ({
-    interval: (input.interval ?? "1h") as IntervalId,
+    interval: asInterval(input.interval),
   }))
   .handler(async ({ data }): Promise<CoinRow[]> => {
     const cacheKey = data.interval;

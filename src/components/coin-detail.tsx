@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Loader2, MessageCircle, Sparkles, X } from "lucide-react";
 import { analyzeChartAi, explainSimple, getCoinChart, getCoinExtras } from "@/lib/coin-detail";
@@ -58,7 +58,22 @@ export function CoinDetail({
   // getCoinChart resolves to null (not a thrown error) when there isn't enough
   // fresh candle data for this timeframe — falling back to `row` silently would
   // show the PREVIOUS interval's stale signal/RSI/candles as if they were current.
-  const chartFailed = chart.data === null;
+  // A thrown request (network down) leaves `data` undefined too — without this
+  // the modal kept showing the scanner's candles for a different timeframe.
+  const chartFailed = chart.data === null || (chart.isError && !chart.data);
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [onClose]);
 
   const extras = useQuery({
     queryKey: ["coin-extras", row.base, chartInterval],
@@ -81,7 +96,9 @@ export function CoinDetail({
           technicalReason: live.reason,
         },
       }),
-    enabled: aiOpen,
+    // Wait for this timeframe's own numbers: firing while the new chart was still
+    // loading sent the previous timeframe's RSI and trend to the AI.
+    enabled: aiOpen && Boolean(chart.data) && !chartFailed,
     staleTime: 180_000,
     retry: 0,
   });
@@ -117,6 +134,9 @@ export function CoinDetail({
     <div
       className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/60 p-4 backdrop-blur-sm sm:items-center"
       onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-label={`${row.base}: график и анализ`}
     >
       <div
         className="w-full max-w-3xl rounded-xl bg-surface shadow-[var(--shadow-border)]"

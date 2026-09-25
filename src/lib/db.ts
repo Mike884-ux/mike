@@ -64,7 +64,14 @@ async function createPgliteSql(): Promise<Sql> {
     const { join } = await import("node:path");
     // Cross-platform: relative to this project's root (cwd when the server
     // starts), not a hardcoded sandbox path — that broke on Windows.
-    const dataDir = join(process.cwd(), ".data", "pglite");
+    // Serverless hosts (Vercel) mount the project read-only; only /tmp is
+    // writable there, and it is wiped between cold starts. That keeps the app
+    // booting, but accounts will not persist — set DATABASE_URL for real use.
+    const serverless = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
+    const dataDir = process.env.PGLITE_DIR?.trim() || (serverless ? "/tmp/pglite" : join(process.cwd(), ".data", "pglite"));
+    if (serverless && !process.env.PGLITE_DIR) {
+      console.error("[db] DATABASE_URL is not set — using a temporary database in /tmp. Accounts will be lost on restart.");
+    }
     mkdirSync(dataDir, { recursive: true });
     try {
       rmSync(join(dataDir, "postmaster.pid"), { force: true });

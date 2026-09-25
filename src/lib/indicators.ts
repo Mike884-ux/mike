@@ -62,6 +62,9 @@ function rsi(values: number[], period = 14): number {
     gain = (gain * (period - 1) + Math.max(diff, 0)) / period;
     loss = (loss * (period - 1) + Math.max(-diff, 0)) / period;
   }
+  // A perfectly flat series has no gains AND no losses: that's neutral (50),
+  // not "overbought" (100), which used to flag flat markets as a sell-risk.
+  if (gain === 0 && loss === 0) return 50;
   if (loss === 0) return 100;
   const rs = gain / loss;
   return 100 - 100 / (1 + rs);

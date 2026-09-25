@@ -3,7 +3,7 @@ import { authMiddleware } from "@/lib/auth/middleware";
 import { computeTechnicals, technicalSignal } from "./indicators";
 import { assetOf, symbolOf } from "./markets";
 import { allow } from "./rate-limit";
-import type { AiLevels, Candle, Signal } from "./types";
+import { asInterval, type AiLevels, type Candle, type Signal } from "./types";
 
 export type CoinChartData = {
   price: number;
@@ -21,7 +21,7 @@ export const getCoinChart = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .validator((input: { base?: string; interval?: string }) => ({
     base: String(input.base ?? "").toUpperCase(),
-    interval: String(input.interval ?? "1h"),
+    interval: asInterval(input.interval),
   }))
   .handler(async ({ data }): Promise<CoinChartData | null> => {
     const asset = assetOf(data.base);
@@ -70,7 +70,7 @@ export const getCoinExtras = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .validator((input: { base?: string; interval?: string }) => ({
     base: String(input.base ?? "").toUpperCase(),
-    interval: String(input.interval ?? "1h"),
+    interval: asInterval(input.interval),
   }))
   .handler(async ({ data }): Promise<CoinExtras> => {
     const asset = assetOf(data.base);
@@ -141,7 +141,7 @@ export const analyzeChartAi = createServerFn({ method: "POST" })
       technicalReason?: string;
     }) => ({
       base: String(input.base ?? "").toUpperCase(),
-      interval: String(input.interval ?? "1h"),
+      interval: asInterval(input.interval),
       price: Number(input.price ?? 0),
       rsi: Number(input.rsi ?? 50),
       trend: String(input.trend ?? "side"),
@@ -230,7 +230,7 @@ export const explainSimple = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .validator((input: { base?: string; interval?: string; direction?: string; verdict?: string; reasons?: string[] }) => ({
     base: String(input.base ?? "").toUpperCase(),
-    interval: String(input.interval ?? "1h"),
+    interval: asInterval(input.interval),
     direction: input.direction === "LONG" || input.direction === "SHORT" ? input.direction : "WAIT",
     verdict: String(input.verdict ?? "").slice(0, 400),
     reasons: Array.isArray(input.reasons) ? input.reasons.map((r) => String(r).slice(0, 200)).slice(0, 3) : [],

@@ -1,9 +1,10 @@
 import { useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { Loader2, Sparkles, Trash2, Wallet as WalletIcon } from "lucide-react";
 import { getPrices, getWalletAdvice } from "@/lib/wallet";
-import { useWallet } from "@/lib/wallet-store";
-import { TAPE_CRYPTOS } from "@/lib/markets";
+import { MAX_POSITIONS, useWallet } from "@/lib/wallet-store";
+import { assetOf, symbolOf, TAPE_CRYPTOS, TAPE_STOCKS } from "@/lib/markets";
+import { parseAmount } from "@/lib/portfolio-math";
 import { formatPct, formatPrice, formatUsd, stripMd } from "@/lib/utils";
 import { WalletChart } from "@/components/wallet-chart";
 
@@ -14,6 +15,7 @@ export function Wallet() {
   const [base, setBase] = useState<string>(TAPE_CRYPTOS[0]);
   const [qty, setQty] = useState("");
   const [entry, setEntry] = useState("");
+  const [formNote, setFormNote] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
 
   const symbols = useMemo(() => positions.map((p) => p.symbol), [positions]);
   const prices = useQuery({
@@ -31,13 +33,15 @@ export function Wallet() {
 
   const rows = positions.map((pos) => {
     const live = priceBySymbol.get(pos.symbol);
-    const price = live?.price ?? pos.entry;
+    // Without a live quote we value the row at its entry, and say so in the table.
+    const priced = Boolean(live?.price);
+    const price = live?.price || pos.entry;
     const value = price * pos.qty;
     const cost = pos.entry * pos.qty;
     const pnl = value - cost;
     const pnlPct = cost > 0 ? (pnl / cost) * 100 : 0;
     const daysHeld = pos.openedAt ? Math.floor((Date.now() - pos.openedAt) / DAY_MS) : null;
-    return { ...pos, price, value, cost, pnl, pnlPct, daysHeld, change24h: live?.change24h };
+    return { ...pos, price, priced, value, cost, pnl, pnlPct, daysHeld, change24h: live?.change24h };
   });
 
   const totalValue = rows.reduce((s, r) => s + r.value, 0);
@@ -45,27 +49,44 @@ export function Wallet() {
   const totalPnl = totalValue - totalCost;
   const totalPnlPct = totalCost > 0 ? (totalPnl / totalCost) * 100 : 0;
 
-  const [adviceOpen, setAdviceOpen] = useState(false);
-  const advice = useQuery({
-    queryKey: ["wallet-advice", rows.map((r) => `${r.id}:${r.pnlPct.toFixed(1)}`).join(",")],
-    queryFn: () =>
+  // A mutation, not a query: the old query key included live P/L, so every
+  // 30-second price tick fired a fresh AI request and burned the rate limit.
+  const advice = useMutation({
+    mutationFn: () =>
       getWalletAdvice({
         data: {
           positions: rows.map((r) => ({ base: r.base, qty: r.qty, entry: r.entry, price: r.price, pnlPct: r.pnlPct, daysHeld: r.daysHeld })),
           totalPnlPct,
         },
       }),
-    enabled: adviceOpen && rows.length > 0,
-    staleTime: 180_000,
-    retry: 0,
   });
 
   function submit(event: React.FormEvent) {
     event.preventDefault();
-    const q = Number(qty);
-    const e = Number(entry);
-    if (!base || !(q > 0) || !(e > 0)) return;
-    addPosition({ base, symbol: `${base}USDT`, qty: q, entry: e });
+    const q = parseAmount(qty);
+    const e = parseAmount(entry);
+    const asset = assetOf(base);
+    if (!asset) {
+      setFormNote({ tone: "error", text: "Выбери монету из списка." });
+      return;
+    }
+    if (!(q > 0)) {
+      setFormNote({ tone: "error", text: "Количество должно быть числом больше нуля, например 0,5." });
+      return;
+    }
+    if (!(e > 0)) {
+      setFormNote({ tone: "error", text: "Цена входа должна быть числом больше нуля, например 64000." });
+      return;
+    }
+    const result = addPosition({ base: asset.base, symbol: symbolOf(asset), qty: q, entry: e });
+    if (result === "full") {
+      setFormNote({ tone: "error", text: `В кошельке уже ${MAX_POSITIONS} позиций. Убери лишнюю, чтобы добавить новую.` });
+      return;
+    }
+    setFormNote({
+      tone: "ok",
+      text: result === "merged" ? `${asset.base} докуплен: количество сложено, цена входа усреднена.` : `${asset.base} добавлен.`,
+    });
     setQty("");
     setEntry("");
   }
@@ -107,11 +128,20 @@ export function Wallet() {
             onChange={(event) => setBase(event.target.value)}
             className="h-9 rounded-sm bg-surface-2 px-2.5 font-mono text-sm text-fg outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
           >
-            {TAPE_CRYPTOS.map((sym) => (
-              <option key={sym} value={sym}>
-                {sym}
-              </option>
-            ))}
+            <optgroup label="Крипто">
+              {TAPE_CRYPTOS.map((sym) => (
+                <option key={sym} value={sym}>
+                  {sym}
+                </option>
+              ))}
+            </optgroup>
+            <optgroup label="Акции">
+              {TAPE_STOCKS.map((sym) => (
+                <option key={sym} value={sym}>
+                  {sym}
+                </option>
+              ))}
+            </optgroup>
           </select>
         </div>
         <div className="flex flex-col gap-1">
@@ -146,6 +176,11 @@ export function Wallet() {
         >
           Добавить
         </button>
+        {formNote ? (
+          <p role="status" className={`w-full text-xs ${formNote.tone === "error" ? "text-short" : "text-long"}`}>
+            {formNote.text}
+          </p>
+        ) : null}
       </form>
 
       {rows.length ? (
@@ -170,7 +205,9 @@ export function Wallet() {
                   <td className="px-4 py-3 font-mono font-medium text-fg">{row.base}</td>
                   <td className="px-4 py-3 font-mono tabular-nums text-muted">{row.qty}</td>
                   <td className="px-4 py-3 font-mono tabular-nums text-muted">{formatPrice(row.entry)}</td>
-                  <td className="px-4 py-3 font-mono tabular-nums text-fg">{formatPrice(row.price)}</td>
+                  <td className="px-4 py-3 font-mono tabular-nums text-fg" title={row.priced ? undefined : "Нет котировки, считаю по цене входа"}>
+                    {row.priced ? formatPrice(row.price) : prices.isLoading ? "…" : "—"}
+                  </td>
                   <td className="px-4 py-3 font-mono tabular-nums text-fg">{formatUsd(row.value)}</td>
                   <td className={`px-4 py-3 font-mono tabular-nums ${row.pnl >= 0 ? "text-long" : "text-short"}`}>
                     {row.pnl >= 0 ? "+" : ""}
@@ -208,21 +245,22 @@ export function Wallet() {
         <div className="mt-4">
           <button
             type="button"
-            onClick={() => (adviceOpen ? void advice.refetch() : setAdviceOpen(true))}
-            disabled={advice.isFetching}
+            onClick={() => advice.mutate()}
+            disabled={advice.isPending}
             className="flex h-9 items-center gap-1.5 rounded-sm bg-primary px-3 text-xs font-medium text-primary-fg outline-none transition-[opacity,transform] duration-[var(--motion-quick)] ease-[var(--ease-out)] hover:bg-primary/90 active:scale-[0.97] disabled:opacity-60 focus-visible:ring-2 focus-visible:ring-primary/30"
           >
-            {advice.isFetching ? <Loader2 className="size-3.5 animate-spin" /> : <Sparkles className="size-3.5" />}
-            {adviceOpen ? "Обновить совет ИИ" : "Совет ИИ по портфелю"}
+            {advice.isPending ? <Loader2 className="size-3.5 animate-spin" /> : <Sparkles className="size-3.5" />}
+            {advice.data ? "Обновить совет ИИ" : "Совет ИИ по портфелю"}
           </button>
 
-          {adviceOpen && advice.isFetching ? <p className="mt-2 shimmer-text text-xs">ИИ смотрит портфель</p> : null}
-          {adviceOpen && advice.data?.ok ? (
+          {advice.isPending ? <p className="mt-2 shimmer-text text-xs">ИИ смотрит портфель</p> : null}
+          {advice.isError ? <p className="mt-2 text-xs text-short">ИИ сейчас не ответил. Попробуй ещё раз.</p> : null}
+          {!advice.isPending && advice.data?.ok ? (
             <div className="mt-3 rounded-sm bg-surface-2 p-3">
               <p className="text-xs leading-relaxed text-fg">{stripMd(advice.data.text)}</p>
             </div>
           ) : null}
-          {adviceOpen && advice.data && !advice.data.ok ? (
+          {!advice.isPending && advice.data && !advice.data.ok ? (
             <p className="mt-2 text-xs text-short">{advice.data.error}</p>
           ) : null}
         </div>

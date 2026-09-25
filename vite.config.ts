@@ -61,6 +61,10 @@ export default defineConfig(({ command, isPreview }) => ({
       ? [
           nitro({
             preset: "vercel",
+            // PGLite loads its WASM/data files from disk next to its own module.
+            // Bundling it dropped pglite.data, and the server crashed on boot
+            // whenever DATABASE_URL was unset. Trace the full package instead.
+            traceDeps: ["@electric-sql/pglite*"],
           }),
         ]
       : []),

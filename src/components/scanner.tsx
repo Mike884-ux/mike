@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   ArrowDown,
@@ -16,9 +16,10 @@ import {
 } from "lucide-react";
 import { getSentiment, scanMarket, type CoinRow } from "@/lib/scan";
 import { INTERVALS, type IntervalId, type Signal } from "@/lib/types";
-import { formatPct, formatPrice } from "@/lib/utils";
+import { formatPrice } from "@/lib/utils";
 import type { AppUser } from "@/lib/auth/use-current-user";
 import { AssetIcon } from "@/components/asset-icon";
+import { assetOf } from "@/lib/markets";
 import { useFavorites } from "@/lib/favorites-store";
 import { Mark } from "@/components/mark";
 import { Spark } from "@/components/spark";
@@ -112,7 +113,10 @@ function CoinRowView({
       role="button"
       tabIndex={0}
       onKeyDown={(event) => {
-        if (event.key === "Enter" || event.key === " ") onOpenDetail();
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault(); // Space would otherwise also scroll the page
+          onOpenDetail();
+        }
       }}
       className={`cursor-pointer border-b border-border/60 outline-none transition-colors duration-[var(--motion-quick)] ease-[var(--ease-out)] last:border-0 hover:bg-surface-2 focus-visible:bg-surface-2 ${
         rank % 2 === 0 ? "bg-surface-2/30" : ""
@@ -260,12 +264,21 @@ function ScanTab() {
     if (category !== "all") list = list.filter((row) => row.kind === category);
     if (favoritesOnly) list = list.filter((row) => favorites.includes(row.base));
     const needle = query.trim().toUpperCase();
-    if (needle) list = list.filter((row) => row.base.includes(needle));
+    if (needle) {
+      // Names and aliases work too: "биткоин", "apple", "золото".
+      const alias = assetOf(query)?.base;
+      list = list.filter((row) => row.base.includes(needle) || row.base === alias);
+    }
     if (sort) {
       list = [...list].sort((a, b) => (sort.dir === "asc" ? a[sort.key] - b[sort.key] : b[sort.key] - a[sort.key]));
     }
     return list;
   }, [scan.data, query, category, favoritesOnly, favorites, sort]);
+
+  // Show the freshest row for the open coin, so its price keeps updating with
+  // the 20-second rescans instead of freezing at the moment it was clicked.
+  const selectedRow = selected ? (scan.data?.find((row) => row.base === selected.base) ?? selected) : null;
+  const closeDetail = useCallback(() => setSelected(null), []);
 
   const topMovers = useMemo(() => [...(scan.data ?? [])].sort((a, b) => b.change24h - a.change24h).slice(0, 5), [scan.data]);
 
@@ -291,6 +304,11 @@ function ScanTab() {
               "сигнал по чистым индикаторам, без ИИ — открой монету для разбора с ИИ"
             )}
           </p>
+          {scan.isError && scan.data ? (
+            <p role="status" className="mt-1 text-xs text-wait">
+              Не удалось обновить — показаны данные прошлого скана.
+            </p>
+          ) : null}
         </div>
         <button
           type="button"
@@ -461,7 +479,7 @@ function ScanTab() {
       )}
       <div className="pb-6" />
 
-      {selected ? <CoinDetail row={selected} interval={interval} onClose={() => setSelected(null)} /> : null}
+      {selectedRow ? <CoinDetail row={selectedRow} interval={interval} onClose={closeDetail} /> : null}
     </div>
   );
 }
@@ -493,6 +511,8 @@ export function Scanner({ account }: { account: AppUser }) {
                 type="button"
                 onClick={() => setTab(item.id)}
                 aria-pressed={tab === item.id}
+                aria-label={item.label}
+                title={item.label}
                 className={`flex h-8 items-center gap-1.5 rounded-sm px-3 text-xs outline-none transition-colors duration-[var(--motion-quick)] ease-[var(--ease-out)] focus-visible:ring-2 focus-visible:ring-primary/30 ${
                   tab === item.id ? "bg-primary text-primary-fg" : "text-muted hover:text-fg"
                 }`}

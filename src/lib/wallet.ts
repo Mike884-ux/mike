@@ -1,12 +1,16 @@
 import { createServerFn } from "@tanstack/react-start";
 import { authMiddleware } from "@/lib/auth/middleware";
 import { allow } from "./rate-limit";
+import { portfolioSeries } from "./portfolio-math";
 import type { Ticker } from "./types";
 
 export const getPrices = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .validator((input: { symbols?: string[] }) => ({
-    symbols: (input.symbols ?? []).slice(0, 30).map((s) => String(s)),
+    symbols: (Array.isArray(input.symbols) ? input.symbols : [])
+      .map((s) => String(s).toUpperCase())
+      .filter((s) => /^[A-Z0-9=.^-]{2,20}$/.test(s))
+      .slice(0, 30),
   }))
   .handler(async ({ data }): Promise<Ticker[]> => {
     if (!data.symbols.length) return [];
@@ -26,8 +30,20 @@ export type WalletPositionInput = {
 export const getWalletAdvice = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .validator((input: { positions?: WalletPositionInput[]; totalPnlPct?: number }) => ({
-    positions: (input.positions ?? []).slice(0, 30),
-    totalPnlPct: Number(input.totalPnlPct ?? 0),
+    // Numbers are formatted into the AI prompt, so coerce everything: a string
+    // or null here used to crash `.toFixed` and could smuggle text into the prompt.
+    positions: (Array.isArray(input.positions) ? input.positions : []).slice(0, 30).map((p) => {
+      const n = (v: unknown) => (Number.isFinite(Number(v)) ? Number(v) : 0);
+      return {
+        base: String(p?.base ?? "").replace(/[^A-Za-z0-9=.^-]/g, "").slice(0, 12),
+        qty: n(p?.qty),
+        entry: n(p?.entry),
+        price: n(p?.price),
+        pnlPct: n(p?.pnlPct),
+        daysHeld: p?.daysHeld == null ? null : Math.max(0, Math.floor(n(p.daysHeld))),
+      };
+    }),
+    totalPnlPct: Number.isFinite(Number(input.totalPnlPct)) ? Number(input.totalPnlPct) : 0,
   }))
   .handler(async ({ data, context }): Promise<{ ok: true; text: string } | { ok: false; error: string }> => {
     if (!data.positions.length) return { ok: false, error: "Кошелёк пуст." };
@@ -70,12 +86,14 @@ export const PORTFOLIO_PERIODS = [
 ] as const;
 export type PortfolioPeriod = (typeof PORTFOLIO_PERIODS)[number]["id"];
 
-const PERIOD_SPEC: Record<PortfolioPeriod, { interval: string; limit: number }> = {
-  "1d": { interval: "1h", limit: 24 },
-  "10d": { interval: "1d", limit: 10 },
-  "20d": { interval: "1d", limit: 20 },
-  "30d": { interval: "1d", limit: 30 },
-  "1y": { interval: "1d", limit: 365 },
+const HOUR_MS = 3_600_000;
+const DAY_MS = 86_400_000;
+const PERIOD_SPEC: Record<PortfolioPeriod, { interval: string; limit: number; bucketMs: number }> = {
+  "1d": { interval: "1h", limit: 24, bucketMs: HOUR_MS },
+  "10d": { interval: "1d", limit: 10, bucketMs: DAY_MS },
+  "20d": { interval: "1d", limit: 20, bucketMs: DAY_MS },
+  "30d": { interval: "1d", limit: 30, bucketMs: DAY_MS },
+  "1y": { interval: "1d", limit: 365, bucketMs: DAY_MS },
 };
 
 export type PortfolioPoint = { t: number; value: number };
@@ -89,23 +107,18 @@ export const getPortfolioHistory = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .validator((input: { positions?: { symbol?: string; qty?: number }[]; period?: string }) => ({
     positions: (input.positions ?? [])
-      .map((p) => ({ symbol: String(p.symbol ?? ""), qty: Number(p.qty ?? 0) }))
-      .filter((p) => p.symbol && p.qty > 0)
+      .map((p) => ({ symbol: String(p?.symbol ?? "").toUpperCase(), qty: Number(p?.qty ?? 0) }))
+      .filter((p) => /^[A-Z0-9=.^-]{2,20}$/.test(p.symbol) && Number.isFinite(p.qty) && p.qty > 0)
       .slice(0, 30),
     period: (PORTFOLIO_PERIODS.some((p) => p.id === input.period) ? input.period : "30d") as PortfolioPeriod,
   }))
   .handler(async ({ data }): Promise<PortfolioPoint[]> => {
     if (!data.positions.length) return [];
     const marketMod = await import("./market.server");
-    const { interval, limit } = PERIOD_SPEC[data.period];
+    const { interval, limit, bucketMs } = PERIOD_SPEC[data.period];
     const candleLists = await Promise.all(data.positions.map((p) => marketMod.fetchKlines(p.symbol, interval, limit)));
-    const byTime = new Map<number, number>();
-    data.positions.forEach((p, i) => {
-      for (const candle of candleLists[i] ?? []) {
-        byTime.set(candle.t, (byTime.get(candle.t) ?? 0) + candle.c * p.qty);
-      }
-    });
-    return [...byTime.entries()]
-      .sort((a, b) => a[0] - b[0])
-      .map(([t, value]) => ({ t, value: Number(value.toFixed(2)) }));
+    return portfolioSeries(
+      data.positions.map((p, i) => ({ qty: p.qty, candles: candleLists[i] ?? [] })),
+      bucketMs,
+    );
   });

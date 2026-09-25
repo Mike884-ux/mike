@@ -1,6 +1,7 @@
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from "node:crypto";
 import { buildSchema, graphql } from "graphql";
 import { HEADLINES_QUERY } from "./news-query";
+import { assetOf } from "./markets";
 import type { NewsItem } from "./types";
 
 const NEWS_TTL = 180_000;
@@ -175,12 +176,30 @@ const ALIASES: Record<string, string[]> = {
   META: ["META", "FACEBOOK"],
 };
 
+function escapeRegExp(text: string): string {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/** Whole-word patterns for an asset: its ticker plus known names ("DOGECOIN", "APPLE"). */
+function patternsFor(base: string): RegExp[] {
+  const keys = new Set([base, ...(ALIASES[base] ?? [])]);
+  for (const alias of assetOf(base)?.aliases ?? []) {
+    // Cyrillic aliases never appear in the English feeds; 1-2 letter ones are too noisy.
+    if (/^[a-z0-9 .-]{3,}$/i.test(alias)) keys.add(alias.toUpperCase());
+  }
+  return [...keys].map((key) => new RegExp(`(^|[^A-Z0-9])${escapeRegExp(key)}([^A-Z0-9]|$)`));
+}
+
+/**
+ * Headlines about one asset. Matches whole words only: a plain substring test
+ * made "V" (Visa) or "OP" match almost every headline. When nothing matches we
+ * return nothing instead of the general tape, so the coin view and the AI
+ * prompt never present unrelated news as news about this asset.
+ */
 function filterBase(all: NewsItem[], base?: string | null): NewsItem[] {
   if (!base) return all.slice(0, 12);
-  const needle = base.toUpperCase();
-  const keys = ALIASES[needle] ?? [needle];
-  const matched = all.filter((item) => keys.some((k) => item.title.toUpperCase().includes(k)));
-  return (matched.length ? matched : all).slice(0, 8);
+  const patterns = patternsFor(base.toUpperCase());
+  return all.filter((item) => patterns.some((re) => re.test(item.title.toUpperCase()))).slice(0, 8);
 }
 
 const translateCache = new Map<string, { at: number; value: NewsItem[] }>();

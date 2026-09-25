@@ -71,3 +71,11 @@ export const INTERVALS = [
 ] as const;
 
 export type IntervalId = (typeof INTERVALS)[number]["id"];
+
+const INTERVAL_IDS: ReadonlySet<string> = new Set(INTERVALS.map((item) => item.id));
+
+/** Coerce untrusted input to a supported timeframe; anything else becomes the 1h default. */
+export function asInterval(value: unknown): IntervalId {
+  const id = String(value ?? "");
+  return (INTERVAL_IDS.has(id) ? id : "1h") as IntervalId;
+}
