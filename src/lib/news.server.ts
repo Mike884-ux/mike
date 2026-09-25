@@ -25,6 +25,8 @@ const schema = buildSchema(`
     title: String!
     source: String!
     url: String!
+    publishedAt: Float
+    bases: [String!]
   }
   type Query {
     headlines(base: String): [NewsItem!]!
@@ -254,7 +256,26 @@ const root = {
   headlines: async ({ base }: { base?: string | null }) => filterBase(await loadTape(), base),
 };
 
-/** Headlines (optionally about one asset), translated and mood-tagged for `lang`. Pass "en" plus `raw` for AI prompts. */
+const tapeInflight = new Map<string, Promise<NewsItem[]>>();
+
+/**
+ * The whole tape, translated and mood-tagged for `lang`, in ONE AI call per
+ * language per cache window. Per-asset lists are then cut from it, so opening
+ * coin after coin never triggers another paid AI request.
+ */
+async function enrichedTape(lang: Lang): Promise<Map<string, NewsItem>> {
+  const tape = await loadTape();
+  const key = `${lang}|${tape.map((i) => i.title).join("|")}`;
+  let job = tapeInflight.get(key);
+  if (!job) {
+    job = enrichHeadlines(tape, lang).finally(() => tapeInflight.delete(key));
+    tapeInflight.set(key, job);
+  }
+  const enriched = await job;
+  return new Map(tape.map((item, i) => [item.title, enriched[i] ?? item]));
+}
+
+/** Headlines (optionally about one asset), translated and mood-tagged for `lang`; `raw` = original English for AI prompts. */
 export async function queryHeadlines(base?: string, lang: Lang | "raw" = "ru"): Promise<NewsItem[]> {
   const result = await graphql({
     schema,
@@ -263,8 +284,17 @@ export async function queryHeadlines(base?: string, lang: Lang | "raw" = "ru"): 
     variableValues: { base: base ?? null },
   });
   const rows = (result.data as { headlines?: NewsItem[] } | undefined)?.headlines;
-  const list = Array.isArray(rows) ? rows : [];
-  return lang === "raw" ? list : enrichHeadlines(list, lang);
+  const list = (Array.isArray(rows) ? rows : []).map((item) => ({
+    ...item,
+    publishedAt: item.publishedAt ?? undefined,
+    bases: item.bases ?? undefined,
+  }));
+  if (lang === "raw") return list;
+  const byTitle = await enrichedTape(lang);
+  return list.map((item) => {
+    const hit = byTitle.get(item.title);
+    return hit ? { ...item, title: hit.title, tone: hit.tone } : item;
+  });
 }
 
 export async function fetchHeadlineTape(): Promise<NewsItem[]> {

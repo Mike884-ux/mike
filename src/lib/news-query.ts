@@ -4,6 +4,8 @@ export const HEADLINES_QUERY = `
       title
       source
       url
+      publishedAt
+      bases
     }
   }
 `.trim();
