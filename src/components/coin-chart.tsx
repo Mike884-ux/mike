@@ -12,6 +12,8 @@ import {
 import type { AiLevels, Candle } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { useT, type MessageKey } from "@/lib/i18n";
+import { useSettings } from "@/lib/settings-store";
+import { chartPalette, withAlpha } from "@/lib/theme-colors";
 
 const UP = "#2fd08a";
 const DOWN = "#ff6b6b";
@@ -45,6 +47,7 @@ export function CoinChart({
   const volumeRef = useRef<ISeriesApi<"Histogram"> | null>(null);
   const linesRef = useRef<IPriceLine[]>([]);
   const t = useT();
+  const theme = useSettings((s) => s.theme);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -95,6 +98,20 @@ export function CoinChart({
     };
   }, []);
 
+  // Follow the light/dark switch without rebuilding the chart.
+  useEffect(() => {
+    const chart = chartRef.current;
+    if (!chart) return;
+    const p = chartPalette();
+    chart.applyOptions({
+      layout: { textColor: p.text },
+      grid: { vertLines: { color: withAlpha(p.grid, 0.6) }, horzLines: { color: withAlpha(p.grid, 0.6) } },
+      rightPriceScale: { borderColor: p.border },
+      timeScale: { borderColor: p.border },
+    });
+    seriesRef.current?.applyOptions({ upColor: p.up, downColor: p.down, wickUpColor: p.up, wickDownColor: p.down });
+  }, [theme]);
+
   useEffect(() => {
     const series = seriesRef.current;
     const volume = volumeRef.current;
@@ -113,7 +130,7 @@ export function CoinChart({
       rows.map((row) => ({
         time: row.time,
         value: row.v,
-        color: row.close >= row.open ? "rgba(47,208,138,0.45)" : "rgba(255,107,107,0.45)",
+        color: withAlpha(row.close >= row.open ? chartPalette().up : chartPalette().down, 0.4),
       })),
     );
     chartRef.current?.timeScale().fitContent();

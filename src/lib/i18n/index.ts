@@ -51,3 +51,17 @@ export function formatDate(lang: Lang, at: number): string {
   }
   return new Date(at).toISOString();
 }
+
+/** "14 Mar 2024" in the interface language (ISO date or ms). */
+export function formatDay(lang: Lang, at: string | number): string {
+  const date = new Date(at);
+  if (Number.isNaN(date.getTime())) return "—";
+  for (const locale of [LOCALE[lang], lang === "tg" ? "ru-RU" : "en-US"]) {
+    try {
+      return date.toLocaleDateString(locale, { day: "numeric", month: "short", year: "numeric" });
+    } catch {
+      /* next */
+    }
+  }
+  return date.toISOString().slice(0, 10);
+}

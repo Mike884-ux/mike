@@ -64,9 +64,9 @@ function HeroChart() {
   );
 }
 
-export function LoginScreen() {
+export function LoginScreen({ initialMode = "signup", redirect = "/" }: { initialMode?: "signin" | "signup"; redirect?: string }) {
   const t = useT();
-  const [mode, setMode] = useState<"signin" | "signup">("signup");
+  const [mode, setMode] = useState<"signin" | "signup">(initialMode);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
@@ -85,7 +85,7 @@ export function LoginScreen() {
           ? await authClient.signUp.email({ email: mail, password, name: mail.split("@")[0] || "Scan" })
           : await authClient.signIn.email({ email: mail, password });
       if (err) throw err;
-      window.location.href = "/";
+      window.location.href = redirect;
     } catch (err) {
       setError(authErrorKey(err));
       setBusy(false);
@@ -103,12 +103,12 @@ export function LoginScreen() {
       <div className="aurora pointer-events-none absolute -inset-20 opacity-70" aria-hidden />
       <div className="relative mx-auto flex min-h-dvh max-w-6xl flex-col px-5 py-5 sm:px-8">
         <header className="flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
+          <a href="/" className="flex items-center gap-2.5">
             <span className="bg-brand grid size-9 place-items-center rounded-xl shadow-[var(--shadow-glow)]">
               <Mark className="size-5 text-white" />
             </span>
             <span className="font-display text-lg font-bold text-fg">{t("app.name")}</span>
-          </div>
+          </a>
           <LangSwitcher />
         </header>
 

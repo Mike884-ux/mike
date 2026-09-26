@@ -23,7 +23,7 @@ const SECURITY_HEADERS: Record<string, string> = {
     "default-src 'self'",
     "script-src 'self' 'unsafe-inline'",
     "style-src 'self' 'unsafe-inline'",
-    "img-src 'self' data: blob: https://assets.coincap.io https://www.google.com https://*.gstatic.com",
+    "img-src 'self' data: blob: https://coin-images.coingecko.com https://assets.coingecko.com https://static.coinpaprika.com https://assets.coincap.io https://www.google.com https://*.gstatic.com",
     "font-src 'self' data:",
     "connect-src 'self'",
     "frame-ancestors 'none'",

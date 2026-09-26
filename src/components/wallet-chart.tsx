@@ -4,20 +4,24 @@ import { AreaSeries, createChart, type IChartApi, type ISeriesApi, type UTCTimes
 import { getPortfolioHistory, PORTFOLIO_PERIODS, type PortfolioPeriod } from "@/lib/wallet";
 import { formatPct, formatUsd } from "@/lib/utils";
 import { useT, type MessageKey } from "@/lib/i18n";
+import { useSettings } from "@/lib/settings-store";
+import { chartPalette, withAlpha } from "@/lib/theme-colors";
 
 function Chart({ points }: { points: { t: number; value: number }[] }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const seriesRef = useRef<ISeriesApi<"Area"> | null>(null);
+  const theme = useSettings((s) => s.theme);
 
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
+    const p = chartPalette();
     const chart = createChart(container, {
-      layout: { background: { color: "transparent" }, textColor: "#8f98b3", attributionLogo: false },
-      grid: { vertLines: { color: "rgba(255,255,255,0.04)" }, horzLines: { color: "rgba(255,255,255,0.04)" } },
-      rightPriceScale: { borderColor: "rgba(255,255,255,0.08)" },
-      timeScale: { borderColor: "rgba(255,255,255,0.08)" },
+      layout: { background: { color: "transparent" }, textColor: p.text, attributionLogo: false },
+      grid: { vertLines: { visible: false }, horzLines: { color: withAlpha(p.grid, 0.7) } },
+      rightPriceScale: { borderColor: p.border },
+      timeScale: { borderColor: p.border },
       width: container.clientWidth,
       height: container.clientHeight || 260,
     });
@@ -38,17 +42,18 @@ function Chart({ points }: { points: { t: number; value: number }[] }) {
       chartRef.current = null;
       seriesRef.current = null;
     };
-  }, []);
+  }, [theme]);
 
   useEffect(() => {
     const series = seriesRef.current;
     if (!series || !points.length) return;
     const up = (points.at(-1)?.value ?? 0) >= (points[0]?.value ?? 0);
-    const color = up ? "#2fd08a" : "#ff6b6b";
-    series.applyOptions({ lineColor: color, topColor: `${color}33`, bottomColor: `${color}00` });
+    const p = chartPalette();
+    const color = up ? p.up : p.down;
+    series.applyOptions({ lineColor: color, topColor: withAlpha(color, 0.2), bottomColor: withAlpha(color, 0) });
     series.setData(points.map((p) => ({ time: Math.floor(p.t / 1000) as UTCTimestamp, value: p.value })));
     chartRef.current?.timeScale().fitContent();
-  }, [points]);
+  }, [points, theme]);
 
   return <div ref={containerRef} className="h-64 w-full overflow-hidden rounded-lg bg-surface-2" />;
 }

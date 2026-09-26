@@ -9,13 +9,24 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as IndexRouteImport } from './routes/index'
+import { Route as SiteRouteImport } from './routes/_site'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as SiteIndexRouteImport } from './routes/_site/index'
+import { Route as SiteAiRouteImport } from './routes/_site/ai'
+import { Route as SiteNewsRouteImport } from './routes/_site/news'
+import { Route as SitePortfolioRouteImport } from './routes/_site/portfolio'
+import { Route as SiteSignalsRouteImport } from './routes/_site/signals'
+import { Route as SiteCoinsIdRouteImport } from './routes/_site/coins/$id'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
+import { Route as ApiMarketGlobalRouteImport } from './routes/api/market/global'
+import { Route as ApiMarketListingRouteImport } from './routes/api/market/listing'
+import { Route as ApiMarketSearchRouteImport } from './routes/api/market/search'
+import { Route as ApiMarketTrendingRouteImport } from './routes/api/market/trending'
+import { Route as ApiMarketCoinIdRouteImport } from './routes/api/market/coin.$id'
+import { Route as ApiMarketHistoryIdRouteImport } from './routes/api/market/history.$id'
 
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+const SiteRoute = SiteRouteImport.update({
+  id: '/_site',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -23,49 +34,193 @@ const LoginRoute = LoginRouteImport.update({
   path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SiteIndexRoute = SiteIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => SiteRoute,
+} as any)
+const SiteAiRoute = SiteAiRouteImport.update({
+  id: '/ai',
+  path: '/ai',
+  getParentRoute: () => SiteRoute,
+} as any)
+const SiteNewsRoute = SiteNewsRouteImport.update({
+  id: '/news',
+  path: '/news',
+  getParentRoute: () => SiteRoute,
+} as any)
+const SitePortfolioRoute = SitePortfolioRouteImport.update({
+  id: '/portfolio',
+  path: '/portfolio',
+  getParentRoute: () => SiteRoute,
+} as any)
+const SiteSignalsRoute = SiteSignalsRouteImport.update({
+  id: '/signals',
+  path: '/signals',
+  getParentRoute: () => SiteRoute,
+} as any)
+const SiteCoinsIdRoute = SiteCoinsIdRouteImport.update({
+  id: '/coins/$id',
+  path: '/coins/$id',
+  getParentRoute: () => SiteRoute,
+} as any)
 const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   id: '/api/auth/$',
   path: '/api/auth/$',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiMarketGlobalRoute = ApiMarketGlobalRouteImport.update({
+  id: '/api/market/global',
+  path: '/api/market/global',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiMarketListingRoute = ApiMarketListingRouteImport.update({
+  id: '/api/market/listing',
+  path: '/api/market/listing',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiMarketSearchRoute = ApiMarketSearchRouteImport.update({
+  id: '/api/market/search',
+  path: '/api/market/search',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiMarketTrendingRoute = ApiMarketTrendingRouteImport.update({
+  id: '/api/market/trending',
+  path: '/api/market/trending',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiMarketCoinIdRoute = ApiMarketCoinIdRouteImport.update({
+  id: '/api/market/coin/$id',
+  path: '/api/market/coin/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiMarketHistoryIdRoute = ApiMarketHistoryIdRouteImport.update({
+  id: '/api/market/history/$id',
+  path: '/api/market/history/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
-  '/': typeof IndexRoute
+  '/': typeof SiteIndexRoute
   '/login': typeof LoginRoute
+  '/ai': typeof SiteAiRoute
+  '/news': typeof SiteNewsRoute
+  '/portfolio': typeof SitePortfolioRoute
+  '/signals': typeof SiteSignalsRoute
+  '/coins/$id': typeof SiteCoinsIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/market/global': typeof ApiMarketGlobalRoute
+  '/api/market/listing': typeof ApiMarketListingRoute
+  '/api/market/search': typeof ApiMarketSearchRoute
+  '/api/market/trending': typeof ApiMarketTrendingRoute
+  '/api/market/coin/$id': typeof ApiMarketCoinIdRoute
+  '/api/market/history/$id': typeof ApiMarketHistoryIdRoute
 }
 export interface FileRoutesByTo {
-  '/': typeof IndexRoute
   '/login': typeof LoginRoute
+  '/ai': typeof SiteAiRoute
+  '/news': typeof SiteNewsRoute
+  '/portfolio': typeof SitePortfolioRoute
+  '/signals': typeof SiteSignalsRoute
+  '/': typeof SiteIndexRoute
+  '/coins/$id': typeof SiteCoinsIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/market/global': typeof ApiMarketGlobalRoute
+  '/api/market/listing': typeof ApiMarketListingRoute
+  '/api/market/search': typeof ApiMarketSearchRoute
+  '/api/market/trending': typeof ApiMarketTrendingRoute
+  '/api/market/coin/$id': typeof ApiMarketCoinIdRoute
+  '/api/market/history/$id': typeof ApiMarketHistoryIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
-  '/': typeof IndexRoute
+  '/_site': typeof SiteRouteWithChildren
   '/login': typeof LoginRoute
+  '/_site/ai': typeof SiteAiRoute
+  '/_site/news': typeof SiteNewsRoute
+  '/_site/portfolio': typeof SitePortfolioRoute
+  '/_site/signals': typeof SiteSignalsRoute
+  '/_site/': typeof SiteIndexRoute
+  '/_site/coins/$id': typeof SiteCoinsIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/market/global': typeof ApiMarketGlobalRoute
+  '/api/market/listing': typeof ApiMarketListingRoute
+  '/api/market/search': typeof ApiMarketSearchRoute
+  '/api/market/trending': typeof ApiMarketTrendingRoute
+  '/api/market/coin/$id': typeof ApiMarketCoinIdRoute
+  '/api/market/history/$id': typeof ApiMarketHistoryIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/login' | '/api/auth/$'
+  fullPaths:
+    | '/'
+    | '/login'
+    | '/ai'
+    | '/news'
+    | '/portfolio'
+    | '/signals'
+    | '/coins/$id'
+    | '/api/auth/$'
+    | '/api/market/global'
+    | '/api/market/listing'
+    | '/api/market/search'
+    | '/api/market/trending'
+    | '/api/market/coin/$id'
+    | '/api/market/history/$id'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/login' | '/api/auth/$'
-  id: '__root__' | '/' | '/login' | '/api/auth/$'
+  to:
+    | '/login'
+    | '/ai'
+    | '/news'
+    | '/portfolio'
+    | '/signals'
+    | '/'
+    | '/coins/$id'
+    | '/api/auth/$'
+    | '/api/market/global'
+    | '/api/market/listing'
+    | '/api/market/search'
+    | '/api/market/trending'
+    | '/api/market/coin/$id'
+    | '/api/market/history/$id'
+  id:
+    | '__root__'
+    | '/_site'
+    | '/login'
+    | '/_site/ai'
+    | '/_site/news'
+    | '/_site/portfolio'
+    | '/_site/signals'
+    | '/_site/'
+    | '/_site/coins/$id'
+    | '/api/auth/$'
+    | '/api/market/global'
+    | '/api/market/listing'
+    | '/api/market/search'
+    | '/api/market/trending'
+    | '/api/market/coin/$id'
+    | '/api/market/history/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
-  IndexRoute: typeof IndexRoute
+  SiteRoute: typeof SiteRouteWithChildren
   LoginRoute: typeof LoginRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
+  ApiMarketGlobalRoute: typeof ApiMarketGlobalRoute
+  ApiMarketListingRoute: typeof ApiMarketListingRoute
+  ApiMarketSearchRoute: typeof ApiMarketSearchRoute
+  ApiMarketTrendingRoute: typeof ApiMarketTrendingRoute
+  ApiMarketCoinIdRoute: typeof ApiMarketCoinIdRoute
+  ApiMarketHistoryIdRoute: typeof ApiMarketHistoryIdRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/': {
-      id: '/'
-      path: '/'
+    '/_site': {
+      id: '/_site'
+      path: ''
       fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+      preLoaderRoute: typeof SiteRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -75,6 +230,48 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_site/': {
+      id: '/_site/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof SiteIndexRouteImport
+      parentRoute: typeof SiteRoute
+    }
+    '/_site/ai': {
+      id: '/_site/ai'
+      path: '/ai'
+      fullPath: '/ai'
+      preLoaderRoute: typeof SiteAiRouteImport
+      parentRoute: typeof SiteRoute
+    }
+    '/_site/news': {
+      id: '/_site/news'
+      path: '/news'
+      fullPath: '/news'
+      preLoaderRoute: typeof SiteNewsRouteImport
+      parentRoute: typeof SiteRoute
+    }
+    '/_site/portfolio': {
+      id: '/_site/portfolio'
+      path: '/portfolio'
+      fullPath: '/portfolio'
+      preLoaderRoute: typeof SitePortfolioRouteImport
+      parentRoute: typeof SiteRoute
+    }
+    '/_site/signals': {
+      id: '/_site/signals'
+      path: '/signals'
+      fullPath: '/signals'
+      preLoaderRoute: typeof SiteSignalsRouteImport
+      parentRoute: typeof SiteRoute
+    }
+    '/_site/coins/$id': {
+      id: '/_site/coins/$id'
+      path: '/coins/$id'
+      fullPath: '/coins/$id'
+      preLoaderRoute: typeof SiteCoinsIdRouteImport
+      parentRoute: typeof SiteRoute
+    }
     '/api/auth/$': {
       id: '/api/auth/$'
       path: '/api/auth/$'
@@ -82,13 +279,81 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAuthSplatRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/market/global': {
+      id: '/api/market/global'
+      path: '/api/market/global'
+      fullPath: '/api/market/global'
+      preLoaderRoute: typeof ApiMarketGlobalRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/market/listing': {
+      id: '/api/market/listing'
+      path: '/api/market/listing'
+      fullPath: '/api/market/listing'
+      preLoaderRoute: typeof ApiMarketListingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/market/search': {
+      id: '/api/market/search'
+      path: '/api/market/search'
+      fullPath: '/api/market/search'
+      preLoaderRoute: typeof ApiMarketSearchRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/market/trending': {
+      id: '/api/market/trending'
+      path: '/api/market/trending'
+      fullPath: '/api/market/trending'
+      preLoaderRoute: typeof ApiMarketTrendingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/market/coin/$id': {
+      id: '/api/market/coin/$id'
+      path: '/api/market/coin/$id'
+      fullPath: '/api/market/coin/$id'
+      preLoaderRoute: typeof ApiMarketCoinIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/market/history/$id': {
+      id: '/api/market/history/$id'
+      path: '/api/market/history/$id'
+      fullPath: '/api/market/history/$id'
+      preLoaderRoute: typeof ApiMarketHistoryIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
+interface SiteRouteChildren {
+  SiteAiRoute: typeof SiteAiRoute
+  SiteNewsRoute: typeof SiteNewsRoute
+  SitePortfolioRoute: typeof SitePortfolioRoute
+  SiteSignalsRoute: typeof SiteSignalsRoute
+  SiteIndexRoute: typeof SiteIndexRoute
+  SiteCoinsIdRoute: typeof SiteCoinsIdRoute
+}
+
+const SiteRouteChildren: SiteRouteChildren = {
+  SiteAiRoute: SiteAiRoute,
+  SiteNewsRoute: SiteNewsRoute,
+  SitePortfolioRoute: SitePortfolioRoute,
+  SiteSignalsRoute: SiteSignalsRoute,
+  SiteIndexRoute: SiteIndexRoute,
+  SiteCoinsIdRoute: SiteCoinsIdRoute,
+}
+
+const SiteRouteWithChildren = SiteRoute._addFileChildren(SiteRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
-  IndexRoute: IndexRoute,
+  SiteRoute: SiteRouteWithChildren,
   LoginRoute: LoginRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
+  ApiMarketGlobalRoute: ApiMarketGlobalRoute,
+  ApiMarketListingRoute: ApiMarketListingRoute,
+  ApiMarketSearchRoute: ApiMarketSearchRoute,
+  ApiMarketTrendingRoute: ApiMarketTrendingRoute,
+  ApiMarketCoinIdRoute: ApiMarketCoinIdRoute,
+  ApiMarketHistoryIdRoute: ApiMarketHistoryIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

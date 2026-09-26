@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { getAccount, updateSettings, walletImport, type Account } from "./account";
 import { asCountry, asLang } from "./lang";
+import { useCurrentUserState } from "./auth/use-current-user";
 import { useSettings } from "./settings-store";
 
 export const ACCOUNT_KEY = ["account"] as const;
@@ -75,4 +76,37 @@ export function useSaveSettings() {
       if (ctx?.previous) client.setQueryData(ACCOUNT_KEY, ctx.previous);
     },
   });
+}
+
+/**
+ * Starred tickers ("BTC", "ETH"): the same list drives the watchlist tab on the
+ * market page and the favourites filter on the signals page. Guests have none.
+ */
+export function useFavorites() {
+  const { user } = useCurrentUserState();
+  const account = useQuery({ queryKey: ACCOUNT_KEY, queryFn: () => getAccount(), staleTime: 30_000, enabled: Boolean(user) });
+  const save = useSaveSettings();
+  const favorites = useMemoStable(account.data?.settings.favorites);
+  const favoritesRef = useRef(favorites);
+  favoritesRef.current = favorites;
+  const saveMutate = save.mutate;
+  const toggle = useCallback(
+    (symbol: string) => {
+      const current = favoritesRef.current;
+      const next = current.includes(symbol) ? current.filter((s) => s !== symbol) : [...current, symbol];
+      saveMutate({ favorites: next });
+    },
+    [saveMutate],
+  );
+  return { favorites, toggle, signedIn: Boolean(user), loading: Boolean(user) && account.isLoading };
+}
+
+const EMPTY: string[] = [];
+
+/** Same array identity while the contents are unchanged, so memoized rows don't re-render. */
+function useMemoStable(list: string[] | undefined): string[] {
+  const ref = useRef<string[]>(EMPTY);
+  const next = list ?? EMPTY;
+  if (next.length !== ref.current.length || next.some((v, i) => v !== ref.current[i])) ref.current = next;
+  return ref.current;
 }

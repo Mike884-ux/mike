@@ -1,37 +1,15 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import {
-  ArrowDown,
-  ArrowUp,
-  BarChart3,
-  LineChart,
-  Loader2,
-  MessageCircle,
-  Minus,
-  Newspaper,
-  RefreshCw,
-  Search,
-  Sparkles,
-  Star,
-  TrendingDown,
-  TrendingUp,
-  Wallet as WalletIcon,
-} from "lucide-react";
+import { ArrowDown, ArrowUp, BarChart3, Loader2, Minus, RefreshCw, Search, Star, TrendingDown, TrendingUp } from "lucide-react";
 import { getSentiment, scanMarket, type CoinRow } from "@/lib/scan";
 import { INTERVALS, type IntervalId } from "@/lib/types";
 import { formatPrice } from "@/lib/utils";
 import { useT, type MessageKey } from "@/lib/i18n";
 import { assetOf } from "@/lib/markets";
-import { useSettings } from "@/lib/settings-store";
-import { useAccount, useSaveSettings } from "@/lib/use-account";
+import { useFavorites } from "@/lib/use-account";
 import { AssetIcon } from "@/components/asset-icon";
-import { Mark } from "@/components/mark";
 import { Spark } from "@/components/spark";
-import { AccountMenu, WelcomeModal } from "@/components/account-menu";
 import { Card, ScoreBar, SignalBadge } from "@/components/ui-bits";
-import { Wallet } from "@/components/wallet";
-import { News } from "@/components/news";
-import { Chat } from "@/components/chat";
 import { CoinDetail } from "@/components/coin-detail";
 
 function fngTone(value: number) {
@@ -63,14 +41,6 @@ function FearGreedGauge({ value }: { value: number }) {
 }
 
 type SortKey = "price" | "change24h" | "rsi" | "score" | "volumeRatio";
-
-const TABS = [
-  { id: "scan", label: "tabs.scan", icon: LineChart },
-  { id: "wallet", label: "tabs.wallet", icon: WalletIcon },
-  { id: "news", label: "tabs.news", icon: Newspaper },
-  { id: "chat", label: "tabs.chat", icon: MessageCircle },
-] as const;
-type TabId = (typeof TABS)[number]["id"];
 
 type RowProps = {
   row: CoinRow;
@@ -523,87 +493,8 @@ function ScanTab({ favorites, onToggleFavorite }: { favorites: string[]; onToggl
   );
 }
 
-export function Scanner() {
-  const t = useT();
-  const lang = useSettings((s) => s.lang);
-  const [tab, setTab] = useState<TabId>("scan");
-  const account = useAccount();
-  const saveSettings = useSaveSettings();
-  const favorites = account.data?.settings.favorites ?? [];
-
-  useEffect(() => {
-    document.documentElement.lang = lang;
-  }, [lang]);
-
-  // Stable identity so memoized table rows don't re-render on every parent render.
-  const favoritesRef = useRef(favorites);
-  favoritesRef.current = favorites;
-  const saveMutate = saveSettings.mutate;
-  const toggleFavorite = useCallback(
-    (base: string) => {
-      const current = favoritesRef.current;
-      const next = current.includes(base) ? current.filter((b) => b !== base) : [...current, base];
-      saveMutate({ favorites: next });
-    },
-    [saveMutate],
-  );
-
-  return (
-    <div className="flex h-dvh min-h-0 flex-col">
-      <header className="flex h-16 shrink-0 items-center justify-between gap-3 border-b border-border bg-bg/60 px-3 backdrop-blur-xl sm:px-5">
-        <div className="flex items-center gap-2.5">
-          <span className="bg-brand grid size-8 place-items-center rounded-lg shadow-[var(--shadow-glow)]">
-            <Mark className="size-4.5 text-white" />
-          </span>
-          <p className="font-display text-base font-bold text-fg">{t("app.name")}</p>
-          <span className="hidden items-center gap-1 rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-medium text-primary lg:flex">
-            <Sparkles className="size-2.5" />
-            {t("app.aiBadge")}
-          </span>
-        </div>
-        <nav className="flex gap-1 rounded-xl bg-surface-2 p-1">
-          {TABS.map((item) => {
-            const Icon = item.icon;
-            return (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => setTab(item.id)}
-                aria-pressed={tab === item.id}
-                aria-label={t(item.label)}
-                title={t(item.label)}
-                className={`flex h-8 items-center gap-1.5 rounded-lg px-3 text-xs outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${
-                  tab === item.id ? "bg-primary text-primary-fg" : "text-muted hover:text-fg"
-                }`}
-              >
-                <Icon className="size-3.5" />
-                <span className="hidden md:inline">{t(item.label)}</span>
-              </button>
-            );
-          })}
-        </nav>
-        <AccountMenu />
-      </header>
-
-      {account.imported ? (
-        <p role="status" className="bg-accent/15 px-4 py-2 text-center text-xs text-accent">
-          {t("wallet.imported", { n: account.imported })}
-        </p>
-      ) : null}
-
-      <div className="min-h-0 flex-1 overflow-y-auto px-3 py-4 sm:px-5">
-        {tab === "scan" ? (
-          <ScanTab favorites={favorites} onToggleFavorite={toggleFavorite} />
-        ) : tab === "wallet" ? (
-          <Wallet />
-        ) : tab === "news" ? (
-          <News />
-        ) : (
-          <Chat />
-        )}
-      </div>
-
-      {account.needsWelcome ? <WelcomeModal onDone={account.dismissWelcome} /> : null}
-    </div>
-  );
+/** The signals scanner page (members only): indicator signals across the tape. */
+export function SignalsPage() {
+  const { favorites, toggle } = useFavorites();
+  return <ScanTab favorites={favorites} onToggleFavorite={toggle} />;
 }
