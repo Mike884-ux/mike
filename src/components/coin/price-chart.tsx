@@ -41,8 +41,7 @@ export function PriceChart({ points, mode, range, className }: { points: History
     const axisDigits = precisionFor(points.at(-1)?.c ?? 0);
     const chart = createChart(container, {
       localization: {
-        // Tajik month names are often missing from browsers; Russian reads naturally there.
-        locale: lang === "tg" ? "ru-RU" : LOCALE[lang],
+        locale: LOCALE[lang],
         priceFormatter: (value: number) =>
           value.toLocaleString("en-US", { minimumFractionDigits: Math.abs(value) >= 1000 ? 0 : Math.min(axisDigits, 2), maximumFractionDigits: Math.abs(value) >= 1000 ? 0 : axisDigits }),
       },

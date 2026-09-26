@@ -2,8 +2,6 @@
 export const LANGS = [
   { id: "ru", label: "Русский", flag: "🇷🇺" },
   { id: "en", label: "English", flag: "🇬🇧" },
-  { id: "tg", label: "Тоҷикӣ", flag: "🇹🇯" },
-  { id: "uz", label: "Oʻzbekcha", flag: "🇺🇿" },
 ] as const;
 
 export type Lang = (typeof LANGS)[number]["id"];
@@ -16,8 +14,6 @@ export function asLang(value: unknown): Lang {
 export const AI_LANGUAGE: Record<Lang, string> = {
   ru: "Russian",
   en: "English",
-  tg: "Tajik (тоҷикӣ, Cyrillic script)",
-  uz: "Uzbek (oʻzbekcha, Latin script)",
 };
 
 export const COUNTRIES = [

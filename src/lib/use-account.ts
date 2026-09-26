@@ -7,9 +7,31 @@ import { useSettings } from "./settings-store";
 
 export const ACCOUNT_KEY = ["account"] as const;
 
+const WELCOMED = "scan-welcomed";
+
+/** Accounts that already saw the welcome on this device, so it never shows again here. */
+function welcomedHere(userId: string): boolean {
+  try {
+    return (JSON.parse(localStorage.getItem(WELCOMED) ?? "[]") as string[]).includes(userId);
+  } catch {
+    return false;
+  }
+}
+
+function markWelcomed(userId: string) {
+  try {
+    const list = JSON.parse(localStorage.getItem(WELCOMED) ?? "[]") as string[];
+    if (!list.includes(userId)) localStorage.setItem(WELCOMED, JSON.stringify([...list, userId].slice(-20)));
+  } catch {
+    /* storage unavailable — the saved account setting still covers it */
+  }
+}
+
 /** The signed-in user's saved data, plus first-login and old-browser-wallet handling. */
 export function useAccount() {
   const client = useQueryClient();
+  const { user } = useCurrentUserState();
+  const userId = user?.id ?? null;
   const query = useQuery({ queryKey: ACCOUNT_KEY, queryFn: () => getAccount(), staleTime: 30_000 });
   const setLang = useSettings((s) => s.setLang);
   const setCountry = useSettings((s) => s.setCountry);
@@ -19,12 +41,17 @@ export function useAccount() {
 
   useEffect(() => {
     const data = query.data;
-    if (!data || synced.current) return;
+    if (!data || !userId || synced.current) return;
     synced.current = true;
     if (data.settings.lang) {
       // Returning user: the account's choice wins over this device's.
       setLang(asLang(data.settings.lang));
       setCountry(asCountry(data.settings.country));
+      markWelcomed(userId);
+    } else if (welcomedHere(userId)) {
+      // Welcomed here before but the account lost the choice — restore it quietly instead of asking again.
+      const { lang, country } = useSettings.getState();
+      void updateSettings({ data: { lang, country } }).catch(() => undefined);
     } else {
       setNeedsWelcome(true);
     }
@@ -47,9 +74,14 @@ export function useAccount() {
     } catch {
       /* storage unavailable — nothing to import */
     }
-  }, [query.data, setLang, setCountry, client]);
+  }, [query.data, userId, setLang, setCountry, client]);
 
-  return { ...query, needsWelcome, dismissWelcome: () => setNeedsWelcome(false), imported };
+  const dismissWelcome = useCallback(() => {
+    if (userId) markWelcomed(userId);
+    setNeedsWelcome(false);
+  }, [userId]);
+
+  return { ...query, needsWelcome, dismissWelcome, imported };
 }
 
 /** Save language / country / favorites to the account (optimistically). */

@@ -1,8 +1,9 @@
 import { createFileRoute, Navigate } from "@tanstack/react-router";
 import { LoginScreen } from "@/components/login-screen";
+import { getAuthProviders } from "@/lib/auth/providers";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 
-type LoginSearch = { mode?: "signin" | "signup"; redirect?: string };
+type LoginSearch = { mode?: "signin" | "signup" | "code"; redirect?: string };
 
 /** Only same-site paths: "/coins/bitcoin" yes, "//evil.test" or "https://…" no. */
 function safeRedirect(value: unknown): string | undefined {
@@ -13,9 +14,12 @@ function safeRedirect(value: unknown): string | undefined {
 
 export const Route = createFileRoute("/login")({
   validateSearch: (search: Record<string, unknown>): LoginSearch => ({
-    mode: search.mode === "signin" ? "signin" : search.mode === "signup" ? "signup" : undefined,
+    mode: search.mode === "signin" || search.mode === "signup" || search.mode === "code" ? search.mode : undefined,
     redirect: safeRedirect(search.redirect),
   }),
+  // Known before the page renders, so the Google / X / code options don't pop in late.
+  loader: () => getAuthProviders().catch(() => undefined),
+  staleTime: Infinity,
   component: LoginPage,
 });
 
@@ -26,7 +30,8 @@ export const Route = createFileRoute("/login")({
  */
 function LoginPage() {
   const { mode, redirect } = Route.useSearch();
+  const providers = Route.useLoaderData();
   const { user } = useCurrentUserState();
   if (user) return <Navigate to={redirect ?? "/"} />;
-  return <LoginScreen initialMode={mode ?? "signup"} redirect={redirect ?? "/"} />;
+  return <LoginScreen initialMode={mode ?? "signup"} redirect={redirect ?? "/"} providers={providers} />;
 }

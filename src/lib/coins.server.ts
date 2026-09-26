@@ -305,7 +305,7 @@ export type CoinLookup = { info: CoinInfo } | { notFound: true };
 
 export async function getCoin(id: string, lang: Lang): Promise<CoinLookup | null> {
   // CoinGecko only localizes descriptions (Russian is the one our users read).
-  const descLang = lang === "ru" || lang === "tg" ? "ru" : "en";
+  const descLang = lang === "ru" ? "ru" : "en";
   return cached(`coin:${id}:${descLang}`, 120_000, async (): Promise<CoinLookup | null> => {
     const cg = await coingecko(
       `/coins/${encodeURIComponent(id)}?localization=${descLang === "ru"}&tickers=false&market_data=true&community_data=false&developer_data=false&sparkline=false`,

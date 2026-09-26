@@ -1,10 +1,12 @@
 /**
- * Self-hosted Better Auth for this app — email/password only, own database.
- * No external identity broker; sessions live in Postgres (DATABASE_URL) or the
- * embedded PGLite fallback.
+ * Self-hosted Better Auth for this app — email/password, a one-time code by
+ * email (when RESEND_API_KEY is set) and Google / X sign-in (when their client
+ * keys are set). Sessions live in Postgres (DATABASE_URL) or the embedded
+ * PGLite fallback.
  */
 import { betterAuth } from "better-auth";
-import { bearer } from "better-auth/plugins";
+import { bearer, emailOTP } from "better-auth/plugins";
+import { mailEnabled, sendMail } from "../mail.server";
 import { tanstackStartCookies } from "better-auth/tanstack-start";
 import { createHash, randomBytes } from "node:crypto";
 import { Pool } from "pg";
@@ -81,6 +83,16 @@ const trustedOrigins = [
   ...LOCAL_DEV_ORIGINS,
 ];
 
+const googleId = process.env.GOOGLE_CLIENT_ID?.trim();
+const googleSecret = process.env.GOOGLE_CLIENT_SECRET?.trim();
+const twitterId = process.env.TWITTER_CLIENT_ID?.trim();
+const twitterSecret = process.env.TWITTER_CLIENT_SECRET?.trim();
+
+const OTP_SUBJECT = "Код для входа";
+function otpText(otp: string): string {
+  return `Ваш код для входа: ${otp}\n\nКод действует 10 минут. Если вы не запрашивали вход, просто не обращайте внимания на это письмо.\n\nYour sign-in code: ${otp} (valid for 10 minutes).`;
+}
+
 export const auth = betterAuth({
   baseURL: explicitBaseURL ?? {
     allowedHosts: [...deployHosts, "localhost", "127.0.0.1", "[::1]", ...(isProduction ? [] : ["*.trycloudflare.com"])],
@@ -92,6 +104,10 @@ export const auth = betterAuth({
   trustedOrigins,
   session: { cookieCache: { enabled: true, maxAge: 300 } },
   emailAndPassword: { enabled: true, minPasswordLength: 8, maxPasswordLength: 128 },
+  socialProviders: {
+    ...(googleId && googleSecret ? { google: { clientId: googleId, clientSecret: googleSecret } } : {}),
+    ...(twitterId && twitterSecret ? { twitter: { clientId: twitterId, clientSecret: twitterSecret } } : {}),
+  },
   /**
    * Per-IP limits, counted in the database so every serverless instance shares
    * them. Password guessing gets 5 tries a minute; account creation 5 an hour.
@@ -104,6 +120,8 @@ export const auth = betterAuth({
     customRules: {
       "/sign-in/email": { window: 60, max: 5 },
       "/sign-up/email": { window: 3600, max: 5 },
+      "/email-otp/send-verification-otp": { window: 600, max: 4 },
+      "/sign-in/email-otp": { window: 600, max: 8 },
       "/change-password": { window: 600, max: 5 },
     },
   },
@@ -115,5 +133,19 @@ export const auth = betterAuth({
       ipAddressHeaders: ["x-vercel-forwarded-for", "x-real-ip", "x-forwarded-for"],
     },
   },
-  plugins: [bearer(), tanstackStartCookies()],
+  plugins: [
+    bearer(),
+    // Six-digit code by email; the plugin is harmless without a mail key since the page hides the option.
+    emailOTP({
+      otpLength: 6,
+      expiresIn: 600,
+      allowedAttempts: 5,
+      async sendVerificationOTP({ email, otp, type }) {
+        if (!mailEnabled()) throw new Error("mail is not configured");
+        if (type !== "sign-in") return;
+        await sendMail(email, OTP_SUBJECT, otpText(otp));
+      },
+    }),
+    tanstackStartCookies(),
+  ],
 });

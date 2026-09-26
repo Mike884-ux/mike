@@ -48,11 +48,13 @@ export const walletTrade = createServerFn({ method: "POST" })
     note: input.note ? String(input.note).slice(0, 200) : undefined,
   }))
   .handler(async ({ context, data }): Promise<TradeResult> => {
-    // The symbol always comes from our own asset list, never from the browser.
+    // The symbol never comes from the browser: assets we follow get their exchange pair; any
+    // other coin from the market listing is stored as "<TICKER>.CG" and priced via CoinGecko.
     const asset = assetOf(data.base);
-    if (!asset) return { ok: false, error: "bad_input" };
+    const base = asset?.base ?? (/^[A-Z0-9]{2,12}$/.test(data.base) ? data.base : null);
+    if (!base) return { ok: false, error: "bad_input" };
     const { sql, mod } = await store();
-    return mod.trade(sql, context.userId, { ...data, base: asset.base, symbol: symbolOf(asset) });
+    return mod.trade(sql, context.userId, { ...data, base, symbol: asset ? symbolOf(asset) : `${base}.CG` });
   });
 
 export const walletRemove = createServerFn({ method: "POST" })

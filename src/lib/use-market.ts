@@ -66,7 +66,7 @@ export function useTrending() {
 }
 
 export function useCoinInfo(id: string, lang: Lang) {
-  const descLang = lang === "ru" || lang === "tg" ? "ru" : "en";
+  const descLang = lang === "ru" ? "ru" : "en";
   return useQuery({
     queryKey: ["market", "coin", id, descLang],
     queryFn: () => marketGet<CoinInfo>(`/api/market/coin/${encodeURIComponent(id)}?lang=${descLang}`),

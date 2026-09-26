@@ -3,15 +3,13 @@ import { useSettings } from "@/lib/settings-store";
 import type { Lang } from "@/lib/lang";
 import { en } from "./en";
 import { ru, type MessageKey } from "./ru";
-import { tg } from "./tg";
-import { uz } from "./uz";
 
 export type { MessageKey };
 
-const DICTS: Record<Lang, Record<MessageKey, string>> = { ru, en, tg, uz };
+const DICTS: Record<Lang, Record<MessageKey, string>> = { ru, en };
 
-/** BCP 47 locale for dates. Tajik and Uzbek fall back to Russian/English when the browser lacks them. */
-export const LOCALE: Record<Lang, string> = { ru: "ru-RU", en: "en-US", tg: "tg-TJ", uz: "uz-Latn-UZ" };
+/** BCP 47 locale for dates and numbers. */
+export const LOCALE: Record<Lang, string> = { ru: "ru-RU", en: "en-US" };
 
 export function translate(lang: Lang, key: MessageKey, vars?: Record<string, string | number>): string {
   const template = DICTS[lang][key] ?? ru[key] ?? key;
@@ -31,7 +29,7 @@ export function timeAgo(lang: Lang, at: number, now = Date.now()): string {
   const abs = Math.abs(diff);
   const [value, unit]: [number, Intl.RelativeTimeFormatUnit] =
     abs < 60 ? [diff, "second"] : abs < 3600 ? [Math.round(diff / 60), "minute"] : abs < 86400 ? [Math.round(diff / 3600), "hour"] : [Math.round(diff / 86400), "day"];
-  for (const locale of [LOCALE[lang], lang === "tg" ? "ru-RU" : "en-US"]) {
+  for (const locale of [LOCALE[lang], "en-US"]) {
     try {
       return new Intl.RelativeTimeFormat(locale, { numeric: "auto" }).format(value, unit);
     } catch {
@@ -56,7 +54,7 @@ export function formatDate(lang: Lang, at: number): string {
 export function formatDay(lang: Lang, at: string | number): string {
   const date = new Date(at);
   if (Number.isNaN(date.getTime())) return "—";
-  for (const locale of [LOCALE[lang], lang === "tg" ? "ru-RU" : "en-US"]) {
+  for (const locale of [LOCALE[lang], "en-US"]) {
     try {
       return date.toLocaleDateString(locale, { day: "numeric", month: "short", year: "numeric" });
     } catch {

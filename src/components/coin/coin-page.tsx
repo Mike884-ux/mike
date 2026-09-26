@@ -1,17 +1,21 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { ArrowLeftRight, Check, ChevronRight, FileText, Github, Globe, Info, Link2, MessageCircle, Search, Share2, Star } from "lucide-react";
+import { ArrowLeftRight, Check, ChevronRight, FileText, Github, Globe, Info, Link2, MessageCircle, Plus, Search, Share2, Star, Wallet } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { getAccount } from "@/lib/account";
+import { getPrices } from "@/lib/wallet";
 import { MarketError, type CoinInfo } from "@/lib/coins";
 import { numFull, share, usdFull, usdPrice } from "@/lib/format";
 import { useT, type MessageKey } from "@/lib/i18n";
 import { parseAmount } from "@/lib/portfolio-math";
 import { useSettings } from "@/lib/settings-store";
-import { useFavorites } from "@/lib/use-account";
+import { ACCOUNT_KEY, useFavorites } from "@/lib/use-account";
 import { useCoinInfo } from "@/lib/use-market";
 import { cn } from "@/lib/utils";
 import { ChangePill, CoinLogo, Meter } from "@/components/market/bits";
 import { Container } from "@/components/site/shell";
 import { AboutSection, ChartSection, NewsSection, PerformanceRow, RecordsSection, SignalsSection } from "@/components/coin/coin-sections";
+import { TradeDialog } from "@/components/coin/trade-dialog";
 
 function Crumbs({ name }: { name: string }) {
   const t = useT();
@@ -53,6 +57,63 @@ function ShareButton({ coin }: { coin: CoinInfo }) {
     >
       {copied ? <Check className="size-4 text-long" /> : <Share2 className="size-4" />}
     </button>
+  );
+}
+
+/** The member's position in this coin, from the saved portfolio. */
+function useHolding(coin: CoinInfo, signedIn: boolean) {
+  const account = useQuery({ queryKey: ACCOUNT_KEY, queryFn: () => getAccount(), staleTime: 30_000, enabled: signedIn });
+  const position = account.data?.positions.find((p) => p.base === coin.symbol) ?? null;
+  const prices = useQuery({
+    queryKey: ["wallet-prices", position?.symbol ?? ""],
+    queryFn: () => getPrices({ data: { symbols: [position!.symbol] } }),
+    enabled: Boolean(position) && !/\.CG$/.test(position?.symbol ?? ""),
+    staleTime: 20_000,
+  });
+  const price = prices.data?.[0]?.price ?? coin.price;
+  return position ? { ...position, price, value: position.qty * price, pnl: (price - position.entry) * position.qty } : null;
+}
+
+/** "You hold 0.5 BTC ≈ $32,000 (+4.1%)" with an add-trade button. */
+function HoldingCard({ coin, onTrade }: { coin: CoinInfo; onTrade: () => void }) {
+  const t = useT();
+  const { signedIn } = useFavorites();
+  const holding = useHolding(coin, signedIn);
+  const pnlPct = holding && holding.entry > 0 ? ((holding.price - holding.entry) / holding.entry) * 100 : 0;
+  return (
+    <div className="rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)]">
+      <p className="flex items-center gap-1.5 text-sm font-semibold text-fg">
+        <Wallet className="size-4 text-primary" />
+        {t("trade.inPortfolio")}
+      </p>
+      {holding ? (
+        <div className="mt-2 flex items-end justify-between gap-3">
+          <div>
+            <p className="font-display text-xl font-bold text-fg tabular-nums">
+              {Number(holding.qty.toPrecision(8))} {coin.symbol}
+            </p>
+            <p className="text-xs text-muted tabular-nums">
+              ≈ {usdPrice(holding.value)} ·{" "}
+              <span className={holding.pnl >= 0 ? "text-long" : "text-short"}>
+                {holding.pnl >= 0 ? "+" : "−"}
+                {usdPrice(Math.abs(holding.pnl))} ({pnlPct >= 0 ? "+" : ""}
+                {pnlPct.toFixed(1)}%)
+              </span>
+            </p>
+          </div>
+        </div>
+      ) : (
+        <p className="mt-1 text-xs text-muted">{t(signedIn ? "trade.none" : "trade.guest")}</p>
+      )}
+      <button
+        type="button"
+        onClick={onTrade}
+        className="mt-3 flex h-10 w-full items-center justify-center gap-2 rounded-xl bg-primary text-sm font-semibold text-primary-fg hover:opacity-90"
+      >
+        <Plus className="size-4" />
+        {t("trade.add")}
+      </button>
+    </div>
   );
 }
 
@@ -312,8 +373,13 @@ function Missing({ notFound, onRetry }: { notFound: boolean; onRetry: () => void
 export function CoinPage({ id }: { id: string }) {
   const t = useT();
   const lang = useSettings((s) => s.lang);
+  const navigate = useNavigate();
+  const { signedIn } = useFavorites();
   const query = useCoinInfo(id, lang);
   const coin = query.data;
+  const [trading, setTrading] = useState(false);
+  const holding = useHolding(coin ?? { symbol: "", price: 0 } as CoinInfo, signedIn && Boolean(coin));
+  const openTrade = () => (signedIn ? setTrading(true) : void navigate({ to: "/login", search: { mode: "signup", redirect: `/coins/${id}` } }));
 
   useEffect(() => {
     if (coin) document.title = `${coin.name} (${coin.symbol}) ${usdPrice(coin.price)} — ${t("app.name")}`;
@@ -340,6 +406,7 @@ export function CoinPage({ id }: { id: string }) {
               <RangeBar low={coin.low24h} high={coin.high24h} price={coin.price} />
             </div>
           </div>
+          <HoldingCard coin={coin} onTrade={openTrade} />
           <Stats coin={coin} />
           <Links coin={coin} />
           <Converter coin={coin} />
@@ -354,6 +421,7 @@ export function CoinPage({ id }: { id: string }) {
           {coin.source !== "coingecko" ? <p className="text-xs text-faint">{t("coin.partial")}</p> : null}
         </div>
       </div>
+      {trading ? <TradeDialog coin={coin} held={holding?.qty ?? 0} onClose={() => setTrading(false)} /> : null}
     </Container>
   );
 }

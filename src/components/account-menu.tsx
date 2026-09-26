@@ -69,7 +69,7 @@ export function LanguageCountryFields({ onSaved }: { onSaved?: () => void }) {
         >
           {COUNTRIES.map((c) => (
             <option key={c.id} value={c.id} className="bg-bg">
-              {c.flag} {lang === "en" || lang === "uz" ? c.en : c.ru}
+              {c.flag} {lang === "en" ? c.en : c.ru}
             </option>
           ))}
         </select>
@@ -227,7 +227,10 @@ export function WelcomeModal({ onDone }: { onDone: () => void }) {
         </div>
         <button
           type="button"
-          onClick={() => save.mutate({ lang, country }, { onSettled: onDone })}
+          onClick={() => {
+            save.mutate({ lang, country });
+            onDone();
+          }}
           className="bg-brand mt-6 h-11 w-full rounded-xl text-sm font-semibold text-white shadow-[var(--shadow-glow)]"
         >
           {t("common.continue")}

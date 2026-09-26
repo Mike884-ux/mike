@@ -273,9 +273,9 @@ function mapLinks(raw: unknown): CoinLinks {
   };
 }
 
-/** Description language: CoinGecko has Russian for many coins, never Tajik or Uzbek. */
+/** Description language: CoinGecko has Russian for many coins; English otherwise. */
 function pickDescription(description: Obj, lang: string): string {
-  const order = lang === "ru" || lang === "tg" ? ["ru", "en"] : ["en"];
+  const order = lang === "ru" ? ["ru", "en"] : ["en"];
   for (const key of order) {
     const text = str(description[key]);
     if (text) return plainText(text);

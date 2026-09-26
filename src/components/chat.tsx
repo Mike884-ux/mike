@@ -9,7 +9,7 @@ import { aiErrorKey } from "@/components/ui-bits";
 
 const SUGGESTIONS: MessageKey[] = ["chat.s1", "chat.s2", "chat.s3", "chat.s4"];
 
-export function Chat() {
+export function Chat({ initialQuestion }: { initialQuestion?: string } = {}) {
   const t = useT();
   const lang = useSettings((s) => s.lang);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -24,6 +24,15 @@ export function Chat() {
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [messages, mutation.isPending]);
+
+  // A question handed over from a coin page ("ask the AI about Bitcoin") is sent once on arrival.
+  const asked = useRef<string | null>(null);
+  useEffect(() => {
+    if (!initialQuestion || asked.current === initialQuestion) return;
+    asked.current = initialQuestion;
+    submit(initialQuestion);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- submit is stable enough for a one-shot send
+  }, [initialQuestion]);
 
   function submit(text: string) {
     const clean = text.trim();

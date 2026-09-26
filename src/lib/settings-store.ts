@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { CountryId, Lang } from "./lang";
+import { asLang, type CountryId, type Lang } from "./lang";
 
 export type Theme = "light" | "dark";
 
@@ -35,7 +35,14 @@ export const useSettings = create<SettingsState>()(
       setTheme: (theme) => set({ theme }),
       setHighlights: (highlights) => set({ highlights }),
     }),
-    { name: SETTINGS_KEY },
+    {
+      name: SETTINGS_KEY,
+      // Older versions offered more languages; anything unknown falls back to Russian.
+      merge: (persisted, current) => {
+        const saved = (persisted ?? {}) as Partial<SettingsState>;
+        return { ...current, ...saved, lang: asLang(saved.lang ?? current.lang) };
+      },
+    },
   ),
 );
 
@@ -43,4 +50,4 @@ export const useSettings = create<SettingsState>()(
  * Runs in <head> before the first paint, so a dark-theme visitor never sees a
  * white flash while the app loads.
  */
-export const THEME_BOOT_SCRIPT = `try{var s=JSON.parse(localStorage.getItem("${SETTINGS_KEY}")||"{}").state||{};document.documentElement.dataset.theme=s.theme==="dark"?"dark":"light";if(s.lang)document.documentElement.lang=s.lang}catch(e){}`;
+export const THEME_BOOT_SCRIPT = `try{var s=JSON.parse(localStorage.getItem("${SETTINGS_KEY}")||"{}").state||{};document.documentElement.dataset.theme=s.theme==="dark"?"dark":"light";document.documentElement.lang=s.lang==="en"?"en":"ru"}catch(e){}`;

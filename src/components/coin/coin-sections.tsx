@@ -1,6 +1,6 @@
 import { useMemo, useState, type ReactNode } from "react";
 import { Link, useRouterState } from "@tanstack/react-router";
-import { BarChart3, CandlestickChart, ChevronDown, LineChart, Lock, Sparkles, TrendingUp } from "lucide-react";
+import { BarChart3, Bot, CandlestickChart, ChevronDown, LineChart, Lock, Sparkles, TrendingUp } from "lucide-react";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import { RANGES, type CoinInfo, type RangeId } from "@/lib/coins";
 import { pctSigned, usdPrice } from "@/lib/format";
@@ -184,7 +184,34 @@ export function SignalsSection({ coin }: { coin: CoinInfo }) {
       ) : (
         <MemberSignals base={asset.base} />
       )}
+      {user ? <AskAi coin={coin} /> : null}
     </Section>
+  );
+}
+
+/** Quick questions that open the AI chat with this coin's live data attached. */
+function AskAi({ coin }: { coin: CoinInfo }) {
+  const t = useT();
+  const questions: MessageKey[] = ["ask.q1", "ask.q2", "ask.q3"];
+  return (
+    <div className="mt-5 border-t border-border pt-4">
+      <p className="flex items-center gap-1.5 text-sm font-semibold text-fg">
+        <Bot className="size-4 text-primary" />
+        {t("ask.title", { name: coin.name })}
+      </p>
+      <div className="mt-2 flex flex-wrap gap-2">
+        {questions.map((key) => (
+          <Link
+            key={key}
+            to="/ai"
+            search={{ q: t(key, { name: coin.name, symbol: coin.symbol }) }}
+            className="rounded-xl bg-surface-2 px-3 py-2 text-xs font-medium text-fg hover:bg-surface-3"
+          >
+            {t(key, { name: coin.name, symbol: coin.symbol })}
+          </Link>
+        ))}
+      </div>
+    </div>
   );
 }
 

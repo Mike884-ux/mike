@@ -184,6 +184,7 @@ async function loadYahooTicker(symbol: string): Promise<LiveTicker | null> {
 }
 
 export async function fetchKlines(symbol: string, interval: string, limit = 64): Promise<Candle[]> {
+  if (symbol.endsWith(".CG")) return []; // no exchange history for CoinGecko-only coins
   return once(`k:${symbol}:${interval}:${limit}`, KLINE_TTL, async () => {
     const stock = stockAssetOf(symbol);
     if (stock?.yahoo) return fetchYahooKlines(stock.yahoo, interval, limit);
@@ -237,9 +238,28 @@ async function fillBinanceTickers(symbols: string[], found: Map<string, LiveTick
   );
 }
 
+/** Wallet symbols like "PEPE.CG" belong to coins we don't follow on an exchange; CoinGecko quotes them. */
+async function fetchGeckoTickers(symbols: string[]): Promise<Ticker[]> {
+  if (!symbols.length) return [];
+  const { getBySymbols } = await import("./coins.server");
+  const listing = await getBySymbols(symbols.map((s) => s.replace(/\.CG$/, "")));
+  const out: Ticker[] = [];
+  for (const symbol of symbols) {
+    const coin = listing?.coins.find((c) => c.symbol === symbol.replace(/\.CG$/, ""));
+    if (coin) out.push({ symbol, price: coin.price, change24h: coin.change24h ?? 0 });
+  }
+  return out;
+}
+
 export async function fetchTickers(symbols: string[]): Promise<Ticker[]> {
   const unique = [...new Set(symbols.filter(Boolean))];
   if (!unique.length) return [];
+  const gecko = unique.filter((s) => s.endsWith(".CG"));
+  if (gecko.length) {
+    const rest = unique.filter((s) => !s.endsWith(".CG"));
+    const [a, b] = await Promise.all([fetchTickers(rest), fetchGeckoTickers(gecko)]);
+    return [...a, ...b];
+  }
   const found = new Map<string, LiveTicker>();
   const need: string[] = [];
   const now = Date.now();
