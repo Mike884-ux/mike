@@ -273,7 +273,13 @@ function PayDialog({
   const price = priceOf(plan, period);
   // Online payment not connected yet: collect emails instead (the waiting list).
   const online = Boolean(options?.crypto || options?.card);
+  // Plans are switched on for an account, so every way to pay starts with one.
+  const payable = online || Boolean(options?.contact);
+  // Cards through NOWPayments' on-ramp have a minimum set by its card partner.
+  const cardMin = options?.cardMin ?? null;
+  const cardTooSmall = cardMin !== null && price < cardMin;
   const failed = checkout.data && !checkout.data.ok;
+  const failure = checkout.data && !checkout.data.ok ? checkout.data.error : null;
   const method =
     "flex h-12 w-full items-center gap-3 rounded-xl px-4 text-left text-sm font-semibold disabled:opacity-60";
 
@@ -307,8 +313,8 @@ function PayDialog({
           </button>
         </div>
         <div className="mt-5 flex flex-col gap-2">
-          {options && !online ? <WaitlistForm plan={plan} period={period} /> : null}
-          {online && !user ? (
+          {options && !payable ? <WaitlistForm plan={plan} period={period} /> : null}
+          {payable && !user ? (
             <Link
               to="/login"
               search={{ mode: "signup", redirect: "/pricing" }}
@@ -336,7 +342,7 @@ function PayDialog({
           {user && options?.card ? (
             <button
               type="button"
-              disabled={checkout.isPending}
+              disabled={checkout.isPending || cardTooSmall}
               onClick={() => checkout.mutate("card")}
               className={cn(method, "bg-fg text-bg")}
             >
@@ -349,7 +355,10 @@ function PayDialog({
               <span className="text-xs font-medium opacity-80">Visa · Mastercard</span>
             </button>
           ) : null}
-          {options?.contact ? (
+          {user && options?.card && cardTooSmall && cardMin !== null ? (
+            <p className="px-1 text-xs leading-relaxed text-muted">{t("pay.cardMin", { min: money(cardMin) })}</p>
+          ) : null}
+          {user && options?.contact ? (
             <div className="rounded-xl bg-surface-2 p-4">
               <a
                 href={contactHref(options.contact)}
@@ -376,11 +385,9 @@ function PayDialog({
         </div>
         {failed ? (
           <p role="alert" className="mt-3 rounded-lg bg-short/10 px-3 py-2 text-sm text-short">
-            {t(
-              checkout.data && !checkout.data.ok && checkout.data.error === "unavailable"
-                ? "pay.err.unavailable"
-                : "pay.err.failed",
-            )}
+            {failure === "min_amount" && cardMin !== null
+              ? t("pay.cardMin", { min: money(cardMin) })
+              : t(failure === "unavailable" ? "pay.err.unavailable" : "pay.err.failed")}
           </p>
         ) : null}
         {checkout.isError ? <p className="mt-3 text-sm text-short">{t("pay.err.failed")}</p> : null}

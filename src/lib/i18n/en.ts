@@ -556,9 +556,8 @@ export const en: Record<MessageKey, string> = {
   "pay.year": "1 year",
   "pay.crypto": "Pay with crypto",
   "pay.card": "Pay by card",
-  "pay.contact": "Message us to pay",
-  "pay.contactHint": "Send us: your email {email}, plan {plan}, amount {price}. We switch the plan on right after payment.",
-  "pay.soon": "Online payment is coming soon. Meanwhile enjoy the Pro trial and invite friends for bonus days.",
+  "pay.contact": "Pay by bank transfer",
+  "pay.contactHint": "Message us your email {email}, plan {plan} and amount {price}. We'll send the card details for the transfer and switch your plan on right after payment.",
   "pay.err.unavailable": "This payment method isn't available right now.",
   "pay.err.failed": "Couldn't open the payment page. Please try again in a minute.",
   "pay.noRenew": "One-time payment, no auto-renewal",
@@ -686,4 +685,5 @@ export const en: Record<MessageKey, string> = {
   "share.tagline": "Crypto signals and AI analysis",
   "share.nfa": "Not financial advice",
   "share.text": "{base}: “{signal}” signal on {interval} from 8 indicators. AI breakdown and levels on Scan 👉 {link}",
+  "pay.cardMin": "Card payments start at {min}. Choose yearly billing or pay with crypto.",
 };

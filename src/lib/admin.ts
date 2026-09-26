@@ -35,9 +35,10 @@ export const getAdminOverview = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
   .handler(async ({ context }): Promise<AdminOverview> => {
     await requireAdmin(context.email);
-    const [{ getSql }, store] = await Promise.all([
+    const [{ getSql }, store, pay] = await Promise.all([
       import("./db"),
       import("./billing-store.server"),
+      import("./payments.server"),
     ]);
     const sql = await getSql();
     const [stats, payments] = await Promise.all([
@@ -53,6 +54,7 @@ export const getAdminOverview = createServerFn({ method: "GET" })
       { key: "TWITTER_CLIENT_ID", ok: has("TWITTER_CLIENT_ID", "TWITTER_CLIENT_SECRET") },
       { key: "RESEND_API_KEY", ok: has("RESEND_API_KEY") },
       { key: "NOWPAYMENTS_API_KEY", ok: has("NOWPAYMENTS_API_KEY", "NOWPAYMENTS_IPN_SECRET") },
+      { key: "NOWPAYMENTS_CARD", ok: pay.cardProvider() === "nowpayments" },
       { key: "STRIPE_SECRET_KEY", ok: has("STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET") },
       { key: "PAY_CONTACT", ok: has("PAY_CONTACT") },
     ];

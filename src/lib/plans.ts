@@ -83,4 +83,13 @@ export type Billing = {
   isAdmin: boolean;
 };
 
-export type PaymentOptions = { crypto: boolean; card: boolean; contact: string | null };
+export type PaymentOptions = {
+  crypto: boolean;
+  card: boolean;
+  /**
+   * Smallest card payment in USD when cards go through NOWPayments' on-ramp
+   * (its card partner has a minimum); null when any amount works.
+   */
+  cardMin: number | null;
+  contact: string | null;
+};

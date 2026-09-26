@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { authMiddleware } from "@/lib/auth/middleware";
 import type { ExchangeRefs } from "./exchanges";
-import { asPaidPlan, asPeriod, PLANS, type Billing, type PaymentOptions } from "./plans";
+import { asPaidPlan, asPeriod, PLANS, priceOf, type Billing, type PaymentOptions } from "./plans";
 
 /** The member's plan, today's AI usage and referral info. */
 export const getBilling = createServerFn({ method: "GET" })
@@ -45,7 +45,8 @@ export const getSiteStatus = createServerFn({ method: "GET" }).handler(async ():
 });
 
 export type CheckoutResult =
-  { ok: true; url: string } | { ok: false; error: "unavailable" | "failed" | "bad_input" };
+  | { ok: true; url: string }
+  | { ok: false; error: "unavailable" | "failed" | "bad_input" | "min_amount" };
 
 /** Creates a pending payment and returns the provider's checkout page. */
 export const startCheckout = createServerFn({ method: "POST" })
@@ -66,16 +67,14 @@ export const startCheckout = createServerFn({ method: "POST" })
     const options = pay.paymentOptions();
     if ((data.method === "card" && !options.card) || (data.method === "crypto" && !options.crypto))
       return { ok: false, error: "unavailable" };
+    // The card on-ramp's partner refuses payments below its minimum.
+    if (data.method === "card" && options.cardMin !== null && priceOf(data.plan, data.period) < options.cardMin)
+      return { ok: false, error: "min_amount" };
+    const provider = data.method === "card" ? (pay.cardProvider() ?? "stripe") : "nowpayments";
     const request = getRequest();
     const origin = request ? new URL(request.url).origin : "";
     const sql = await getSql();
-    const payment = await store.createPayment(
-      sql,
-      context.userId,
-      data.plan,
-      data.period,
-      data.method === "card" ? "stripe" : "nowpayments",
-    );
+    const payment = await store.createPayment(sql, context.userId, data.plan, data.period, provider);
     try {
       const input = {
         paymentId: payment.id,
@@ -86,9 +85,9 @@ export const startCheckout = createServerFn({ method: "POST" })
         origin,
       };
       const session =
-        data.method === "card"
+        provider === "stripe"
           ? await pay.stripeCheckout(input)
-          : await pay.nowpaymentsCheckout(input);
+          : await pay.nowpaymentsCheckout(input, data.method === "card" ? pay.nowpaymentsCardCurrency() : null);
       if (session.externalId) await store.setPaymentExternalId(sql, payment.id, session.externalId);
       return { ok: true, url: session.url };
     } catch (err) {
