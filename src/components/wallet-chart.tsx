@@ -4,14 +4,14 @@ import { AreaSeries, createChart, type IChartApi, type ISeriesApi, type UTCTimes
 import { getPortfolioHistory, PORTFOLIO_PERIODS, type PortfolioPeriod } from "@/lib/wallet";
 import { formatPct, formatUsd } from "@/lib/utils";
 import { useT, type MessageKey } from "@/lib/i18n";
-import { useSettings } from "@/lib/settings-store";
+import { useResolvedTheme } from "@/components/site/prefs";
 import { chartPalette, withAlpha } from "@/lib/theme-colors";
 
 function Chart({ points }: { points: { t: number; value: number }[] }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const seriesRef = useRef<ISeriesApi<"Area"> | null>(null);
-  const theme = useSettings((s) => s.theme);
+  const theme = useResolvedTheme();
 
   useEffect(() => {
     const container = containerRef.current;

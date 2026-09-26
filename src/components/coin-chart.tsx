@@ -12,7 +12,7 @@ import {
 import type { AiLevels, Candle } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { useT, type MessageKey } from "@/lib/i18n";
-import { useSettings } from "@/lib/settings-store";
+import { useResolvedTheme } from "@/components/site/prefs";
 import { chartPalette, withAlpha } from "@/lib/theme-colors";
 
 const UP = "#2fd08a";
@@ -47,7 +47,7 @@ export function CoinChart({
   const volumeRef = useRef<ISeriesApi<"Histogram"> | null>(null);
   const linesRef = useRef<IPriceLine[]>([]);
   const t = useT();
-  const theme = useSettings((s) => s.theme);
+  const theme = useResolvedTheme();
 
   useEffect(() => {
     const container = containerRef.current;

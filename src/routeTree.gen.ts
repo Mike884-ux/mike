@@ -14,6 +14,7 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as SiteIndexRouteImport } from './routes/_site/index'
 import { Route as SiteAdminRouteImport } from './routes/_site/admin'
 import { Route as SiteAiRouteImport } from './routes/_site/ai'
+import { Route as SiteConverterRouteImport } from './routes/_site/converter'
 import { Route as SiteNewsRouteImport } from './routes/_site/news'
 import { Route as SitePortfolioRouteImport } from './routes/_site/portfolio'
 import { Route as SitePricingRouteImport } from './routes/_site/pricing'
@@ -52,6 +53,11 @@ const SiteAdminRoute = SiteAdminRouteImport.update({
 const SiteAiRoute = SiteAiRouteImport.update({
   id: '/ai',
   path: '/ai',
+  getParentRoute: () => SiteRoute,
+} as any)
+const SiteConverterRoute = SiteConverterRouteImport.update({
+  id: '/converter',
+  path: '/converter',
   getParentRoute: () => SiteRoute,
 } as any)
 const SiteNewsRoute = SiteNewsRouteImport.update({
@@ -135,6 +141,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/admin': typeof SiteAdminRoute
   '/ai': typeof SiteAiRoute
+  '/converter': typeof SiteConverterRoute
   '/news': typeof SiteNewsRoute
   '/portfolio': typeof SitePortfolioRoute
   '/pricing': typeof SitePricingRoute
@@ -155,6 +162,7 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/admin': typeof SiteAdminRoute
   '/ai': typeof SiteAiRoute
+  '/converter': typeof SiteConverterRoute
   '/news': typeof SiteNewsRoute
   '/portfolio': typeof SitePortfolioRoute
   '/pricing': typeof SitePricingRoute
@@ -178,6 +186,7 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/_site/admin': typeof SiteAdminRoute
   '/_site/ai': typeof SiteAiRoute
+  '/_site/converter': typeof SiteConverterRoute
   '/_site/news': typeof SiteNewsRoute
   '/_site/portfolio': typeof SitePortfolioRoute
   '/_site/pricing': typeof SitePricingRoute
@@ -202,6 +211,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/admin'
     | '/ai'
+    | '/converter'
     | '/news'
     | '/portfolio'
     | '/pricing'
@@ -222,6 +232,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/admin'
     | '/ai'
+    | '/converter'
     | '/news'
     | '/portfolio'
     | '/pricing'
@@ -244,6 +255,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/_site/admin'
     | '/_site/ai'
+    | '/_site/converter'
     | '/_site/news'
     | '/_site/portfolio'
     | '/_site/pricing'
@@ -312,6 +324,13 @@ declare module '@tanstack/react-router' {
       path: '/ai'
       fullPath: '/ai'
       preLoaderRoute: typeof SiteAiRouteImport
+      parentRoute: typeof SiteRoute
+    }
+    '/_site/converter': {
+      id: '/_site/converter'
+      path: '/converter'
+      fullPath: '/converter'
+      preLoaderRoute: typeof SiteConverterRouteImport
       parentRoute: typeof SiteRoute
     }
     '/_site/news': {
@@ -425,6 +444,7 @@ declare module '@tanstack/react-router' {
 interface SiteRouteChildren {
   SiteAdminRoute: typeof SiteAdminRoute
   SiteAiRoute: typeof SiteAiRoute
+  SiteConverterRoute: typeof SiteConverterRoute
   SiteNewsRoute: typeof SiteNewsRoute
   SitePortfolioRoute: typeof SitePortfolioRoute
   SitePricingRoute: typeof SitePricingRoute
@@ -436,6 +456,7 @@ interface SiteRouteChildren {
 const SiteRouteChildren: SiteRouteChildren = {
   SiteAdminRoute: SiteAdminRoute,
   SiteAiRoute: SiteAiRoute,
+  SiteConverterRoute: SiteConverterRoute,
   SiteNewsRoute: SiteNewsRoute,
   SitePortfolioRoute: SitePortfolioRoute,
   SitePricingRoute: SitePricingRoute,

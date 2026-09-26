@@ -11,6 +11,8 @@ import { useT, type MessageKey } from "@/lib/i18n";
 import { useAccount } from "@/lib/use-account";
 import { WelcomeModal } from "@/components/account-menu";
 import { SiteFooter } from "@/components/site/footer";
+import { ProfileDrawer } from "@/components/site/profile-drawer";
+import { TabBar } from "@/components/site/tab-bar";
 import { SiteHeader } from "@/components/site/header";
 import { StatsBar } from "@/components/site/stats-bar";
 import { useApplyPrefs } from "@/components/site/prefs";
@@ -156,6 +158,10 @@ export function SiteShell({ children }: { children: ReactNode }) {
       {user ? <MemberEffects /> : isPending ? null : <GuestOffer />}
       <main className="flex-1">{children}</main>
       <SiteFooter />
+      {/* Room for the phone tab bar so it never covers the footer. */}
+      <div className="h-[calc(3.5rem+env(safe-area-inset-bottom))] lg:hidden" aria-hidden />
+      <TabBar />
+      {user ? <ProfileDrawer /> : null}
     </div>
   );
 }

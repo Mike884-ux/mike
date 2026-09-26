@@ -7,9 +7,24 @@ import { useSettings } from "@/lib/settings-store";
 import { useSaveSettings } from "@/lib/use-account";
 import { cn } from "@/lib/utils";
 
+/** "light" or "dark" as actually shown: the "system" choice follows the device and its changes. */
+export function useResolvedTheme(): "light" | "dark" {
+  const theme = useSettings((s) => s.theme);
+  const [systemDark, setSystemDark] = useState(false);
+  useEffect(() => {
+    if (theme !== "system" || typeof window === "undefined" || !window.matchMedia) return;
+    const query = window.matchMedia("(prefers-color-scheme: dark)");
+    const update = () => setSystemDark(query.matches);
+    update();
+    query.addEventListener("change", update);
+    return () => query.removeEventListener("change", update);
+  }, [theme]);
+  return theme === "system" ? (systemDark ? "dark" : "light") : theme;
+}
+
 /** Keeps <html data-theme> and <html lang> in step with the settings. */
 export function useApplyPrefs() {
-  const theme = useSettings((s) => s.theme);
+  const theme = useResolvedTheme();
   const lang = useSettings((s) => s.lang);
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -21,7 +36,7 @@ export function useApplyPrefs() {
 
 export function ThemeToggle({ className }: { className?: string }) {
   const t = useT();
-  const theme = useSettings((s) => s.theme);
+  const theme = useResolvedTheme();
   const setTheme = useSettings((s) => s.setTheme);
   const dark = theme === "dark";
   return (

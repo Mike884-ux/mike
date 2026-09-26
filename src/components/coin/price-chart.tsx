@@ -11,6 +11,7 @@ import {
 import type { HistoryPoint, RangeId } from "@/lib/coins";
 import { LOCALE } from "@/lib/i18n";
 import { useSettings } from "@/lib/settings-store";
+import { useResolvedTheme } from "@/components/site/prefs";
 import { chartPalette, withAlpha } from "@/lib/theme-colors";
 import { cn } from "@/lib/utils";
 
@@ -31,7 +32,7 @@ type Mode = "line" | "candles";
 export function PriceChart({ points, mode, range, className }: { points: HistoryPoint[]; mode: Mode; range: RangeId; className?: string }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const chartRef = useRef<IChartApi | null>(null);
-  const theme = useSettings((s) => s.theme);
+  const theme = useResolvedTheme();
   const lang = useSettings((s) => s.lang);
 
   useEffect(() => {

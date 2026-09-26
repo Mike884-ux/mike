@@ -1,13 +1,12 @@
-import { useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ChevronDown, Globe, Laptop, LogOut, MapPin, ShieldCheck, Smartphone } from "lucide-react";
-import { authClient, signOut } from "@/lib/auth/client";
+import { ChevronDown, Globe, Laptop, MapPin, ShieldCheck, Smartphone } from "lucide-react";
+import { authClient } from "@/lib/auth/client";
 import { useCurrentUser } from "@/lib/auth/use-current-user";
 import { formatDate, useT } from "@/lib/i18n";
 import { COUNTRIES, LANGS, type CountryId, type Lang } from "@/lib/lang";
 import { useSettings } from "@/lib/settings-store";
 import { useSaveSettings } from "@/lib/use-account";
-import { PlanSummary } from "@/components/billing/plan-summary";
+import { useProfileDrawer } from "@/components/site/profile-drawer";
 
 type SessionRow = { id: string; token: string; ipAddress?: string | null; userAgent?: string | null; createdAt: string | Date };
 
@@ -79,7 +78,7 @@ export function LanguageCountryFields({ onSaved }: { onSaved?: () => void }) {
   );
 }
 
-function Sessions() {
+export function Sessions() {
   const t = useT();
   const lang = useSettings((s) => s.lang);
   const client = useQueryClient();
@@ -143,74 +142,27 @@ function Sessions() {
   );
 }
 
+/** Avatar in the header: opens the full profile drawer. */
 export function AccountMenu() {
   const t = useT();
   const user = useCurrentUser();
-  const [open, setOpen] = useState(false);
-  const [signingOut, setSigningOut] = useState(false);
-  const rootRef = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const onPointerDown = (event: PointerEvent) => {
-      if (rootRef.current && !rootRef.current.contains(event.target as Node)) setOpen(false);
-    };
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setOpen(false);
-    };
-    document.addEventListener("pointerdown", onPointerDown);
-    document.addEventListener("keydown", onKeyDown);
-    return () => {
-      document.removeEventListener("pointerdown", onPointerDown);
-      document.removeEventListener("keydown", onKeyDown);
-    };
-  }, [open]);
-
+  const open = useProfileDrawer((st) => st.open);
+  const show = useProfileDrawer((st) => st.show);
   if (!user) return null;
   const label = user.displayName ?? user.primaryEmail ?? t("account.menu");
-
   return (
-    <div ref={rootRef} className="relative">
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        aria-expanded={open}
-        aria-label={t("account.menu")}
-        className="flex items-center gap-2 rounded-full py-1 pr-2 pl-1 outline-none hover:bg-surface-2 focus-visible:ring-2 focus-visible:ring-primary/40"
-      >
-        <span className="bg-brand grid size-8 place-items-center rounded-full text-sm font-semibold text-white">
-          {label.charAt(0).toUpperCase()}
-        </span>
-        <span className="hidden max-w-32 truncate text-sm font-medium text-fg md:inline">{label}</span>
-        <ChevronDown className={`size-3.5 text-faint transition-transform ${open ? "rotate-180" : ""}`} />
-      </button>
-
-      {open ? (
-        <div className="absolute top-full right-0 z-40 mt-2 w-80 max-w-[calc(100vw-2rem)] overflow-hidden rounded-2xl bg-bg/95 shadow-[var(--shadow-border)] backdrop-blur-xl">
-          <div className="border-b border-border px-4 py-3">
-            <p className="truncate text-sm font-medium text-fg">{user.displayName ?? t("account.menu")}</p>
-            {user.primaryEmail ? <p className="truncate text-xs text-faint">{user.primaryEmail}</p> : null}
-          </div>
-          <div className="flex max-h-[70vh] flex-col gap-4 overflow-y-auto p-4">
-            <PlanSummary onNavigate={() => setOpen(false)} />
-            <LanguageCountryFields />
-            <Sessions />
-          </div>
-          <button
-            type="button"
-            disabled={signingOut}
-            onClick={() => {
-              setSigningOut(true);
-              void signOut().catch(() => setSigningOut(false));
-            }}
-            className="flex w-full items-center gap-2 border-t border-border px-4 py-3 text-left text-sm text-short hover:bg-short/10 disabled:opacity-60"
-          >
-            <LogOut className="size-4" />
-            {signingOut ? t("account.signingOut") : t("account.signOut")}
-          </button>
-        </div>
-      ) : null}
-    </div>
+    <button
+      type="button"
+      onClick={show}
+      aria-expanded={open}
+      aria-haspopup="dialog"
+      aria-label={t("account.menu")}
+      className="flex items-center gap-2 rounded-full py-1 pr-2 pl-1 outline-none hover:bg-surface-2 focus-visible:ring-2 focus-visible:ring-primary/40"
+    >
+      <span className="bg-brand grid size-8 place-items-center rounded-full text-sm font-semibold text-white">{label.charAt(0).toUpperCase()}</span>
+      <span className="hidden max-w-32 truncate text-sm font-medium text-fg md:inline">{label}</span>
+      <ChevronDown className="size-3.5 text-faint" />
+    </button>
   );
 }
 
