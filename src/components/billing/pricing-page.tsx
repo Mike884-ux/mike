@@ -19,7 +19,7 @@ import {
   Zap,
 } from "lucide-react";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
-import { startCheckout } from "@/lib/billing";
+import { joinWaitlist, startCheckout } from "@/lib/billing";
 import { useT, type MessageKey } from "@/lib/i18n";
 import {
   AI_KINDS,
@@ -29,6 +29,8 @@ import {
   REFERRED_TRIAL_DAYS,
   TRIAL_DAYS,
   YEAR_DISCOUNT_PCT,
+  PLAN_LABEL,
+  WAITLIST_GIFT_DAYS,
   priceOf,
   type AiKind,
   type PaidPlan,
@@ -47,7 +49,7 @@ const KIND_KEY: Record<AiKind, MessageKey> = {
   strategy: "pricing.f.strategy",
 };
 
-const PLAN_NAME: Record<PlanId, string> = { free: "Free", pro: "Pro", max: "Max" };
+const PLAN_NAME: Record<PlanId, string> = PLAN_LABEL;
 
 /** The signed-in user, but only after hydration: the server render never knows the session. */
 function useMember() {
@@ -203,21 +205,22 @@ function PlanCard({
         >
           {t("pricing.choose", { plan: PLAN_NAME[plan] })}
         </button>
-      ) : (
+      ) : plan === "pro" ? (
         <Link
           to="/login"
           search={{ mode: "signup", redirect: "/pricing" }}
-          className={cn(
-            "mt-5 flex h-11 items-center justify-center gap-2 rounded-xl text-sm font-semibold",
-            popular
-              ? "bg-brand text-white shadow-[var(--shadow-glow)] hover:opacity-95"
-              : "bg-fg text-bg hover:opacity-90",
-          )}
+          className="bg-brand mt-5 flex h-11 items-center justify-center gap-2 rounded-xl text-sm font-semibold text-white shadow-[var(--shadow-glow)] hover:opacity-95"
         >
-          {plan === "pro"
-            ? t("pricing.tryPro", { n: TRIAL_DAYS })
-            : t("pricing.choose", { plan: PLAN_NAME[plan] })}
+          {t("pricing.tryPro", { n: TRIAL_DAYS })}
         </Link>
+      ) : (
+        <button
+          type="button"
+          onClick={() => onChoose(plan)}
+          className="mt-5 flex h-11 items-center justify-center gap-2 rounded-xl bg-fg text-sm font-semibold text-bg hover:opacity-90"
+        >
+          {t("pricing.choose", { plan: PLAN_NAME[plan] })}
+        </button>
       )}
 
       <ul className="mt-6 flex flex-col gap-2.5 border-t border-border pt-5">
@@ -268,7 +271,8 @@ function PayDialog({
     return () => document.removeEventListener("keydown", onKey);
   }, [onClose]);
   const price = priceOf(plan, period);
-  const none = options && !options.crypto && !options.card && !options.contact;
+  // Online payment not connected yet: collect emails instead (the waiting list).
+  const online = Boolean(options?.crypto || options?.card);
   const failed = checkout.data && !checkout.data.ok;
   const method =
     "flex h-12 w-full items-center gap-3 rounded-xl px-4 text-left text-sm font-semibold disabled:opacity-60";
@@ -303,7 +307,17 @@ function PayDialog({
           </button>
         </div>
         <div className="mt-5 flex flex-col gap-2">
-          {options?.crypto ? (
+          {options && !online ? <WaitlistForm plan={plan} period={period} /> : null}
+          {online && !user ? (
+            <Link
+              to="/login"
+              search={{ mode: "signup", redirect: "/pricing" }}
+              className={cn(method, "bg-brand justify-center text-white shadow-[var(--shadow-glow)]")}
+            >
+              {t("pay.signupFirst")}
+            </Link>
+          ) : null}
+          {user && options?.crypto ? (
             <button
               type="button"
               disabled={checkout.isPending}
@@ -319,7 +333,7 @@ function PayDialog({
               <span className="text-xs font-medium opacity-80">USDT · BTC · ETH</span>
             </button>
           ) : null}
-          {options?.card ? (
+          {user && options?.card ? (
             <button
               type="button"
               disabled={checkout.isPending}
@@ -358,11 +372,6 @@ function PayDialog({
               </p>
             </div>
           ) : null}
-          {none ? (
-            <p className="rounded-xl bg-surface-2 p-4 text-sm leading-relaxed text-muted">
-              {t("pay.soon")}
-            </p>
-          ) : null}
           {!options ? <div className="skeleton h-12 w-full" /> : null}
         </div>
         {failed ? (
@@ -375,7 +384,7 @@ function PayDialog({
           </p>
         ) : null}
         {checkout.isError ? <p className="mt-3 text-sm text-short">{t("pay.err.failed")}</p> : null}
-        <ul className="mt-5 flex flex-col gap-1.5 text-xs text-muted">
+        <ul className={cn("mt-5 flex flex-col gap-1.5 text-xs text-muted", !online && "hidden")}>
           <li className="flex gap-2">
             <ShieldCheck className="size-4 shrink-0 text-long" />
             {t("pay.noRenew")}
@@ -387,6 +396,62 @@ function PayDialog({
         </ul>
       </div>
     </div>
+  );
+}
+
+/** While online payment is off: leave an email, get told first and gifted Pro days at launch. */
+function WaitlistForm({ plan, period }: { plan: PaidPlan; period: Period }) {
+  const t = useT();
+  const { user } = useCurrentUserState();
+  const [email, setEmail] = useState(user?.primaryEmail ?? "");
+  const join = useMutation({ mutationFn: () => joinWaitlist({ data: { email, plan, period } }) });
+  if (join.data?.ok) {
+    return (
+      <p role="status" className="flex gap-2 rounded-2xl bg-long/12 p-4 text-sm leading-relaxed text-long">
+        <Check className="mt-0.5 size-4 shrink-0" />
+        {t("wait.done", { days: WAITLIST_GIFT_DAYS })}
+      </p>
+    );
+  }
+  return (
+    <form
+      onSubmit={(event) => {
+        event.preventDefault();
+        join.mutate();
+      }}
+      className="rounded-2xl bg-primary/8 p-4 ring-1 ring-primary/20"
+    >
+      <p className="flex items-center gap-2 text-sm font-semibold text-fg">
+        <Gift className="size-4 text-primary" />
+        {t("wait.title")}
+      </p>
+      <p className="mt-1 text-xs leading-relaxed text-muted">{t("wait.text", { days: WAITLIST_GIFT_DAYS })}</p>
+      <div className="mt-3 flex gap-2">
+        <input
+          type="email"
+          required
+          value={email}
+          onChange={(event) => setEmail(event.target.value)}
+          placeholder="you@example.com"
+          aria-label="Email"
+          className="h-11 min-w-0 flex-1 rounded-xl bg-surface px-3 text-sm text-fg outline-none placeholder:text-faint focus-visible:ring-2 focus-visible:ring-primary/40"
+        />
+        <button
+          type="submit"
+          disabled={join.isPending}
+          className="bg-brand flex h-11 shrink-0 items-center gap-1.5 rounded-xl px-4 text-sm font-semibold text-white disabled:opacity-60"
+        >
+          {join.isPending ? <Loader2 className="size-4 animate-spin" /> : null}
+          {t("wait.cta")}
+        </button>
+      </div>
+      {join.data && !join.data.ok ? (
+        <p role="alert" className="mt-2 text-xs text-short">
+          {t(join.data.error === "email" ? "wait.err.email" : "wait.err.often")}
+        </p>
+      ) : null}
+      {join.isError ? <p className="mt-2 text-xs text-short">{t("pay.err.failed")}</p> : null}
+    </form>
   );
 }
 

@@ -16,6 +16,8 @@ import { ChangePill, CoinLogo, Meter } from "@/components/market/bits";
 import { Container } from "@/components/site/shell";
 import { AboutSection, ChartSection, NewsSection, PerformanceRow, RecordsSection, SignalsSection } from "@/components/coin/coin-sections";
 import { TradeDialog } from "@/components/coin/trade-dialog";
+import { TradeButtons } from "@/components/trade-buttons";
+import { isTradable } from "@/lib/exchanges";
 
 function Crumbs({ name }: { name: string }) {
   const t = useT();
@@ -407,6 +409,12 @@ export function CoinPage({ id }: { id: string }) {
             </div>
           </div>
           <HoldingCard coin={coin} onTrade={openTrade} />
+          {isTradable(coin.symbol) ? (
+            <div className="rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)]">
+              <p className="mb-3 text-sm font-semibold text-fg">{t("trade.where", { symbol: coin.symbol })}</p>
+              <TradeButtons symbol={coin.symbol} short />
+            </div>
+          ) : null}
           <Stats coin={coin} />
           <Links coin={coin} />
           <Converter coin={coin} />

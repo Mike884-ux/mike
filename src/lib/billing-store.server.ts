@@ -158,7 +158,7 @@ export async function grantPlan(
     state.until &&
     state.until > now
   ) {
-    // Time left on the current plan carries over at its value: 30 Pro days become 30 × 9/24 Max days.
+    // Time left on the current plan carries over at its value: 30 Pro days become 30 × (Pro price / Whale price) Whale days.
     carry = (state.until - now) * (PLANS[state.plan].month / PLANS[plan].month);
   }
   const until = new Date(now + carry + days * DAY_MS);
@@ -388,4 +388,56 @@ export async function findUserByEmail(
   const [row] = await sql<{ id: string; email: string; name: string }>`
     select id, email, name from "user" where lower(email) = ${email.trim().toLowerCase()}`;
   return row ?? null;
+}
+
+export type WaitlistRow = { email: string; plan: string; period: string; createdAt: number; grantedAt: number | null; hasAccount: boolean };
+
+/** Adds (or refreshes) an email on the waiting list. Emails are stored lower-case. */
+export async function joinWaitlist(
+  sql: SqlLike,
+  entry: { email: string; userId: string | null; plan: PaidPlan; period: Period },
+): Promise<void> {
+  const email = entry.email.trim().toLowerCase();
+  await sql`
+    insert into waitlist (email, user_id, plan, period) values (${email}, ${entry.userId}, ${entry.plan}, ${entry.period})
+    on conflict (email) do update set
+      user_id = coalesce(excluded.user_id, waitlist.user_id),
+      plan = excluded.plan,
+      period = excluded.period`;
+}
+
+export async function listWaitlist(sql: SqlLike, limit = 200): Promise<{ total: number; rows: WaitlistRow[] }> {
+  const [count] = await sql<{ n: number }>`select count(*)::int as n from waitlist`;
+  const rows = await sql<Record<string, unknown>>`
+    select w.email, w.plan, w.period, w.created_at, w.granted_at, (u.id is not null) as has_account
+    from waitlist w left join "user" u on lower(u.email) = w.email
+    order by w.created_at desc limit ${limit}`;
+  return {
+    total: Number(count?.n ?? 0),
+    rows: rows.map((r) => ({
+      email: String(r.email),
+      plan: String(r.plan),
+      period: String(r.period),
+      createdAt: ms(r.created_at) ?? 0,
+      grantedAt: ms(r.granted_at),
+      hasAccount: Boolean(r.has_account),
+    })),
+  };
+}
+
+/**
+ * Keeps the waiting-list promise: Pro for `days` to everyone on the list who
+ * has an account and hasn't received it yet. People without an account stay
+ * pending and can be granted after they sign up.
+ */
+export async function grantWaitlist(sql: SqlLike, days: number): Promise<{ granted: number; pending: number }> {
+  const rows = await sql<{ email: string; user_id: string }>`
+    select w.email, u.id as user_id from waitlist w join "user" u on lower(u.email) = w.email
+    where w.granted_at is null`;
+  for (const row of rows) {
+    await grantPlan(sql, row.user_id, "pro", days);
+    await sql`update waitlist set granted_at = now() where email = ${row.email}`;
+  }
+  const [left] = await sql<{ n: number }>`select count(*)::int as n from waitlist where granted_at is null`;
+  return { granted: rows.length, pending: Number(left?.n ?? 0) };
 }

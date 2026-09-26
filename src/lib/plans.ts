@@ -37,11 +37,17 @@ export const PLANS: Record<PlanId, PlanSpec> = {
   },
   max: {
     id: "max",
-    month: 24,
-    year: yearly(24),
+    month: 29,
+    year: yearly(29),
     limits: { analysis: 150, chat: 500, advice: 40, strategy: 20 },
   },
 };
+
+/** Names shown to people. The top plan is stored as "max" but sold as "Whale". */
+export const PLAN_LABEL: Record<PlanId, string> = { free: "Free", pro: "Pro", max: "Whale" };
+
+/** Pro days promised to people on the waiting list while online payment is not live. */
+export const WAITLIST_GIFT_DAYS = 14;
 
 export const PERIOD_DAYS: Record<Period, number> = { month: 30, year: 365 };
 

@@ -147,7 +147,7 @@ const GOAL_BRIEF: Record<MarketingGoal, string> = {
 };
 
 const MARKETING_SYSTEM = `You are the growth marketer for "Скан" (Scan), a crypto market website: live prices for thousands of coins, buy/sell signals from 8 technical indicators with historical accuracy, an AI analyst that gives levels (entry, stop, targets) and plain-language explanations, AI portfolio advice, AI strategies, a portfolio tracker and crypto news.
-Plans: Free (a few AI requests a day), Pro ($${PLANS.pro.month}/mo) and Max ($${PLANS.max.month}/mo); ${YEAR_DISCOUNT_PCT}% off when paying for a year; payments are one-time, no auto-renewal.
+Plans: Free (a few AI requests a day), Pro ($${PLANS.pro.month}/mo) and Whale ($${PLANS.max.month}/mo); ${YEAR_DISCOUNT_PCT}% off when paying for a year; payments are one-time, no auto-renewal.
 Write marketing copy that is energetic but honest: never promise profits or guaranteed returns, never invent user counts, reviews, testimonials or results. It's fine to use the live market numbers given. Mention that it is not financial advice only where natural, briefly.
 Return only the finished text, ready to paste — no preface, no markdown headings, no quotes around it.`;
 
@@ -228,3 +228,23 @@ export const generateMarketing = createServerFn({ method: "POST" })
         : { ok: false, reason: result.reason };
     },
   );
+
+/** Everyone who asked to buy while payment was off, newest first. */
+export const getWaitlist = createServerFn({ method: "GET" })
+  .middleware([authMiddleware])
+  .handler(async ({ context }) => {
+    await requireAdmin(context.email);
+    const [{ getSql }, store] = await Promise.all([import("./db"), import("./billing-store.server")]);
+    return store.listWaitlist(await getSql());
+  });
+
+/** Keeps the waiting-list promise: Pro days for everyone on the list who has an account. */
+export const adminGrantWaitlist = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .handler(async ({ context }) => {
+    await requireAdmin(context.email);
+    const [{ getSql }, store, { WAITLIST_GIFT_DAYS }] = await Promise.all([import("./db"), import("./billing-store.server"), import("./plans")]);
+    const result = await store.grantWaitlist(await getSql(), WAITLIST_GIFT_DAYS);
+    console.log(`[admin] ${context.email} granted waitlist Pro: ${result.granted}, pending ${result.pending}`);
+    return result;
+  });

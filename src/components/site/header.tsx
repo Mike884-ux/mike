@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { Link, useRouterState } from "@tanstack/react-router";
-import { Bot, Coins, Crown, LineChart, Menu, Newspaper, Search, Sparkles, Wallet, X } from "lucide-react";
+import { Bot, Coins, Crown, LineChart, Menu, Search, Sparkles, Wallet, X } from "lucide-react";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import { useBilling } from "@/lib/use-billing";
 import { useHydrated } from "@/lib/use-hydrated";
@@ -17,7 +17,6 @@ import { ThemeToggle, useChangeLang } from "@/components/site/prefs";
 export const NAV = [
   { to: "/", label: "nav.coins", icon: Coins, exact: true },
   { to: "/signals", label: "nav.signals", icon: LineChart, exact: false },
-  { to: "/news", label: "nav.news", icon: Newspaper, exact: false },
   { to: "/portfolio", label: "nav.portfolio", icon: Wallet, exact: false },
   { to: "/ai", label: "nav.ai", icon: Bot, exact: false },
   { to: "/pricing", label: "nav.pricing", icon: Crown, exact: false },
@@ -165,8 +164,8 @@ function MobileMenu({ onClose }: { onClose: () => void }) {
 function MobileSearch({ onClose }: { onClose: () => void }) {
   const t = useT();
   return createPortal(
-    <div className="fixed inset-0 z-[60] bg-bg/95 p-4 backdrop-blur-md md:hidden" role="dialog" aria-modal="true" aria-label={t("search.placeholder")}>
-      <div className="flex items-center gap-2">
+    <div className="fixed inset-0 z-[60] bg-bg/95 p-4 backdrop-blur-md md:hidden lg:block xl:hidden" role="dialog" aria-modal="true" aria-label={t("search.placeholder")}>
+      <div className="mx-auto flex max-w-2xl items-center gap-2">
         <CoinSearch autoFocus onDone={onClose} className="flex-1" />
         <button type="button" onClick={onClose} className="h-9 rounded-lg px-2 text-sm font-medium text-muted hover:text-fg">
           {t("common.cancel")}
@@ -210,13 +209,13 @@ export function SiteHeader() {
           ))}
         </nav>
         <div className="flex-1" />
-        <CoinSearch className="hidden w-64 md:block xl:w-72" />
+        <CoinSearch className="hidden w-64 md:block lg:hidden xl:block xl:w-72" />
         <div className="flex items-center gap-1.5">
           <button
             type="button"
             onClick={() => setSearchOpen(true)}
             aria-label={t("search.placeholder")}
-            className="grid size-9 place-items-center rounded-lg text-muted hover:bg-surface-2 hover:text-fg md:hidden"
+            className="grid size-9 place-items-center rounded-lg text-muted hover:bg-surface-2 hover:text-fg md:hidden lg:grid xl:hidden"
           >
             <Search className="size-4.5" />
           </button>

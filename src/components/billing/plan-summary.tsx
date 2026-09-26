@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { Crown, Gift, Shield, Sparkles, Users } from "lucide-react";
 import { useT } from "@/lib/i18n";
+import { PLAN_LABEL } from "@/lib/plans";
 import { daysLeft, useBilling } from "@/lib/use-billing";
 import { cn } from "@/lib/utils";
 
@@ -31,7 +32,7 @@ export function PlanSummary({ onNavigate }: { onNavigate?: () => void }) {
   const billing = useBilling().data;
   if (!billing) return <div className="skeleton h-24 w-full" />;
   const paid = billing.plan !== "free" && !billing.trial;
-  const name = billing.plan === "max" ? "Max" : billing.plan === "pro" ? "Pro" : "Free";
+  const name = PLAN_LABEL[billing.plan];
   return (
     <div className="rounded-xl bg-surface-2 p-3">
       <div className="flex items-center justify-between gap-2">

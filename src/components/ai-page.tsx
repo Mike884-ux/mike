@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Bot, Compass, Loader2, Lock, RefreshCw, Sparkles } from "lucide-react";
-import { useBilling } from "@/lib/use-billing";
+import { BILLING_KEY, useBilling } from "@/lib/use-billing";
+import { QuotaNote } from "@/components/billing/quota-note";
 import { useT, type MessageKey } from "@/lib/i18n";
 import { useSettings } from "@/lib/settings-store";
 import {
@@ -170,8 +171,10 @@ function Strategies() {
   const lang = useSettings((s) => s.lang);
   const [risk, setRisk] = useState<Risk>("medium");
   const [horizon, setHorizon] = useState<Horizon>("medium");
+  const client = useQueryClient();
   const advice = useMutation({
     mutationFn: () => getStrategyAdvice({ data: { risk, horizon, lang } }),
+    onSettled: () => void client.invalidateQueries({ queryKey: BILLING_KEY }),
   });
   const result = advice.data;
   const locked = useBilling().data?.limits.strategy === 0;
@@ -227,6 +230,7 @@ function Strategies() {
                 : t("strategy.build")}
           </button>
         )}
+        {locked ? null : <QuotaNote kind="strategy" className="sm:col-span-2" />}
       </div>
       {advice.isPending ? (
         <div className="mt-4 rounded-2xl bg-surface p-5 shadow-[var(--shadow-border)]">

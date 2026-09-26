@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { BILLING_KEY } from "@/lib/use-billing";
+import { QuotaNote } from "@/components/billing/quota-note";
 import { AlertTriangle, CheckCircle2, History, Layers, Loader2, MessageCircle, Sparkles, X } from "lucide-react";
 import { analyzeChartAi, explainSimple, getCoinChart, getCoinExtras } from "@/lib/coin-detail";
 import { getNews } from "@/lib/news";
@@ -9,6 +11,8 @@ import { AssetIcon } from "@/components/asset-icon";
 import { CoinChart } from "@/components/coin-chart";
 import { ScoreBar, SignalBadge } from "@/components/ui-bits";
 import { AiFailure } from "@/components/billing/upsell";
+import { ShareSignalButton } from "@/components/share-signal";
+import { TradeButtons } from "@/components/trade-buttons";
 import type { CoinRow } from "@/lib/scan";
 import { INTERVALS, type IntervalId, type Signal } from "@/lib/types";
 import { formatPct, formatPrice, formatUsd, stripMd } from "@/lib/utils";
@@ -71,6 +75,11 @@ export function useCoinAnalysis(base: string, interval: IntervalId) {
     retry: 0,
   });
   const levels = ai.data?.ok ? ai.data.levels : null;
+  // A fresh AI answer used one of today's requests: refresh the counter.
+  const client = useQueryClient();
+  useEffect(() => {
+    if (ai.dataUpdatedAt) void client.invalidateQueries({ queryKey: BILLING_KEY });
+  }, [ai.dataUpdatedAt, client]);
 
   const simple = useQuery({
     queryKey: ["chart-ai-simple", base, interval, lang, levels?.verdict ?? null],
@@ -224,6 +233,7 @@ export function AiButton({ analysis }: { analysis: CoinAnalysis }) {
         {aiOpen && ai.data && !ai.data.ok && !ai.isFetching ? <AiFailure reason={ai.data.reason} /> : null}
         {aiOpen && ai.isError && !ai.isFetching ? <span className="text-xs text-short">{t("aiErr.unavailable")}</span> : null}
       </div>
+      <QuotaNote kind="analysis" />
       {aiOpen && ai.isFetching ? (
         <div className="rounded-xl bg-surface-2 p-4">
           <p className="shimmer-text text-sm">{t("ai.thinking")}</p>
@@ -472,6 +482,11 @@ export function CoinDetail({ row, interval, onClose }: { row: CoinRow; interval:
 
           <div className="mt-3">
             <BuyersBar buyPct={buyPct} />
+          </div>
+
+          <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
+            {row.kind === "crypto" ? <TradeButtons symbol={row.base} short className="flex-1" /> : null}
+            <ShareSignalButton row={row} interval={interval} className="h-11 justify-center" />
           </div>
 
           <IntervalTabs value={chartInterval} onChange={setChartInterval} className="mt-4" />

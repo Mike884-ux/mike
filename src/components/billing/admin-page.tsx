@@ -6,6 +6,7 @@ import {
   Copy,
   DollarSign,
   Loader2,
+  ListChecks,
   Megaphone,
   Search,
   ShieldAlert,
@@ -17,9 +18,11 @@ import {
 } from "lucide-react";
 import {
   adminFindMember,
+  adminGrantWaitlist,
   adminSetPlan,
   generateMarketing,
   getAdminOverview,
+  getWaitlist,
   MARKETING_CHANNELS,
   MARKETING_GOALS,
   type MarketingChannel,
@@ -27,7 +30,7 @@ import {
   type MemberInfo,
 } from "@/lib/admin";
 import { formatDate, useT, type MessageKey } from "@/lib/i18n";
-import { AI_KINDS } from "@/lib/plans";
+import { AI_KINDS, PLAN_LABEL, WAITLIST_GIFT_DAYS, type PlanId } from "@/lib/plans";
 import { useSettings } from "@/lib/settings-store";
 import { daysLeft } from "@/lib/use-billing";
 import { cn, stripMd } from "@/lib/utils";
@@ -138,7 +141,7 @@ function Members() {
             className={field}
           >
             <option value="pro">Pro</option>
-            <option value="max">Max</option>
+            <option value="max">Whale</option>
             <option value="free">Free ({t("admin.revoke")})</option>
           </select>
         </label>
@@ -283,6 +286,72 @@ function Marketer() {
   );
 }
 
+/** People who asked to buy while online payment was off — and the button that keeps the gift promise. */
+function Waitlist() {
+  const t = useT();
+  const lang = useSettings((s) => s.lang);
+  const client = useQueryClient();
+  const list = useQuery({ queryKey: ["admin-waitlist"], queryFn: () => getWaitlist(), staleTime: 30_000 });
+  const grant = useMutation({
+    mutationFn: () => adminGrantWaitlist(),
+    onSuccess: () => void client.invalidateQueries({ queryKey: ["admin-waitlist"] }),
+  });
+  const data = list.data;
+  const waiting = data?.rows.filter((r) => !r.grantedAt && r.hasAccount).length ?? 0;
+  return (
+    <section className="rounded-3xl bg-surface p-5 shadow-[var(--shadow-border)]">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="flex items-center gap-2 font-display text-lg font-bold text-fg">
+            <ListChecks className="size-5 text-primary" />
+            {t("admin.waitlist", { n: data?.total ?? 0 })}
+          </h2>
+          <p className="mt-1 text-sm text-muted">{t("admin.waitlistHint", { days: WAITLIST_GIFT_DAYS })}</p>
+        </div>
+        <button
+          type="button"
+          disabled={!waiting || grant.isPending}
+          onClick={() => {
+            if (window.confirm(t("admin.waitlistConfirm", { n: waiting, days: WAITLIST_GIFT_DAYS }))) grant.mutate();
+          }}
+          className="bg-brand flex h-10 items-center gap-2 rounded-xl px-4 text-sm font-semibold text-white disabled:opacity-50"
+        >
+          {grant.isPending ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
+          {t("admin.waitlistGrant", { n: waiting, days: WAITLIST_GIFT_DAYS })}
+        </button>
+      </div>
+      {grant.data ? (
+        <p role="status" className="mt-3 text-sm text-long">
+          {t("admin.waitlistDone", { n: grant.data.granted, pending: grant.data.pending })}
+        </p>
+      ) : null}
+      {data?.rows.length ? (
+        <ul className="mt-4 flex max-h-72 flex-col divide-y divide-border overflow-y-auto rounded-xl bg-surface-2">
+          {data.rows.map((row) => (
+            <li key={row.email} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2 text-sm">
+              <span className="min-w-0 flex-1 truncate font-medium text-fg">{row.email}</span>
+              <span className="text-xs text-muted">
+                {PLAN_LABEL[(row.plan as PlanId) ?? "pro"] ?? row.plan} · {row.period === "year" ? "1y" : "1m"}
+              </span>
+              <span className="text-xs text-faint">{formatDate(lang, row.createdAt)}</span>
+              <span
+                className={cn(
+                  "rounded-full px-2 py-0.5 text-[11px] font-semibold",
+                  row.grantedAt ? "bg-long/15 text-long" : row.hasAccount ? "bg-wait/15 text-fg" : "bg-surface text-muted",
+                )}
+              >
+                {t(row.grantedAt ? "admin.wl.granted" : row.hasAccount ? "admin.wl.ready" : "admin.wl.noAccount")}
+              </span>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="mt-4 text-sm text-muted">{list.isLoading ? "…" : t("admin.waitlistEmpty")}</p>
+      )}
+    </section>
+  );
+}
+
 export function AdminPage() {
   const t = useT();
   const lang = useSettings((s) => s.lang);
@@ -357,6 +426,8 @@ export function AdminPage() {
         <Members />
         <Marketer />
       </div>
+
+      <Waitlist />
 
       <section className="overflow-x-auto rounded-3xl bg-surface shadow-[var(--shadow-border)]">
         <h2 className="px-5 pt-5 font-display text-lg font-bold text-fg">{t("admin.payments")}</h2>

@@ -1,6 +1,17 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowDown, ArrowUp, BarChart3, Loader2, Minus, RefreshCw, Search, Star, TrendingDown, TrendingUp } from "lucide-react";
+import {
+  ArrowDown,
+  ArrowUp,
+  BarChart3,
+  Loader2,
+  Minus,
+  RefreshCw,
+  Search,
+  Star,
+  TrendingDown,
+  TrendingUp,
+} from "lucide-react";
 import { getSentiment, scanMarket, type CoinRow } from "@/lib/scan";
 import { INTERVALS, type IntervalId } from "@/lib/types";
 import { formatPrice } from "@/lib/utils";
@@ -11,6 +22,8 @@ import { AssetIcon } from "@/components/asset-icon";
 import { Spark } from "@/components/spark";
 import { Card, ScoreBar, SignalBadge } from "@/components/ui-bits";
 import { CoinDetail } from "@/components/coin-detail";
+import { ShareSignalButton } from "@/components/share-signal";
+import { TradeButtons } from "@/components/trade-buttons";
 
 function fngTone(value: number) {
   if (value <= 25) return "text-short";
@@ -33,8 +46,22 @@ function FearGreedGauge({ value }: { value: number }) {
           <stop offset="100%" stopColor="var(--color-long)" />
         </linearGradient>
       </defs>
-      <path d="M 10 60 A 50 50 0 0 1 110 60" fill="none" stroke="url(#fngArc)" strokeWidth="8" strokeLinecap="round" />
-      <line x1="60" y1="60" x2={tipX} y2={tipY} stroke="var(--color-fg)" strokeWidth="2" strokeLinecap="round" />
+      <path
+        d="M 10 60 A 50 50 0 0 1 110 60"
+        fill="none"
+        stroke="url(#fngArc)"
+        strokeWidth="8"
+        strokeLinecap="round"
+      />
+      <line
+        x1="60"
+        y1="60"
+        x2={tipX}
+        y2={tipY}
+        stroke="var(--color-fg)"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
       <circle cx="60" cy="60" r="4" fill="var(--color-fg)" />
     </svg>
   );
@@ -45,6 +72,7 @@ type SortKey = "price" | "change24h" | "rsi" | "score" | "volumeRatio";
 type RowProps = {
   row: CoinRow;
   rank: number;
+  interval: IntervalId;
   favorite: boolean;
   onOpen: (row: CoinRow) => void;
   onToggleFavorite: (base: string) => void;
@@ -60,6 +88,7 @@ const CoinRowView = memo(CoinRowViewInner, (a, b) => {
   const y = b.row;
   return (
     a.rank === b.rank &&
+    a.interval === b.interval &&
     a.favorite === b.favorite &&
     a.onOpen === b.onOpen &&
     a.onToggleFavorite === b.onToggleFavorite &&
@@ -75,7 +104,7 @@ const CoinRowView = memo(CoinRowViewInner, (a, b) => {
   );
 });
 
-function CoinRowViewInner({ row, rank, favorite, onOpen, onToggleFavorite }: RowProps) {
+function CoinRowViewInner({ row, rank, interval, favorite, onOpen, onToggleFavorite }: RowProps) {
   const onOpenDetail = () => onOpen(row);
   const t = useT();
   const TrendIcon = row.trend === "up" ? ArrowUp : row.trend === "down" ? ArrowDown : Minus;
@@ -132,13 +161,19 @@ function CoinRowViewInner({ row, rank, favorite, onOpen, onToggleFavorite }: Row
       >
         {formatPrice(row.price)}
       </td>
-      <td className={`px-3 py-2.5 text-right font-mono text-xs tabular-nums ${row.change24h >= 0 ? "text-long" : "text-short"}`}>
+      <td
+        className={`px-3 py-2.5 text-right font-mono text-xs tabular-nums ${row.change24h >= 0 ? "text-long" : "text-short"}`}
+      >
         {row.change24h >= 0 ? "+" : ""}
         {row.change24h.toFixed(2)}%
       </td>
-      <td className="hidden px-3 py-2.5 text-right font-mono text-xs tabular-nums text-muted sm:table-cell">{row.rsi}</td>
+      <td className="hidden px-3 py-2.5 text-right font-mono text-xs tabular-nums text-muted sm:table-cell">
+        {row.rsi}
+      </td>
       <td className="hidden px-3 py-2.5 sm:table-cell">
-        <span className={`flex items-center gap-1 text-xs ${row.trend === "up" ? "text-long" : row.trend === "down" ? "text-short" : "text-faint"}`}>
+        <span
+          className={`flex items-center gap-1 text-xs ${row.trend === "up" ? "text-long" : row.trend === "down" ? "text-short" : "text-faint"}`}
+        >
           <TrendIcon className="size-3" />
           {t(`trend.${row.trend}` as MessageKey)}
         </span>
@@ -147,7 +182,9 @@ function CoinRowViewInner({ row, rank, favorite, onOpen, onToggleFavorite }: Row
         <Spark values={row.spark} className="h-8 w-20" />
       </td>
       <td className="hidden px-3 py-2.5 text-right lg:table-cell">
-        <span className={`font-mono text-xs tabular-nums ${row.volumeRatio >= 1.8 ? "font-semibold text-accent" : "text-muted"}`}>
+        <span
+          className={`font-mono text-xs tabular-nums ${row.volumeRatio >= 1.8 ? "font-semibold text-accent" : "text-muted"}`}
+        >
           {row.volumeRatio.toFixed(1)}×
         </span>
       </td>
@@ -157,9 +194,88 @@ function CoinRowViewInner({ row, rank, favorite, onOpen, onToggleFavorite }: Row
       <td className="hidden px-3 py-2.5 lg:table-cell">
         <ScoreBar score={row.score} />
       </td>
+      <td className="hidden px-3 py-2.5 xl:table-cell">
+        <span className="flex items-center justify-end gap-1.5">
+          {row.kind === "crypto" ? <TradeButtons symbol={row.base} variant="compact" /> : null}
+          <ShareSignalButton row={row} interval={interval} compact />
+        </span>
+      </td>
     </tr>
   );
 }
+
+/** Phone layout: one card per signal instead of a wide table row. */
+const SignalCard = memo(function SignalCard({
+  row,
+  interval,
+  favorite,
+  onOpen,
+  onToggleFavorite,
+}: Omit<RowProps, "rank">) {
+  const t = useT();
+  const TrendIcon = row.trend === "up" ? ArrowUp : row.trend === "down" ? ArrowDown : Minus;
+  return (
+    <li
+      role="button"
+      tabIndex={0}
+      onClick={() => onOpen(row)}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onOpen(row);
+        }
+      }}
+      className="rounded-2xl bg-surface p-3.5 shadow-[var(--shadow-border)] outline-none active:bg-surface-2 focus-visible:ring-2 focus-visible:ring-primary/40"
+    >
+      <div className="flex items-center gap-3">
+        <AssetIcon base={row.base} kind={row.kind} />
+        <div className="min-w-0 flex-1">
+          <p className="font-mono text-sm font-semibold text-fg">{row.base}</p>
+          <p className="text-xs tabular-nums">
+            <span className="text-fg">{formatPrice(row.price)}</span>{" "}
+            <span className={row.change24h >= 0 ? "text-long" : "text-short"}>
+              {row.change24h >= 0 ? "+" : ""}
+              {row.change24h.toFixed(2)}%
+            </span>
+          </p>
+        </div>
+        <SignalBadge signal={row.signal} />
+        <button
+          type="button"
+          onClick={(event) => {
+            event.stopPropagation();
+            onToggleFavorite(row.base);
+          }}
+          onKeyDown={(event) => event.stopPropagation()}
+          aria-pressed={favorite}
+          aria-label={t("scan.addFavorite")}
+          className="grid size-8 place-items-center rounded-lg text-faint hover:text-wait"
+        >
+          <Star className={`size-4 ${favorite ? "fill-wait text-wait" : ""}`} />
+        </button>
+      </div>
+      <ScoreBar score={row.score} className="mt-3" />
+      <div className="mt-2.5 flex flex-wrap gap-1.5 text-[11px] font-medium text-muted">
+        <span className="rounded-full bg-surface-2 px-2 py-0.5 tabular-nums">RSI {row.rsi}</span>
+        <span
+          className={`flex items-center gap-1 rounded-full bg-surface-2 px-2 py-0.5 ${row.trend === "up" ? "text-long" : row.trend === "down" ? "text-short" : ""}`}
+        >
+          <TrendIcon className="size-3" />
+          {t(`trend.${row.trend}` as MessageKey)}
+        </span>
+        <span
+          className={`rounded-full bg-surface-2 px-2 py-0.5 tabular-nums ${row.volumeRatio >= 1.8 ? "text-accent" : ""}`}
+        >
+          {t("scan.col.volume")} {row.volumeRatio.toFixed(1)}×
+        </span>
+      </div>
+      <div className="mt-3 flex items-center gap-2">
+        {row.kind === "crypto" ? <TradeButtons symbol={row.base} variant="compact" /> : null}
+        <ShareSignalButton row={row} interval={interval} compact className="ml-auto" />
+      </div>
+    </li>
+  );
+});
 
 function SortTh({
   label,
@@ -176,14 +292,23 @@ function SortTh({
 }) {
   const active = sort?.key === sortKey;
   return (
-    <th className={`px-3 py-2.5 text-right font-normal ${className ?? ""}`} aria-sort={active ? (sort.dir === "asc" ? "ascending" : "descending") : undefined}>
+    <th
+      className={`px-3 py-2.5 text-right font-normal ${className ?? ""}`}
+      aria-sort={active ? (sort.dir === "asc" ? "ascending" : "descending") : undefined}
+    >
       <button
         type="button"
         onClick={() => onSort(sortKey)}
         className={`ml-auto flex items-center gap-1 outline-none hover:text-fg focus-visible:text-fg ${active ? "text-fg" : "text-faint"}`}
       >
         {label}
-        {active ? sort.dir === "asc" ? <ArrowUp className="size-3" /> : <ArrowDown className="size-3" /> : null}
+        {active ? (
+          sort.dir === "asc" ? (
+            <ArrowUp className="size-3" />
+          ) : (
+            <ArrowDown className="size-3" />
+          )
+        ) : null}
       </button>
     </th>
   );
@@ -210,7 +335,9 @@ function MoverList({ rows, onPick }: { rows: CoinRow[]; onPick: (row: CoinRow) =
             <AssetIcon base={row.base} kind={row.kind} className="size-5" />
             <span className="font-mono font-semibold text-fg">{row.base}</span>
           </span>
-          <span className={`font-mono text-xs tabular-nums ${row.change24h >= 0 ? "text-long" : "text-short"}`}>
+          <span
+            className={`font-mono text-xs tabular-nums ${row.change24h >= 0 ? "text-long" : "text-short"}`}
+          >
             {row.change24h >= 0 ? "+" : ""}
             {row.change24h.toFixed(2)}%
           </span>
@@ -220,7 +347,13 @@ function MoverList({ rows, onPick }: { rows: CoinRow[]; onPick: (row: CoinRow) =
   );
 }
 
-function ScanTab({ favorites, onToggleFavorite }: { favorites: string[]; onToggleFavorite: (base: string) => void }) {
+function ScanTab({
+  favorites,
+  onToggleFavorite,
+}: {
+  favorites: string[];
+  onToggleFavorite: (base: string) => void;
+}) {
   const t = useT();
   const [interval, setScanInterval] = useState<IntervalId>("1h");
   const [query, setQuery] = useState("");
@@ -247,7 +380,9 @@ function ScanTab({ favorites, onToggleFavorite }: { favorites: string[]; onToggl
   });
 
   const toggleSort = (key: SortKey) => {
-    setSort((prev) => (prev?.key === key ? { key, dir: prev.dir === "asc" ? "desc" : "asc" } : { key, dir: "desc" }));
+    setSort((prev) =>
+      prev?.key === key ? { key, dir: prev.dir === "asc" ? "desc" : "asc" } : { key, dir: "desc" },
+    );
   };
 
   const rows = useMemo(() => {
@@ -261,21 +396,32 @@ function ScanTab({ favorites, onToggleFavorite }: { favorites: string[]; onToggl
       list = list.filter((row) => row.base.includes(needle) || row.base === alias);
     }
     if (sort) {
-      list = [...list].sort((a, b) => (sort.dir === "asc" ? a[sort.key] - b[sort.key] : b[sort.key] - a[sort.key]));
+      list = [...list].sort((a, b) =>
+        sort.dir === "asc" ? a[sort.key] - b[sort.key] : b[sort.key] - a[sort.key],
+      );
     }
     return list;
   }, [scan.data, query, category, favoritesOnly, favorites, sort]);
 
-  const byChange = useMemo(() => [...(scan.data ?? [])].sort((a, b) => b.change24h - a.change24h), [scan.data]);
+  const byChange = useMemo(
+    () => [...(scan.data ?? [])].sort((a, b) => b.change24h - a.change24h),
+    [scan.data],
+  );
   const movers = moverTab === "up" ? byChange.slice(0, 5) : byChange.slice(-5).reverse();
   const spikes = useMemo(
-    () => [...(scan.data ?? [])].filter((r) => r.volumeRatio >= 1.8).sort((a, b) => b.volumeRatio - a.volumeRatio).slice(0, 5),
+    () =>
+      [...(scan.data ?? [])]
+        .filter((r) => r.volumeRatio >= 1.8)
+        .sort((a, b) => b.volumeRatio - a.volumeRatio)
+        .slice(0, 5),
     [scan.data],
   );
 
   // Show the freshest row for the open coin, so its price keeps updating with
   // the 20-second rescans instead of freezing at the moment it was clicked.
-  const selectedRow = selected ? (scan.data?.find((row) => row.base === selected.base) ?? selected) : null;
+  const selectedRow = selected
+    ? (scan.data?.find((row) => row.base === selected.base) ?? selected)
+    : null;
   const closeDetail = useCallback(() => setSelected(null), []);
   const openRow = useCallback((row: CoinRow) => setSelected(row), []);
 
@@ -285,7 +431,12 @@ function ScanTab({ favorites, onToggleFavorite }: { favorites: string[]; onToggl
     { label: "scan.stats.assets", value: rows.length, tone: "text-fg", accent: "bg-primary" },
     { label: "scan.stats.long", value: longCount, tone: "text-long", accent: "bg-long" },
     { label: "scan.stats.short", value: shortCount, tone: "text-short", accent: "bg-short" },
-    { label: "scan.stats.wait", value: rows.length - longCount - shortCount, tone: "text-wait", accent: "bg-wait" },
+    {
+      label: "scan.stats.wait",
+      value: rows.length - longCount - shortCount,
+      tone: "text-wait",
+      accent: "bg-wait",
+    },
   ] as const;
 
   return (
@@ -294,7 +445,11 @@ function ScanTab({ favorites, onToggleFavorite }: { favorites: string[]; onToggl
         <div>
           <h1 className="font-display text-2xl font-bold text-fg sm:text-3xl">{t("scan.title")}</h1>
           <p className="mt-1 text-sm text-muted">
-            {scan.isLoading ? <span className="shimmer-text">{t("scan.computing")}</span> : t("scan.subtitle")}
+            {scan.isLoading ? (
+              <span className="shimmer-text">{t("scan.computing")}</span>
+            ) : (
+              t("scan.subtitle")
+            )}
           </p>
           {scan.isError && scan.data ? (
             <p role="status" className="mt-1 text-xs text-wait">
@@ -308,7 +463,11 @@ function ScanTab({ favorites, onToggleFavorite }: { favorites: string[]; onToggl
           disabled={scan.isFetching}
           className="flex h-9 items-center gap-1.5 rounded-lg bg-surface-2 px-3 text-xs text-muted outline-none hover:text-fg disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-primary/40"
         >
-          {scan.isFetching ? <Loader2 className="size-3.5 animate-spin" /> : <RefreshCw className="size-3.5" />}
+          {scan.isFetching ? (
+            <Loader2 className="size-3.5 animate-spin" />
+          ) : (
+            <RefreshCw className="size-3.5" />
+          )}
           {t("common.refresh")}
         </button>
       </div>
@@ -320,7 +479,9 @@ function ScanTab({ favorites, onToggleFavorite }: { favorites: string[]; onToggl
               <FearGreedGauge value={sentiment.data.value} />
               <div>
                 <p className="text-[11px] text-faint">{t("fng.title")}</p>
-                <p className={`font-mono text-lg font-semibold tabular-nums ${fngTone(sentiment.data.value)}`}>
+                <p
+                  className={`font-mono text-lg font-semibold tabular-nums ${fngTone(sentiment.data.value)}`}
+                >
                   {sentiment.data.value} · {t(`fng.${sentiment.data.label}` as MessageKey)}
                 </p>
               </div>
@@ -339,7 +500,11 @@ function ScanTab({ favorites, onToggleFavorite }: { favorites: string[]; onToggl
                 onClick={() => setMoverTab(tab)}
                 className={`flex items-center gap-1 rounded-md px-2 py-1 text-[11px] ${moverTab === tab ? "bg-surface-2 text-fg" : "text-faint hover:text-fg"}`}
               >
-                {tab === "up" ? <TrendingUp className="size-3 text-long" /> : <TrendingDown className="size-3 text-short" />}
+                {tab === "up" ? (
+                  <TrendingUp className="size-3 text-long" />
+                ) : (
+                  <TrendingDown className="size-3 text-short" />
+                )}
                 {t(tab === "up" ? "scan.topGainers" : "scan.topLosers")}
               </button>
             ))}
@@ -365,7 +530,9 @@ function ScanTab({ favorites, onToggleFavorite }: { favorites: string[]; onToggl
                     <span className="font-mono font-semibold text-fg">{row.base}</span>
                     <SignalBadge signal={row.signal} className="px-1.5 py-0.5 text-[9px]" />
                   </span>
-                  <span className="font-mono text-xs text-accent tabular-nums">{t("scan.volumeTimes", { x: row.volumeRatio.toFixed(1) })}</span>
+                  <span className="font-mono text-xs text-accent tabular-nums">
+                    {t("scan.volumeTimes", { x: row.volumeRatio.toFixed(1) })}
+                  </span>
                 </button>
               ))}
             </div>
@@ -381,7 +548,9 @@ function ScanTab({ favorites, onToggleFavorite }: { favorites: string[]; onToggl
             <span className={`h-8 w-1 shrink-0 rounded-full ${s.accent}`} />
             <div>
               <p className="text-[11px] text-faint">{t(s.label)}</p>
-              <p className={`font-mono text-lg font-semibold tabular-nums ${s.tone}`}>{scan.isLoading ? "—" : s.value}</p>
+              <p className={`font-mono text-lg font-semibold tabular-nums ${s.tone}`}>
+                {scan.isLoading ? "—" : s.value}
+              </p>
             </div>
           </Card>
         ))}
@@ -450,45 +619,94 @@ function ScanTab({ favorites, onToggleFavorite }: { favorites: string[]; onToggl
           ))}
         </div>
       ) : rows.length ? (
-        <Card className="mt-4 overflow-x-auto">
-          <table className="w-full min-w-[640px] text-sm">
-            <thead className="sticky top-0 z-10">
-              <tr className="border-b border-border text-left text-xs text-faint">
-                <th className="py-2.5 pr-1 pl-3 font-normal" />
-                <th className="hidden px-2 py-2.5 font-normal sm:table-cell">#</th>
-                <th className="px-3 py-2.5 font-normal">{t("scan.col.asset")}</th>
-                <SortTh label={t("scan.col.price")} sortKey="price" sort={sort} onSort={toggleSort} />
-                <SortTh label={t("scan.col.change")} sortKey="change24h" sort={sort} onSort={toggleSort} />
-                <SortTh label={t("scan.col.rsi")} sortKey="rsi" sort={sort} onSort={toggleSort} className="hidden sm:table-cell" />
-                <th className="hidden px-3 py-2.5 font-normal sm:table-cell">{t("scan.col.trend")}</th>
-                <th className="hidden px-3 py-2.5 font-normal md:table-cell">{t("scan.col.chart")}</th>
-                <SortTh label={t("scan.col.volume")} sortKey="volumeRatio" sort={sort} onSort={toggleSort} className="hidden lg:table-cell" />
-                <th className="px-3 py-2.5 font-normal">{t("scan.col.signal")}</th>
-                <SortTh label={t("scan.col.score")} sortKey="score" sort={sort} onSort={toggleSort} className="hidden lg:table-cell" />
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((row, i) => (
-                <CoinRowView
-                  key={row.symbol}
-                  row={row}
-                  rank={i + 1}
-                  favorite={favorites.includes(row.base)}
-                  onOpen={openRow}
-                  onToggleFavorite={onToggleFavorite}
-                />
-              ))}
-            </tbody>
-          </table>
-        </Card>
+        <>
+          <ul className="mt-4 grid gap-2 sm:grid-cols-2 md:hidden">
+            {rows.map((row) => (
+              <SignalCard
+                key={row.symbol}
+                row={row}
+                interval={interval}
+                favorite={favorites.includes(row.base)}
+                onOpen={openRow}
+                onToggleFavorite={onToggleFavorite}
+              />
+            ))}
+          </ul>
+          <Card className="mt-4 hidden overflow-x-auto md:block">
+            <table className="w-full min-w-[640px] text-sm">
+              <thead className="sticky top-0 z-10">
+                <tr className="border-b border-border text-left text-xs text-faint">
+                  <th className="py-2.5 pr-1 pl-3 font-normal" />
+                  <th className="hidden px-2 py-2.5 font-normal sm:table-cell">#</th>
+                  <th className="px-3 py-2.5 font-normal">{t("scan.col.asset")}</th>
+                  <SortTh
+                    label={t("scan.col.price")}
+                    sortKey="price"
+                    sort={sort}
+                    onSort={toggleSort}
+                  />
+                  <SortTh
+                    label={t("scan.col.change")}
+                    sortKey="change24h"
+                    sort={sort}
+                    onSort={toggleSort}
+                  />
+                  <SortTh
+                    label={t("scan.col.rsi")}
+                    sortKey="rsi"
+                    sort={sort}
+                    onSort={toggleSort}
+                    className="hidden sm:table-cell"
+                  />
+                  <th className="hidden px-3 py-2.5 font-normal sm:table-cell">
+                    {t("scan.col.trend")}
+                  </th>
+                  <th className="hidden px-3 py-2.5 font-normal md:table-cell">
+                    {t("scan.col.chart")}
+                  </th>
+                  <SortTh
+                    label={t("scan.col.volume")}
+                    sortKey="volumeRatio"
+                    sort={sort}
+                    onSort={toggleSort}
+                    className="hidden lg:table-cell"
+                  />
+                  <th className="px-3 py-2.5 font-normal">{t("scan.col.signal")}</th>
+                  <SortTh
+                    label={t("scan.col.score")}
+                    sortKey="score"
+                    sort={sort}
+                    onSort={toggleSort}
+                    className="hidden lg:table-cell"
+                  />
+                  <th className="hidden px-3 py-2.5 text-right font-normal xl:table-cell">{t("scan.col.actions")}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((row, i) => (
+                  <CoinRowView
+                    key={row.symbol}
+                    row={row}
+                    rank={i + 1}
+                    interval={interval}
+                    favorite={favorites.includes(row.base)}
+                    onOpen={openRow}
+                    onToggleFavorite={onToggleFavorite}
+                  />
+                ))}
+              </tbody>
+            </table>
+          </Card>
+        </>
       ) : (
         <p className="mt-8 text-sm text-muted">
           {scan.isError ? t("scan.down") : favoritesOnly ? t("scan.emptyFav") : t("scan.empty")}
         </p>
       )}
-      <p className="pt-4 pb-6 text-[11px] text-faint">{t("common.disclaimer")}</p>
 
-      {selectedRow ? <CoinDetail row={selectedRow} interval={interval} onClose={closeDetail} /> : null}
+      {selectedRow ? (
+        <CoinDetail row={selectedRow} interval={interval} onClose={closeDetail} />
+      ) : null}
     </div>
   );
 }

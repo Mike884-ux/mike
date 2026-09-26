@@ -8,7 +8,7 @@
  * the member's back; the webhook grants the plan once the money arrives.
  */
 import { createHmac, timingSafeEqual } from "node:crypto";
-import type { PaidPlan, Period, PaymentOptions } from "./plans";
+import { PLAN_LABEL, type PaidPlan, type Period, type PaymentOptions } from "./plans";
 
 const env = (name: string) => process.env[name]?.trim() || "";
 
@@ -30,7 +30,7 @@ export type CheckoutInput = {
 };
 
 function title(plan: PaidPlan, period: Period): string {
-  return `Скан ${plan === "max" ? "Max" : "Pro"} — ${period === "year" ? "1 год / 1 year" : "1 месяц / 1 month"}`;
+  return `Скан ${PLAN_LABEL[plan]} — ${period === "year" ? "1 год / 1 year" : "1 месяц / 1 month"}`;
 }
 
 export async function nowpaymentsCheckout(

@@ -27,6 +27,7 @@ import { useCurrentUser } from "@/lib/auth/use-current-user";
 import { timeAgo, useT, type MessageKey } from "@/lib/i18n";
 import { COUNTRIES, LANGS, type CountryId } from "@/lib/lang";
 import { getNews } from "@/lib/news";
+import { PLAN_LABEL } from "@/lib/plans";
 import { useSettings, type Currency, type Theme } from "@/lib/settings-store";
 import { ACCOUNT_KEY, useSaveSettings } from "@/lib/use-account";
 import { useBilling, useSiteStatus } from "@/lib/use-billing";
@@ -199,7 +200,7 @@ function DrawerBody() {
   const name = user.displayName?.trim() || user.primaryEmail?.split("@")[0] || t("account.menu");
   const money = (usd: number) => (currency === "BTC" && summary.btcPrice ? formatBtc(usd / summary.btcPrice) : formatUsd(usd));
   const headline = news.data?.[0];
-  const planName = billing ? (billing.trial ? t("plan.trial") : billing.plan === "max" ? "Max" : billing.plan === "pro" ? "Pro" : "Free") : null;
+  const planName = billing ? (billing.trial ? t("plan.trial") : PLAN_LABEL[billing.plan]) : null;
 
   return (
     <div className="flex flex-col gap-4 p-4 pb-8">

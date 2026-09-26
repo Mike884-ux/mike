@@ -349,7 +349,6 @@ export function LoginScreen({ initialMode = "signup", redirect = "/", providers:
                 {t("login.secure")}
               </p>
             </div>
-            <p className="mt-4 text-center text-[11px] text-faint">{t("common.disclaimer")}</p>
           </section>
         </div>
       </div>

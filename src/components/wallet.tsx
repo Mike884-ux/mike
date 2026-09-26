@@ -8,6 +8,8 @@ import { parseAmount } from "@/lib/portfolio-math";
 import { formatDate, useT, type MessageKey } from "@/lib/i18n";
 import { useSettings } from "@/lib/settings-store";
 import { ACCOUNT_KEY, useAccount } from "@/lib/use-account";
+import { BILLING_KEY } from "@/lib/use-billing";
+import { QuotaNote } from "@/components/billing/quota-note";
 import { formatPct, formatPrice, formatUsd, stripMd } from "@/lib/utils";
 import { WalletChart } from "@/components/wallet-chart";
 import { AllocationDonut } from "@/components/allocation-donut";
@@ -99,7 +101,10 @@ export function Wallet() {
     onSettled: () => void client.invalidateQueries({ queryKey: ACCOUNT_KEY }),
   });
 
-  const advice = useMutation({ mutationFn: () => getWalletAdvice({ data: { lang } }) });
+  const advice = useMutation({
+    mutationFn: () => getWalletAdvice({ data: { lang } }),
+    onSettled: () => void client.invalidateQueries({ queryKey: BILLING_KEY }),
+  });
 
   function submit(event: React.FormEvent) {
     event.preventDefault();
@@ -350,6 +355,7 @@ export function Wallet() {
             {advice.isPending ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
             {advice.data?.ok ? t("wallet.adviceRefresh") : t("wallet.advice")}
           </button>
+          <QuotaNote kind="advice" className="mt-2" />
           {advice.isPending ? <p className="mt-2 shimmer-text text-xs">{t("wallet.adviceThinking")}</p> : null}
           {advice.isError ? <p className="mt-2 text-xs text-short">{t("aiErr.unavailable")}</p> : null}
           {!advice.isPending && advice.data?.ok ? (
@@ -409,7 +415,7 @@ export function Wallet() {
         )}
       </div>
 
-      <p className="mt-4 pb-6 text-[11px] leading-relaxed text-faint">{t("common.disclaimer")}</p>
+      <div className="pb-6" />
     </div>
   );
 }

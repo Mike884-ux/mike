@@ -2,12 +2,13 @@ import { memo, useEffect, useMemo, useRef, useState, type ReactNode } from "reac
 import { Link, useNavigate } from "@tanstack/react-router";
 import { ArrowDown, ArrowUp, Info, Star } from "lucide-react";
 import type { MarketCoin } from "@/lib/coins";
-import { numCompact, numFull, share, usdFull, usdPrice } from "@/lib/format";
+import { numCompact, usdFull, usdPrice } from "@/lib/format";
 import { useT, type MessageKey } from "@/lib/i18n";
 import type { Signal } from "@/lib/types";
 import { cn } from "@/lib/utils";
-import { Change, CoinLogo, Meter, Sparkline } from "@/components/market/bits";
+import { Change, CoinLogo, Sparkline } from "@/components/market/bits";
 import { SignalBadge } from "@/components/ui-bits";
+import { TradeButtons } from "@/components/trade-buttons";
 
 export type SortKey = "rank" | "price" | "change1h" | "change24h" | "change7d" | "marketCap" | "volume24h";
 type Sort = { key: SortKey; dir: "asc" | "desc" };
@@ -51,6 +52,10 @@ const Row = memo(RowInner, (a, b) => {
   );
 });
 
+// The page is at most 1392px wide inside: with the signal column there is room
+// for volume only from 1440px screens.
+const volumeCell = (showSignals: boolean) => (showSignals ? "min-[1440px]:table-cell" : "xl:table-cell");
+
 function RowInner({ coin, favorite, signal, showSignals, showChart, onToggleFavorite }: RowProps) {
   const t = useT();
   const navigate = useNavigate();
@@ -67,7 +72,6 @@ function RowInner({ coin, favorite, signal, showSignals, showChart, onToggleFavo
   }, [coin.price]);
 
   const open = () => void navigate({ to: "/coins/$id", params: { id: coin.id } });
-  const supplyShare = share(coin.circulating, coin.maxSupply);
   const volumeInCoins = coin.volume24h && coin.price > 0 ? coin.volume24h / coin.price : null;
 
   return (
@@ -90,7 +94,7 @@ function RowInner({ coin, favorite, signal, showSignals, showChart, onToggleFavo
           <Star className={cn("size-4", favorite && "fill-wait text-wait")} />
         </button>
       </td>
-      <td className="hidden px-2 py-3 text-left text-xs font-medium text-muted tabular-nums sm:table-cell">{coin.rank ?? "—"}</td>
+      <td className="hidden px-2 py-3 text-left text-xs font-medium text-muted tabular-nums lg:table-cell">{coin.rank ?? "—"}</td>
       <td className="sticky left-8 z-[1] bg-surface px-1.5 py-3 group-hover:bg-surface-2 sm:static sm:bg-transparent sm:px-2 sm:group-hover:bg-transparent">
         <Link
           to="/coins/$id"
@@ -99,7 +103,7 @@ function RowInner({ coin, favorite, signal, showSignals, showChart, onToggleFavo
         >
           <CoinLogo src={coin.image} symbol={coin.symbol} />
           <span className="flex min-w-0 flex-col sm:flex-row sm:items-baseline sm:gap-1.5">
-            <span className="max-w-[6.5rem] truncate text-sm font-semibold text-fg sm:max-w-[12rem]">{coin.name}</span>
+            <span className="max-w-[6.5rem] truncate text-sm font-semibold text-fg sm:max-w-[10rem] xl:max-w-[12rem]">{coin.name}</span>
             <span className="text-xs font-medium text-faint">{coin.symbol}</span>
           </span>
         </Link>
@@ -124,7 +128,7 @@ function RowInner({ coin, favorite, signal, showSignals, showChart, onToggleFavo
         <Change value={coin.change7d} />
       </td>
       <td className="hidden px-3 py-3 text-right text-sm font-medium text-fg tabular-nums md:table-cell">{usdFull(coin.marketCap)}</td>
-      <td className="hidden px-3 py-3 text-right xl:table-cell">
+      <td className={cn("hidden px-3 py-3 text-right", volumeCell(showSignals))}>
         <p className="text-sm font-medium text-fg tabular-nums">{usdFull(coin.volume24h)}</p>
         {volumeInCoins ? (
           <p className="text-xs text-faint tabular-nums">
@@ -132,14 +136,8 @@ function RowInner({ coin, favorite, signal, showSignals, showChart, onToggleFavo
           </p>
         ) : null}
       </td>
-      <td className="hidden px-3 py-3 text-right xl:table-cell">
-        <p className="text-sm font-medium whitespace-nowrap text-fg tabular-nums">
-          {coin.circulating ? `${coin.circulating >= 1e9 ? numCompact(coin.circulating) : numFull(coin.circulating)} ${coin.symbol}` : "—"}
-        </p>
-        {supplyShare !== null ? <Meter percent={supplyShare} className="ml-auto mt-1.5 w-32" /> : null}
-      </td>
       {showChart ? (
-        <td className="hidden py-2 pr-4 pl-3 lg:table-cell">
+        <td className="hidden py-2 pr-4 pl-3 xl:table-cell">
           <Sparkline values={coin.spark} className="ml-auto h-12 w-40" up={coin.change7d !== null ? coin.change7d >= 0 : undefined} />
         </td>
       ) : null}
@@ -148,6 +146,9 @@ function RowInner({ coin, favorite, signal, showSignals, showChart, onToggleFavo
           {signal ? <SignalBadge signal={signal.signal} className="px-2 py-0.5 text-[10px]" /> : <span className="text-xs text-faint">—</span>}
         </td>
       ) : null}
+      <td className="hidden py-2 pr-3 pl-2 text-right xl:table-cell">
+        <TradeButtons symbol={coin.symbol} variant="compact" stacked />
+      </td>
     </tr>
   );
 }
@@ -246,18 +247,17 @@ export function MarketTable({
     { label: "table.24h", key: "change24h" },
     { label: "table.7d", key: "change7d", className: "hidden md:table-cell" },
     { label: "table.marketCap", key: "marketCap", className: "hidden md:table-cell", hint: "table.marketCapHint" },
-    { label: "table.volume", key: "volume24h", className: "hidden xl:table-cell", hint: "table.volumeHint" },
-    { label: "table.supply", className: "hidden xl:table-cell", hint: "table.supplyHint" },
-    ...(showChart ? [{ label: "table.chart" as const, className: "hidden lg:table-cell" }] : []),
+    { label: "table.volume", key: "volume24h", className: cn("hidden", volumeCell(showSignals)), hint: "table.volumeHint" },
+    ...(showChart ? [{ label: "table.chart" as const, className: "hidden xl:table-cell" }] : []),
   ];
 
   return (
     <div className="overflow-x-auto">
-      <table className="w-full border-collapse sm:min-w-[640px]">
+      <table className="w-full border-collapse">
         <thead>
           <tr className="border-b border-border">
             <th scope="col" className="sticky left-0 z-[1] w-8 bg-surface sm:static sm:w-10" aria-label={t("table.watchlist")} />
-            <Th label="#" sortKey="rank" sort={sort} onSort={onSort} align="left" className="hidden w-10 sm:table-cell" />
+            <Th label="#" sortKey="rank" sort={sort} onSort={onSort} align="left" className="hidden w-10 lg:table-cell" />
             <Th label={t("table.name")} sort={sort} onSort={onSort} align="left" className="sticky left-8 z-[1] bg-surface sm:static" />
             {header.map((h) => (
               <Th
@@ -272,6 +272,9 @@ export function MarketTable({
               />
             ))}
             {showSignals ? <Th label={t("table.signal")} sort={sort} onSort={onSort} className="hidden lg:table-cell" hint={t("table.signalHint")} /> : null}
+            <th scope="col" className="hidden py-3 pr-3 pl-2 text-right text-xs font-semibold text-muted xl:table-cell">
+              {t("table.trade")}
+            </th>
           </tr>
         </thead>
         <tbody>

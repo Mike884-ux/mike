@@ -7,11 +7,15 @@ import {
   consumeAi,
   createPayment,
   grantPlan,
+  grantWaitlist,
+  joinWaitlist,
+  listWaitlist,
   loadPlan,
   markPaid,
   usageToday,
   type SqlLike,
 } from "./billing-store.server.ts";
+import { PLANS } from "./plans.ts";
 
 const DAY = 86_400_000;
 
@@ -67,10 +71,10 @@ test("the daily quota stops at the limit and refunds failed calls", async () => 
 test("a paid payment grants the plan exactly once, and time stacks", async () => {
   const sql = await db();
   const pay = await createPayment(sql, "u2", "max", "month", "stripe");
-  assert.equal(pay.amount, 24);
+  assert.equal(pay.amount, PLANS.max.month);
   assert.equal(await markPaid(sql, pay.id, 10), "amount_mismatch");
-  assert.equal(await markPaid(sql, pay.id, 24), "granted");
-  assert.equal(await markPaid(sql, pay.id, 24), "already");
+  assert.equal(await markPaid(sql, pay.id, PLANS.max.month), "granted");
+  assert.equal(await markPaid(sql, pay.id, PLANS.max.month), "already");
   const state = await loadPlan(sql, "u2");
   assert.equal(state.plan, "max");
   assert.equal(state.trial, false);
@@ -78,11 +82,11 @@ test("a paid payment grants the plan exactly once, and time stacks", async () =>
   assert.ok(Math.abs(until - (Date.now() + 30 * DAY)) < 60_000);
   const more = await grantPlan(sql, "u2", "max", 30);
   assert.ok(Math.abs(more.until! - (until + 30 * DAY)) < 60_000);
-  // Switching to Pro converts the Max time left at its value (24/9 as many days).
+  // Switching plans converts the time left at its value.
   const switched = await grantPlan(sql, "u3", "pro", 30);
   const toMax = await grantPlan(sql, "u3", "max", 30);
   assert.ok(
-    Math.abs(toMax.until! - (Date.now() + ((30 * 9) / 24) * DAY + 30 * DAY)) < 60_000,
+    Math.abs(toMax.until! - (Date.now() + ((30 * PLANS.pro.month) / PLANS.max.month) * DAY + 30 * DAY)) < 60_000,
     String(switched.until),
   );
 });
@@ -103,4 +107,22 @@ test("referrals extend the friend's trial and reward the inviter once", async ()
   await sql`insert into "session" (id, "expiresAt", token, "updatedAt", "ipAddress", "userId") values ('s1', now() + interval '1 day', 't1', now(), '1.2.3.4', 'u1')`;
   assert.equal(await claimReferral(sql, "u3", inviter.refCode, { ip: "1.2.3.4" }), "ok_no_bonus");
   assert.equal((await loadPlan(sql, "u1")).refBonusDays, 3);
+});
+
+test("the waiting list keeps one row per email and grants Pro to those with an account", async () => {
+  const sql = await db();
+  await joinWaitlist(sql, { email: "A@X", userId: null, plan: "max", period: "year" });
+  await joinWaitlist(sql, { email: "a@x", userId: "u1", plan: "pro", period: "month" });
+  await joinWaitlist(sql, { email: "nobody@x", userId: null, plan: "pro", period: "month" });
+  const list = await listWaitlist(sql);
+  assert.equal(list.total, 2);
+  assert.equal(list.rows.find((r) => r.email === "a@x")?.plan, "pro");
+  await loadPlan(sql, "u1"); // joins today with a 3-day trial
+  const before = await loadPlan(sql, "u1", Date.now() + 5 * DAY); // trial long over
+  assert.equal(before.plan, "free");
+  assert.deepEqual(await grantWaitlist(sql, 14), { granted: 1, pending: 1 });
+  assert.deepEqual(await grantWaitlist(sql, 14), { granted: 0, pending: 1 }, "never twice");
+  const after = await loadPlan(sql, "u1");
+  assert.equal(after.plan, "pro");
+  assert.equal(after.trial, false);
 });

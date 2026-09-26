@@ -1,7 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { Crown, Sparkles } from "lucide-react";
 import { useT } from "@/lib/i18n";
-import { PLANS } from "@/lib/plans";
+import { PLAN_LABEL, PLANS } from "@/lib/plans";
 import { useBilling } from "@/lib/use-billing";
 import { cn } from "@/lib/utils";
 import { aiErrorKey } from "@/components/ui-bits";
@@ -37,7 +37,7 @@ export function LimitUpsell({ className }: { className?: string }) {
         {onMax
           ? t("limit.textMax", { reset })
           : t("limit.text", {
-              plan: next === "max" ? "Max" : "Pro",
+              plan: PLAN_LABEL[next],
               n: PLANS[next].limits.analysis,
               chat: PLANS[next].limits.chat,
               reset,
@@ -49,7 +49,7 @@ export function LimitUpsell({ className }: { className?: string }) {
           className="bg-brand mt-3 inline-flex h-10 items-center gap-2 rounded-xl px-4 text-sm font-semibold text-white shadow-[var(--shadow-glow)] hover:opacity-95"
         >
           <Sparkles className="size-4" />
-          {t("limit.cta", { plan: next === "max" ? "Max" : "Pro" })}
+          {t("limit.cta", { plan: PLAN_LABEL[next] })}
         </Link>
       )}
     </div>

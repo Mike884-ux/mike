@@ -59,7 +59,7 @@ export const chatWithAi = createServerFn({ method: "POST" })
       const result = await completeText({
         system: live ? `${SYSTEM}\n\n${live}` : SYSTEM,
         messages,
-        // Max members get the deeper-thinking mode.
+        // Whale (stored as "max") members get the deeper-thinking mode.
         effort: plan === "max" ? "high" : "medium",
         maxTokens: 8000,
         lang: data.lang,

@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { BILLING_KEY } from "@/lib/use-billing";
+import { QuotaNote } from "@/components/billing/quota-note";
 import { Loader2, RotateCcw, Send, Sparkles } from "lucide-react";
 import { chatWithAi, type ChatMessage } from "@/lib/chat";
 import { useT, type MessageKey } from "@/lib/i18n";
@@ -17,8 +19,10 @@ export function Chat({ initialQuestion }: { initialQuestion?: string } = {}) {
   const [error, setError] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement | null>(null);
 
+  const client = useQueryClient();
   const mutation = useMutation({
     mutationFn: (next: ChatMessage[]) => chatWithAi({ data: { messages: next, lang } }),
+    onSettled: () => void client.invalidateQueries({ queryKey: BILLING_KEY }),
   });
 
   useEffect(() => {
@@ -131,6 +135,7 @@ export function Chat({ initialQuestion }: { initialQuestion?: string } = {}) {
           {mutation.isPending ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
         </button>
       </form>
+      <QuotaNote kind="chat" className="px-5 pb-1" />
     </div>
   );
 }
