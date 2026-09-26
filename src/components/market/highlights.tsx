@@ -81,27 +81,39 @@ export function MarketCapCard({ stats, firstPage }: { stats: GlobalStats | undef
 
 const FNG_ZONES = ["var(--color-short)", "#f28c38", "var(--color-wait)", "#8bcf52", "var(--color-long)"];
 
-/** Half-dial from extreme fear (left) to extreme greed (right). */
+/** Colour of the zone a Fear & Greed value falls in (0–24 extreme fear … 76–100 extreme greed). */
+export function fngColor(value: number): string {
+  return FNG_ZONES[Math.min(4, Math.max(0, Math.floor(value / 20)))]!;
+}
+
+/** Half-dial from extreme fear (left) to extreme greed (right), coloured smoothly along the way. */
 function FearGreedDial({ value }: { value: number }) {
   const v = Math.max(0, Math.min(100, value));
   const r = 52;
   const cx = 64;
-  const cy = 62;
+  const cy = 64;
   const point = (pct: number) => {
     const angle = Math.PI - (pct / 100) * Math.PI;
     return [cx + r * Math.cos(angle), cy - r * Math.sin(angle)] as const;
   };
-  const arcs = FNG_ZONES.map((color, i) => {
-    const [x1, y1] = point(i * 20 + 1.5);
-    const [x2, y2] = point((i + 1) * 20 - 1.5);
-    return <path key={i} d={`M${x1} ${y1} A${r} ${r} 0 0 1 ${x2} ${y2}`} stroke={color} strokeWidth="9" strokeLinecap="round" fill="none" />;
-  });
-  const [nx, ny] = point(v);
+  const [sx, sy] = point(0);
+  const [ex, ey] = point(100);
+  const [vx, vy] = point(v);
+  const color = fngColor(v);
   return (
-    <svg viewBox="0 0 128 72" className="h-[72px] w-32" aria-hidden>
-      {arcs}
-      <circle cx={nx} cy={ny} r="7" fill="var(--color-surface)" stroke="var(--color-fg)" strokeWidth="2.5" />
-      <text x={cx} y={cy - 4} textAnchor="middle" className="fill-fg font-display text-[22px] font-bold">
+    <svg viewBox="0 0 128 78" className="h-[78px] w-36" aria-hidden>
+      <defs>
+        <linearGradient id="fng-scale" x1="0" x2="1" y1="0" y2="0">
+          {FNG_ZONES.map((c, i) => (
+            <stop key={i} offset={`${i * 25}%`} stopColor={c} />
+          ))}
+        </linearGradient>
+      </defs>
+      <path d={`M${sx} ${sy} A${r} ${r} 0 0 1 ${ex} ${ey}`} stroke="var(--color-surface-2)" strokeWidth="10" strokeLinecap="round" fill="none" />
+      <path d={`M${sx} ${sy} A${r} ${r} 0 0 1 ${ex} ${ey}`} stroke="url(#fng-scale)" strokeWidth="10" strokeLinecap="round" fill="none" opacity="0.9" />
+      <circle cx={vx} cy={vy} r="9" fill={color} opacity="0.25" />
+      <circle cx={vx} cy={vy} r="6" fill="#fff" stroke={color} strokeWidth="3" />
+      <text x={cx} y={cy - 6} textAnchor="middle" fill={color} className="font-display text-[26px] font-bold">
         {Math.round(v)}
       </text>
     </svg>
@@ -116,7 +128,12 @@ export function FearGreedCard({ stats }: { stats: GlobalStats | undefined }) {
       {fng ? (
         <div className="flex flex-1 flex-col items-center justify-center gap-1">
           <FearGreedDial value={fng.value} />
-          <p className="text-sm font-semibold text-fg">{t(`fng.${fng.label}` as MessageKey)}</p>
+          <p
+            className="rounded-full px-2.5 py-0.5 text-xs font-semibold"
+            style={{ color: fngColor(fng.value), backgroundColor: `color-mix(in srgb, ${fngColor(fng.value)} 14%, transparent)` }}
+          >
+            {t(`fng.${fng.label}` as MessageKey)}
+          </p>
           <p className="text-center text-[11px] text-faint">{t("hl.fngCaption")}</p>
         </div>
       ) : stats ? (

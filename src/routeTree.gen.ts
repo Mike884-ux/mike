@@ -12,12 +12,16 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as SiteRouteImport } from './routes/_site'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as SiteIndexRouteImport } from './routes/_site/index'
+import { Route as SiteAdminRouteImport } from './routes/_site/admin'
 import { Route as SiteAiRouteImport } from './routes/_site/ai'
 import { Route as SiteNewsRouteImport } from './routes/_site/news'
 import { Route as SitePortfolioRouteImport } from './routes/_site/portfolio'
+import { Route as SitePricingRouteImport } from './routes/_site/pricing'
 import { Route as SiteSignalsRouteImport } from './routes/_site/signals'
 import { Route as SiteCoinsIdRouteImport } from './routes/_site/coins/$id'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
+import { Route as ApiBillingNowpaymentsRouteImport } from './routes/api/billing/nowpayments'
+import { Route as ApiBillingStripeRouteImport } from './routes/api/billing/stripe'
 import { Route as ApiMarketGlobalRouteImport } from './routes/api/market/global'
 import { Route as ApiMarketListingRouteImport } from './routes/api/market/listing'
 import { Route as ApiMarketSearchRouteImport } from './routes/api/market/search'
@@ -39,6 +43,11 @@ const SiteIndexRoute = SiteIndexRouteImport.update({
   path: '/',
   getParentRoute: () => SiteRoute,
 } as any)
+const SiteAdminRoute = SiteAdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => SiteRoute,
+} as any)
 const SiteAiRoute = SiteAiRouteImport.update({
   id: '/ai',
   path: '/ai',
@@ -54,6 +63,11 @@ const SitePortfolioRoute = SitePortfolioRouteImport.update({
   path: '/portfolio',
   getParentRoute: () => SiteRoute,
 } as any)
+const SitePricingRoute = SitePricingRouteImport.update({
+  id: '/pricing',
+  path: '/pricing',
+  getParentRoute: () => SiteRoute,
+} as any)
 const SiteSignalsRoute = SiteSignalsRouteImport.update({
   id: '/signals',
   path: '/signals',
@@ -67,6 +81,16 @@ const SiteCoinsIdRoute = SiteCoinsIdRouteImport.update({
 const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   id: '/api/auth/$',
   path: '/api/auth/$',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiBillingNowpaymentsRoute = ApiBillingNowpaymentsRouteImport.update({
+  id: '/api/billing/nowpayments',
+  path: '/api/billing/nowpayments',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiBillingStripeRoute = ApiBillingStripeRouteImport.update({
+  id: '/api/billing/stripe',
+  path: '/api/billing/stripe',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiMarketGlobalRoute = ApiMarketGlobalRouteImport.update({
@@ -103,12 +127,16 @@ const ApiMarketHistoryIdRoute = ApiMarketHistoryIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof SiteIndexRoute
   '/login': typeof LoginRoute
+  '/admin': typeof SiteAdminRoute
   '/ai': typeof SiteAiRoute
   '/news': typeof SiteNewsRoute
   '/portfolio': typeof SitePortfolioRoute
+  '/pricing': typeof SitePricingRoute
   '/signals': typeof SiteSignalsRoute
   '/coins/$id': typeof SiteCoinsIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/billing/nowpayments': typeof ApiBillingNowpaymentsRoute
+  '/api/billing/stripe': typeof ApiBillingStripeRoute
   '/api/market/global': typeof ApiMarketGlobalRoute
   '/api/market/listing': typeof ApiMarketListingRoute
   '/api/market/search': typeof ApiMarketSearchRoute
@@ -118,13 +146,17 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
+  '/admin': typeof SiteAdminRoute
   '/ai': typeof SiteAiRoute
   '/news': typeof SiteNewsRoute
   '/portfolio': typeof SitePortfolioRoute
+  '/pricing': typeof SitePricingRoute
   '/signals': typeof SiteSignalsRoute
   '/': typeof SiteIndexRoute
   '/coins/$id': typeof SiteCoinsIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/billing/nowpayments': typeof ApiBillingNowpaymentsRoute
+  '/api/billing/stripe': typeof ApiBillingStripeRoute
   '/api/market/global': typeof ApiMarketGlobalRoute
   '/api/market/listing': typeof ApiMarketListingRoute
   '/api/market/search': typeof ApiMarketSearchRoute
@@ -136,13 +168,17 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_site': typeof SiteRouteWithChildren
   '/login': typeof LoginRoute
+  '/_site/admin': typeof SiteAdminRoute
   '/_site/ai': typeof SiteAiRoute
   '/_site/news': typeof SiteNewsRoute
   '/_site/portfolio': typeof SitePortfolioRoute
+  '/_site/pricing': typeof SitePricingRoute
   '/_site/signals': typeof SiteSignalsRoute
   '/_site/': typeof SiteIndexRoute
   '/_site/coins/$id': typeof SiteCoinsIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/billing/nowpayments': typeof ApiBillingNowpaymentsRoute
+  '/api/billing/stripe': typeof ApiBillingStripeRoute
   '/api/market/global': typeof ApiMarketGlobalRoute
   '/api/market/listing': typeof ApiMarketListingRoute
   '/api/market/search': typeof ApiMarketSearchRoute
@@ -155,12 +191,16 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/login'
+    | '/admin'
     | '/ai'
     | '/news'
     | '/portfolio'
+    | '/pricing'
     | '/signals'
     | '/coins/$id'
     | '/api/auth/$'
+    | '/api/billing/nowpayments'
+    | '/api/billing/stripe'
     | '/api/market/global'
     | '/api/market/listing'
     | '/api/market/search'
@@ -170,13 +210,17 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/login'
+    | '/admin'
     | '/ai'
     | '/news'
     | '/portfolio'
+    | '/pricing'
     | '/signals'
     | '/'
     | '/coins/$id'
     | '/api/auth/$'
+    | '/api/billing/nowpayments'
+    | '/api/billing/stripe'
     | '/api/market/global'
     | '/api/market/listing'
     | '/api/market/search'
@@ -187,13 +231,17 @@ export interface FileRouteTypes {
     | '__root__'
     | '/_site'
     | '/login'
+    | '/_site/admin'
     | '/_site/ai'
     | '/_site/news'
     | '/_site/portfolio'
+    | '/_site/pricing'
     | '/_site/signals'
     | '/_site/'
     | '/_site/coins/$id'
     | '/api/auth/$'
+    | '/api/billing/nowpayments'
+    | '/api/billing/stripe'
     | '/api/market/global'
     | '/api/market/listing'
     | '/api/market/search'
@@ -206,6 +254,8 @@ export interface RootRouteChildren {
   SiteRoute: typeof SiteRouteWithChildren
   LoginRoute: typeof LoginRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
+  ApiBillingNowpaymentsRoute: typeof ApiBillingNowpaymentsRoute
+  ApiBillingStripeRoute: typeof ApiBillingStripeRoute
   ApiMarketGlobalRoute: typeof ApiMarketGlobalRoute
   ApiMarketListingRoute: typeof ApiMarketListingRoute
   ApiMarketSearchRoute: typeof ApiMarketSearchRoute
@@ -237,6 +287,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SiteIndexRouteImport
       parentRoute: typeof SiteRoute
     }
+    '/_site/admin': {
+      id: '/_site/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof SiteAdminRouteImport
+      parentRoute: typeof SiteRoute
+    }
     '/_site/ai': {
       id: '/_site/ai'
       path: '/ai'
@@ -258,6 +315,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SitePortfolioRouteImport
       parentRoute: typeof SiteRoute
     }
+    '/_site/pricing': {
+      id: '/_site/pricing'
+      path: '/pricing'
+      fullPath: '/pricing'
+      preLoaderRoute: typeof SitePricingRouteImport
+      parentRoute: typeof SiteRoute
+    }
     '/_site/signals': {
       id: '/_site/signals'
       path: '/signals'
@@ -277,6 +341,20 @@ declare module '@tanstack/react-router' {
       path: '/api/auth/$'
       fullPath: '/api/auth/$'
       preLoaderRoute: typeof ApiAuthSplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/billing/nowpayments': {
+      id: '/api/billing/nowpayments'
+      path: '/api/billing/nowpayments'
+      fullPath: '/api/billing/nowpayments'
+      preLoaderRoute: typeof ApiBillingNowpaymentsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/billing/stripe': {
+      id: '/api/billing/stripe'
+      path: '/api/billing/stripe'
+      fullPath: '/api/billing/stripe'
+      preLoaderRoute: typeof ApiBillingStripeRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/market/global': {
@@ -325,18 +403,22 @@ declare module '@tanstack/react-router' {
 }
 
 interface SiteRouteChildren {
+  SiteAdminRoute: typeof SiteAdminRoute
   SiteAiRoute: typeof SiteAiRoute
   SiteNewsRoute: typeof SiteNewsRoute
   SitePortfolioRoute: typeof SitePortfolioRoute
+  SitePricingRoute: typeof SitePricingRoute
   SiteSignalsRoute: typeof SiteSignalsRoute
   SiteIndexRoute: typeof SiteIndexRoute
   SiteCoinsIdRoute: typeof SiteCoinsIdRoute
 }
 
 const SiteRouteChildren: SiteRouteChildren = {
+  SiteAdminRoute: SiteAdminRoute,
   SiteAiRoute: SiteAiRoute,
   SiteNewsRoute: SiteNewsRoute,
   SitePortfolioRoute: SitePortfolioRoute,
+  SitePricingRoute: SitePricingRoute,
   SiteSignalsRoute: SiteSignalsRoute,
   SiteIndexRoute: SiteIndexRoute,
   SiteCoinsIdRoute: SiteCoinsIdRoute,
@@ -348,6 +430,8 @@ const rootRouteChildren: RootRouteChildren = {
   SiteRoute: SiteRouteWithChildren,
   LoginRoute: LoginRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
+  ApiBillingNowpaymentsRoute: ApiBillingNowpaymentsRoute,
+  ApiBillingStripeRoute: ApiBillingStripeRoute,
   ApiMarketGlobalRoute: ApiMarketGlobalRoute,
   ApiMarketListingRoute: ApiMarketListingRoute,
   ApiMarketSearchRoute: ApiMarketSearchRoute,

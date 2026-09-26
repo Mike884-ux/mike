@@ -7,7 +7,8 @@ import { timeAgo, useT, type MessageKey } from "@/lib/i18n";
 import { useSettings } from "@/lib/settings-store";
 import { AssetIcon } from "@/components/asset-icon";
 import { CoinChart } from "@/components/coin-chart";
-import { ScoreBar, SignalBadge, aiErrorKey } from "@/components/ui-bits";
+import { ScoreBar, SignalBadge } from "@/components/ui-bits";
+import { AiFailure } from "@/components/billing/upsell";
 import type { CoinRow } from "@/lib/scan";
 import { INTERVALS, type IntervalId, type Signal } from "@/lib/types";
 import { formatPct, formatPrice, formatUsd, stripMd } from "@/lib/utils";
@@ -220,11 +221,7 @@ export function AiButton({ analysis }: { analysis: CoinAnalysis }) {
           {ai.isFetching ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
           {aiOpen && levels ? t("ai.reanalyze") : t("ai.analyze")}
         </button>
-        {aiOpen && ai.data && !ai.data.ok && !ai.isFetching ? (
-          <span role="alert" className="text-xs text-short">
-            {t(aiErrorKey(ai.data.reason))}
-          </span>
-        ) : null}
+        {aiOpen && ai.data && !ai.data.ok && !ai.isFetching ? <AiFailure reason={ai.data.reason} /> : null}
         {aiOpen && ai.isError && !ai.isFetching ? <span className="text-xs text-short">{t("aiErr.unavailable")}</span> : null}
       </div>
       {aiOpen && ai.isFetching ? (
@@ -358,7 +355,7 @@ export function AiResult({ analysis }: { analysis: CoinAnalysis }) {
           {simpleOpen && simple.isFetching ? <p className="mt-2 shimmer-text text-xs">{t("ai.simplifying")}</p> : null}
           {simpleOpen && simple.data?.ok && !simple.isFetching ? <p className="mt-2 text-sm leading-relaxed text-fg">{stripMd(simple.data.text)}</p> : null}
           {simpleOpen && simple.data && !simple.data.ok && !simple.isFetching ? (
-            <p className="mt-2 text-xs text-short">{t(aiErrorKey(simple.data.reason))}</p>
+            <AiFailure reason={simple.data.reason} className="mt-2" />
           ) : null}
         </div>
       </div>

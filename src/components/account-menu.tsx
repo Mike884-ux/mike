@@ -7,6 +7,7 @@ import { formatDate, useT } from "@/lib/i18n";
 import { COUNTRIES, LANGS, type CountryId, type Lang } from "@/lib/lang";
 import { useSettings } from "@/lib/settings-store";
 import { useSaveSettings } from "@/lib/use-account";
+import { PlanSummary } from "@/components/billing/plan-summary";
 
 type SessionRow = { id: string; token: string; ipAddress?: string | null; userAgent?: string | null; createdAt: string | Date };
 
@@ -190,7 +191,8 @@ export function AccountMenu() {
             <p className="truncate text-sm font-medium text-fg">{user.displayName ?? t("account.menu")}</p>
             {user.primaryEmail ? <p className="truncate text-xs text-faint">{user.primaryEmail}</p> : null}
           </div>
-          <div className="flex flex-col gap-4 p-4">
+          <div className="flex max-h-[70vh] flex-col gap-4 overflow-y-auto p-4">
+            <PlanSummary onNavigate={() => setOpen(false)} />
             <LanguageCountryFields />
             <Sessions />
           </div>

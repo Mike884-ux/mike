@@ -10,7 +10,9 @@ import { useSettings } from "@/lib/settings-store";
 import { ACCOUNT_KEY, useAccount } from "@/lib/use-account";
 import { formatPct, formatPrice, formatUsd, stripMd } from "@/lib/utils";
 import { WalletChart } from "@/components/wallet-chart";
-import { Card, aiErrorKey } from "@/components/ui-bits";
+import { AllocationDonut } from "@/components/allocation-donut";
+import { Card } from "@/components/ui-bits";
+import { AiFailure } from "@/components/billing/upsell";
 
 const DAY_MS = 86_400_000;
 
@@ -103,7 +105,7 @@ export function Wallet() {
     event.preventDefault();
     const q = parseAmount(qty);
     const p = parseAmount(price);
-    if (!assetOf(base)) return setNote({ tone: "error", text: t("wallet.err.asset") });
+    if (!assetOf(base) && !(side === "sell" && sellable.includes(base))) return setNote({ tone: "error", text: t("wallet.err.asset") });
     if (!(q > 0)) return setNote({ tone: "error", text: t("wallet.err.qty") });
     if (!(p > 0)) return setNote({ tone: "error", text: t("wallet.err.price") });
     trade.mutate({ side, base, qty: q, price: p, note: memo.trim() || undefined });
@@ -328,6 +330,13 @@ export function Wallet() {
         <p className="mt-6 text-sm text-muted">{t("wallet.empty")}</p>
       )}
 
+      {rows.length ? (
+        <Card className="mt-3 p-4">
+          <p className="mb-3 text-xs font-medium tracking-wide text-faint uppercase">{t("wallet.allocation")}</p>
+          <AllocationDonut items={rows.map((r) => ({ label: r.base, value: r.value }))} />
+        </Card>
+      ) : null}
+
       {rows.length ? <WalletChart positions={rows.map((r) => ({ symbol: r.symbol, qty: r.qty }))} /> : null}
 
       {rows.length ? (
@@ -349,7 +358,7 @@ export function Wallet() {
             </Card>
           ) : null}
           {!advice.isPending && advice.data && !advice.data.ok ? (
-            <p className="mt-2 text-xs text-short">{t(aiErrorKey(advice.data.reason))}</p>
+            <AiFailure reason={advice.data.reason} className="mt-2" />
           ) : null}
         </div>
       ) : null}

@@ -33,34 +33,37 @@ export const chatWithAi = createServerFn({ method: "POST" })
     const messages = firstUser >= 0 ? data.messages.slice(firstUser).filter((m) => m.text.trim()) : [];
     if (!messages.length || messages.at(-1)!.role !== "user") return { ok: false, reason: "no_data" };
     if (!allow(context.userId, "ai-chat", 20, 180_000)) return { ok: false, reason: "too_often" };
-
-    // Attach live numbers when the question names an asset ("что с солана?").
-    const base = detectBaseInText(messages.at(-1)!.text);
-    let live = "";
-    if (base) {
-      const { loadCoinContext } = await import("./coin-context.server");
-      const ctx = await loadCoinContext(base, "4h").catch(() => null);
-      if (ctx) {
-        const t = ctx.technicals;
-        live = [
-          `Live data for ${ctx.base} (4h candles): price ${ctx.price}, 24h ${ctx.change24h.toFixed(2)}%.`,
-          `Trend ${t.trend}, RSI ${t.rsi}, ADX ${t.adx}, MACD ${t.macd > t.macdSignal ? "above" : "below"} signal, volume ${t.volumeRatio}x average, ATR ${t.atrPct}%.`,
-          `Indicator score ${ctx.score} → ${ctx.signal}; ${ctx.factors.slice(0, 4).map(factorTextRu).join("; ")}.`,
-          ctx.higherTf ? `Daily trend: ${ctx.higherTf.trend}.` : "",
-          ctx.backtest.trades ? `Indicator signals on this asset worked ${ctx.backtest.hitRate}% of the time (${ctx.backtest.trades} signals).` : "",
-        ]
-          .filter(Boolean)
-          .join(" ");
+    const { withAiQuota } = await import("./quota.server");
+    return withAiQuota(context, "chat", async (plan) => {
+      // Attach live numbers when the question names an asset ("что с солана?").
+      const base = detectBaseInText(messages.at(-1)!.text);
+      let live = "";
+      if (base) {
+        const { loadCoinContext } = await import("./coin-context.server");
+        const ctx = await loadCoinContext(base, "4h").catch(() => null);
+        if (ctx) {
+          const t = ctx.technicals;
+          live = [
+            `Live data for ${ctx.base} (4h candles): price ${ctx.price}, 24h ${ctx.change24h.toFixed(2)}%.`,
+            `Trend ${t.trend}, RSI ${t.rsi}, ADX ${t.adx}, MACD ${t.macd > t.macdSignal ? "above" : "below"} signal, volume ${t.volumeRatio}x average, ATR ${t.atrPct}%.`,
+            `Indicator score ${ctx.score} → ${ctx.signal}; ${ctx.factors.slice(0, 4).map(factorTextRu).join("; ")}.`,
+            ctx.higherTf ? `Daily trend: ${ctx.higherTf.trend}.` : "",
+            ctx.backtest.trades ? `Indicator signals on this asset worked ${ctx.backtest.hitRate}% of the time (${ctx.backtest.trades} signals).` : "",
+          ]
+            .filter(Boolean)
+            .join(" ");
+        }
       }
-    }
 
-    const { completeText } = await import("./ai.server");
-    const result = await completeText({
-      system: live ? `${SYSTEM}\n\n${live}` : SYSTEM,
-      messages,
-      effort: "medium",
-      maxTokens: 8000,
-      lang: data.lang,
+      const { completeText } = await import("./ai.server");
+      const result = await completeText({
+        system: live ? `${SYSTEM}\n\n${live}` : SYSTEM,
+        messages,
+        // Max members get the deeper-thinking mode.
+        effort: plan === "max" ? "high" : "medium",
+        maxTokens: 8000,
+        lang: data.lang,
+      });
+      return result.ok ? { ok: true, text: result.text } : { ok: false, reason: result.reason };
     });
-    return result.ok ? { ok: true, text: result.text } : { ok: false, reason: result.reason };
   });

@@ -39,7 +39,7 @@ function authSecret(): string {
   return globalAuthRef.__scannerAuthSecret__;
 }
 
-const databaseUrl = process.env.DATABASE_URL?.trim() || undefined;
+const databaseUrl = process.env.DATABASE_URL?.trim() || process.env.POSTGRES_URL?.trim() || undefined;
 const database = databaseUrl
   ? new Pool({ connectionString: databaseUrl })
   : { dialect: pgliteDialect(() => getPglite()), type: "postgres" as const };

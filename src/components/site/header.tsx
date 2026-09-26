@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { Link, useRouterState } from "@tanstack/react-router";
-import { Bot, Coins, LineChart, Menu, Newspaper, Search, Wallet, X } from "lucide-react";
+import { Bot, Coins, Crown, LineChart, Menu, Newspaper, Search, Sparkles, Wallet, X } from "lucide-react";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
+import { useBilling } from "@/lib/use-billing";
+import { useHydrated } from "@/lib/use-hydrated";
 import { useT, type MessageKey } from "@/lib/i18n";
 import { LANGS } from "@/lib/lang";
 import { useSettings } from "@/lib/settings-store";
@@ -18,6 +20,7 @@ export const NAV = [
   { to: "/news", label: "nav.news", icon: Newspaper, exact: false },
   { to: "/portfolio", label: "nav.portfolio", icon: Wallet, exact: false },
   { to: "/ai", label: "nav.ai", icon: Bot, exact: false },
+  { to: "/pricing", label: "nav.pricing", icon: Crown, exact: false },
 ] as const satisfies readonly { to: string; label: MessageKey; icon: unknown; exact: boolean }[];
 
 export function Brand({ className }: { className?: string }) {
@@ -28,6 +31,27 @@ export function Brand({ className }: { className?: string }) {
         <Mark className="size-4.5 text-white" />
       </span>
       <span className="font-display text-lg font-bold tracking-tight text-fg">{t("app.name")}</span>
+    </Link>
+  );
+}
+
+/** "Get Pro" for guests and members without a paid plan. */
+function ProButton({ className }: { className?: string }) {
+  const t = useT();
+  const { user, isPending } = useCurrentUserState();
+  const billing = useBilling().data;
+  const hydrated = useHydrated();
+  if (!hydrated || isPending || (user && (!billing || (billing.plan !== "free" && !billing.trial)))) return null;
+  return (
+    <Link
+      to="/pricing"
+      className={cn(
+        "bg-brand flex h-9 items-center gap-1.5 rounded-xl px-3 text-sm font-semibold text-white shadow-[var(--shadow-glow)] outline-none hover:opacity-95 focus-visible:ring-2 focus-visible:ring-primary/40",
+        className,
+      )}
+    >
+      <Sparkles className="size-4" />
+      {t("nav.getPro")}
     </Link>
   );
 }
@@ -130,6 +154,7 @@ function MobileMenu({ onClose }: { onClose: () => void }) {
           <span className="text-sm text-muted">{t("theme.title")}</span>
           <ThemeToggle />
         </div>
+        <ProButton className="h-11 justify-center" />
         {user ? null : <AuthButtons stacked />}
       </div>
     </div>,
@@ -196,6 +221,7 @@ export function SiteHeader() {
             <Search className="size-4.5" />
           </button>
           <ThemeToggle className="hidden sm:grid lg:hidden" />
+          <ProButton className="hidden sm:flex" />
           {isPending ? (
             <span className="skeleton h-9 w-24" />
           ) : user ? (

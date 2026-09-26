@@ -3,6 +3,7 @@ import { useT, type MessageKey } from "@/lib/i18n";
 import { numFull, usdCompact } from "@/lib/format";
 import { useGlobalStats } from "@/lib/use-market";
 import { Change } from "@/components/market/bits";
+import { fngColor } from "@/components/market/highlights";
 import { LanguageMenu, ThemeToggle } from "@/components/site/prefs";
 
 function Item({ label, children }: { label: string; children: ReactNode }) {
@@ -12,13 +13,6 @@ function Item({ label, children }: { label: string; children: ReactNode }) {
       <span className="font-semibold text-fg tabular-nums">{children}</span>
     </span>
   );
-}
-
-export function fngTone(value: number): string {
-  if (value <= 25) return "text-short";
-  if (value <= 45) return "text-wait";
-  if (value <= 55) return "text-muted";
-  return "text-long";
 }
 
 /** The thin market summary line above the header on every page. */
@@ -50,7 +44,7 @@ export function StatsBar() {
               ) : null}
               {s.fearGreed ? (
                 <Item label={t("fng.short")}>
-                  <span className={fngTone(s.fearGreed.value)}>
+                  <span style={{ color: fngColor(s.fearGreed.value) }}>
                     {s.fearGreed.value}/100 · {t(`fng.${s.fearGreed.label}` as MessageKey)}
                   </span>
                 </Item>

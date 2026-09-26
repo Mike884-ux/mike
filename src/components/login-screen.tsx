@@ -1,6 +1,8 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { History, KeyRound, Loader2, Lock, Mail, ShieldCheck, Sparkles, Wallet } from "lucide-react";
+import { Gift, History, KeyRound, Loader2, Lock, Mail, ShieldCheck, Sparkles, Wallet } from "lucide-react";
+import { REFERRED_TRIAL_DAYS, TRIAL_DAYS } from "@/lib/plans";
+import { pendingReferral, rememberReferral } from "@/lib/referral";
 import { authClient } from "@/lib/auth/client";
 import { getAuthProviders, type AuthProviders } from "@/lib/auth/providers";
 import { useT, type MessageKey } from "@/lib/i18n";
@@ -35,13 +37,13 @@ function XIcon() {
   );
 }
 
-/** Google / X buttons, shown only for providers the site has keys for. */
+/** Google / X buttons. Always visible; one without keys explains that it is not switched on yet. */
 function SocialButtons({ redirect, busy, onError }: { redirect: string; busy: boolean; onError: (key: MessageKey) => void }) {
   const t = useT();
   const providers = useQuery({ queryKey: ["auth-providers"], queryFn: () => getAuthProviders(), staleTime: Infinity });
   const p = providers.data;
-  if (!p || (!p.google && !p.twitter)) return null;
   const go = async (provider: "google" | "twitter") => {
+    if (!p?.[provider]) return onError(provider === "google" ? "login.err.googleOff" : "login.err.xOff");
     try {
       const { error } = await authClient.signIn.social({ provider, callbackURL: redirect, errorCallbackURL: "/login?error=social" });
       if (error) throw error;
@@ -54,23 +56,34 @@ function SocialButtons({ redirect, busy, onError }: { redirect: string; busy: bo
   return (
     <div className="mt-5">
       <div className="flex gap-2">
-        {p.google ? (
-          <button type="button" disabled={busy} onClick={() => void go("google")} className={cls}>
-            <GoogleIcon />
-            Google
-          </button>
-        ) : null}
-        {p.twitter ? (
-          <button type="button" disabled={busy} onClick={() => void go("twitter")} className={cls}>
-            <XIcon />
-            X
-          </button>
-        ) : null}
+        <button type="button" disabled={busy} onClick={() => void go("google")} className={cls}>
+          <GoogleIcon />
+          Google
+        </button>
+        <button type="button" disabled={busy} onClick={() => void go("twitter")} className={cls}>
+          <XIcon />X
+        </button>
       </div>
       <p className="my-4 flex items-center gap-3 text-[11px] text-faint before:h-px before:flex-1 before:bg-border after:h-px after:flex-1 after:bg-border">
         {t("login.or")}
       </p>
     </div>
+  );
+}
+
+/** The sign-up gift: Pro days, more when a friend's invite link brought the visitor here. */
+function SignupBonus() {
+  const t = useT();
+  const [invited, setInvited] = useState(false);
+  useEffect(() => {
+    rememberReferral(window.location.search);
+    setInvited(Boolean(pendingReferral()));
+  }, []);
+  return (
+    <p className="mt-4 flex items-center gap-2 rounded-xl bg-wait/12 px-3 py-2 text-xs font-medium text-fg">
+      <Gift className="size-4 shrink-0 text-wait" />
+      {invited ? t("login.bonusInvited", { n: REFERRED_TRIAL_DAYS }) : t("login.bonus", { n: TRIAL_DAYS })}
+    </p>
   );
 }
 
@@ -251,9 +264,10 @@ export function LoginScreen({ initialMode = "signup", redirect = "/", providers:
                 ))}
               </div>
 
+              {mode === "signin" ? null : <SignupBonus />}
               <SocialButtons redirect={redirect} busy={busy} onError={setError} />
 
-              <form className={`flex flex-col gap-3 ${providers.data && (providers.data.google || providers.data.twitter) ? "" : "mt-6"}`} onSubmit={submit}>
+              <form className="flex flex-col gap-3" onSubmit={submit}>
                 <label className="flex flex-col gap-1.5">
                   <span className="text-xs text-muted">{t("login.email")}</span>
                   <span className="flex h-12 items-center gap-2.5 rounded-xl bg-surface-2 px-3.5 focus-within:ring-2 focus-within:ring-primary/40">

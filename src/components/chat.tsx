@@ -5,7 +5,7 @@ import { chatWithAi, type ChatMessage } from "@/lib/chat";
 import { useT, type MessageKey } from "@/lib/i18n";
 import { useSettings } from "@/lib/settings-store";
 import { stripMd } from "@/lib/utils";
-import { aiErrorKey } from "@/components/ui-bits";
+import { AiFailure } from "@/components/billing/upsell";
 
 const SUGGESTIONS: MessageKey[] = ["chat.s1", "chat.s2", "chat.s3", "chat.s4"];
 
@@ -14,7 +14,7 @@ export function Chat({ initialQuestion }: { initialQuestion?: string } = {}) {
   const lang = useSettings((s) => s.lang);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
-  const [error, setError] = useState<MessageKey | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement | null>(null);
 
   const mutation = useMutation({
@@ -44,9 +44,9 @@ export function Chat({ initialQuestion }: { initialQuestion?: string } = {}) {
     mutation.mutate(next, {
       onSuccess: (res) => {
         if (res.ok) setMessages((m) => [...m, { role: "assistant", text: res.text }]);
-        else setError(aiErrorKey(res.reason));
+        else setError(res.reason);
       },
-      onError: () => setError("aiErr.unavailable"),
+      onError: () => setError("unavailable"),
     });
   }
 
@@ -102,11 +102,7 @@ export function Chat({ initialQuestion }: { initialQuestion?: string } = {}) {
               </div>
             ))}
             {mutation.isPending ? <p className="shimmer-text text-xs">{t("chat.typing")}</p> : null}
-            {error ? (
-              <p role="alert" className="rounded-lg bg-short/10 px-3 py-2 text-xs text-short">
-                {t(error)}
-              </p>
-            ) : null}
+            {error ? <AiFailure reason={error} /> : null}
           </div>
         )}
         <div ref={bottomRef} />

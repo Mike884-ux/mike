@@ -11,7 +11,7 @@ import { asInterval, type AiLevels } from "./types";
 
 export type CoinChartData = Omit<CoinContext, "symbol">;
 
-export type AiFailureReason = AiFailure | "too_often" | "no_data";
+export type AiFailureReason = AiFailure | "too_often" | "no_data" | "limit";
 
 /** Lets the detail view switch timeframe on its own, independent of the scanner's global interval. */
 export const getCoinChart = createServerFn({ method: "POST" })
@@ -194,42 +194,44 @@ export const analyzeChartAi = createServerFn({ method: "POST" })
     const hit = chartCache.get(key);
     if (hit && Date.now() - hit.at < CHART_TTL) return { ok: true, levels: hit.value };
     if (!allow(context.userId, "chart-ai", 10, 180_000)) return { ok: false, reason: "too_often" };
+    const { withAiQuota } = await import("./quota.server");
+    return withAiQuota(context, "analysis", async () => {
+      const { loadCoinContext } = await import("./coin-context.server");
+      const marketMod = await import("./market.server");
+      const { queryHeadlines } = await import("./news.server");
+      const ctx = await loadCoinContext(data.base, data.interval);
+      if (!ctx) return { ok: false, reason: "no_data" };
+      const [buyRatio, fng, headlines] = await Promise.all([
+        marketMod.fetchBuyPressure(ctx.symbol, data.interval).catch(() => null),
+        assetOf(data.base)?.kind === "crypto" ? marketMod.fetchFearGreed().catch(() => undefined) : Promise.resolve(undefined),
+        queryHeadlines(data.base, "raw").catch(() => []),
+      ]);
 
-    const { loadCoinContext } = await import("./coin-context.server");
-    const marketMod = await import("./market.server");
-    const { queryHeadlines } = await import("./news.server");
-    const ctx = await loadCoinContext(data.base, data.interval);
-    if (!ctx) return { ok: false, reason: "no_data" };
-    const [buyRatio, fng, headlines] = await Promise.all([
-      marketMod.fetchBuyPressure(ctx.symbol, data.interval).catch(() => null),
-      assetOf(data.base)?.kind === "crypto" ? marketMod.fetchFearGreed().catch(() => undefined) : Promise.resolve(undefined),
-      queryHeadlines(data.base, "raw").catch(() => []),
-    ]);
-
-    const { completeJson } = await import("./ai.server");
-    const result = await completeJson(
-      {
-        system: ANALYST_SYSTEM,
-        messages: [
-          {
-            role: "user",
-            text: `Timeframe: ${data.interval}.\n${describeContext(ctx, {
-              buyRatio,
-              fng,
-              headlines: headlines.slice(0, 6).map((h) => h.title),
-            })}`,
-          },
-        ],
-        effort: "high",
-        maxTokens: 12000,
-        lang: data.lang,
-      },
-      LevelsSchema,
-    );
-    if (!result.ok) return { ok: false, reason: result.reason };
-    const levels = sanitizeLevels(result.value, ctx.price, ctx.score);
-    chartCache.set(key, { at: Date.now(), value: levels });
-    return { ok: true, levels };
+      const { completeJson } = await import("./ai.server");
+      const result = await completeJson(
+        {
+          system: ANALYST_SYSTEM,
+          messages: [
+            {
+              role: "user",
+              text: `Timeframe: ${data.interval}.\n${describeContext(ctx, {
+                buyRatio,
+                fng,
+                headlines: headlines.slice(0, 6).map((h) => h.title),
+              })}`,
+            },
+          ],
+          effort: "high",
+          maxTokens: 12000,
+          lang: data.lang,
+        },
+        LevelsSchema,
+      );
+      if (!result.ok) return { ok: false, reason: result.reason };
+      const levels = sanitizeLevels(result.value, ctx.price, ctx.score);
+      chartCache.set(key, { at: Date.now(), value: levels });
+      return { ok: true, levels };
+    });
   });
 
 const simpleCache = new Map<string, { at: number; value: string }>();

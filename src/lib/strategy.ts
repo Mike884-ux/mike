@@ -63,46 +63,48 @@ export const getStrategyAdvice = createServerFn({ method: "POST" })
     const hit = cache.get(key);
     if (hit && Date.now() - hit.at < TTL) return { ok: true, plan: hit.value };
     if (!allow(context.userId, "strategy", 6, 300_000)) return { ok: false, reason: "too_often" };
-
-    const [coins, market, { loadCoinContext }] = await Promise.all([
-      import("./coins.server"),
-      import("./market.server"),
-      import("./coin-context.server"),
-    ]);
-    const [listing, global, trending, reads, tickers] = await Promise.all([
-      coins.getListing(1).catch(() => null),
-      coins.getGlobal().catch(() => null),
-      coins.getTrending().catch(() => null),
-      Promise.all(["BTC", "ETH", "SOL"].map((b) => loadCoinContext(b, "1d").catch(() => null))),
-      positions.length ? market.fetchTickers(positions.map((p) => p.symbol)).catch(() => []) : Promise.resolve([]),
-    ]);
-    const top = (listing?.coins ?? []).slice(0, 15).map((c) => `${c.symbol} ${c.price} (24h ${c.change24h?.toFixed(1) ?? "?"}%, 7d ${c.change7d?.toFixed(1) ?? "?"}%)`);
-    const priceOf = new Map(tickers.map((t) => [t.symbol, t.price]));
-    const holdings = positions.map((p) => {
-      const price = priceOf.get(p.symbol) ?? p.entry;
-      return `${p.base}: qty ${p.qty}, entry ${p.entry}, now ${price}, P/L ${(((price - p.entry) / p.entry) * 100).toFixed(1)}%`;
+    const { withAiQuota } = await import("./quota.server");
+    return withAiQuota(context, "strategy", async () => {
+      const [coins, market, { loadCoinContext }] = await Promise.all([
+        import("./coins.server"),
+        import("./market.server"),
+        import("./coin-context.server"),
+      ]);
+      const [listing, global, trending, reads, tickers] = await Promise.all([
+        coins.getListing(1).catch(() => null),
+        coins.getGlobal().catch(() => null),
+        coins.getTrending().catch(() => null),
+        Promise.all(["BTC", "ETH", "SOL"].map((b) => loadCoinContext(b, "1d").catch(() => null))),
+        positions.length ? market.fetchTickers(positions.map((p) => p.symbol)).catch(() => []) : Promise.resolve([]),
+      ]);
+      const top = (listing?.coins ?? []).slice(0, 15).map((c) => `${c.symbol} ${c.price} (24h ${c.change24h?.toFixed(1) ?? "?"}%, 7d ${c.change7d?.toFixed(1) ?? "?"}%)`);
+      const priceOf = new Map(tickers.map((t) => [t.symbol, t.price]));
+      const holdings = positions.map((p) => {
+        const price = priceOf.get(p.symbol) ?? p.entry;
+        return `${p.base}: qty ${p.qty}, entry ${p.entry}, now ${price}, P/L ${(((price - p.entry) / p.entry) * 100).toFixed(1)}%`;
+      });
+      const lines = [
+        `Risk appetite: ${RISK_TEXT[data.risk]}. Horizon: ${HORIZON_TEXT[data.horizon]}.`,
+        global ? `Market: total cap ${global.marketCap ? (global.marketCap / 1e12).toFixed(2) + "T" : "?"} USD (24h ${global.marketCapChange24h?.toFixed(2) ?? "?"}%), BTC dominance ${global.btcDominance?.toFixed(1) ?? "?"}%, Fear & Greed ${global.fearGreed ? `${global.fearGreed.value} (${global.fearGreed.label})` : "?"}.` : "",
+        top.length ? `Top coins: ${top.join("; ")}.` : "",
+        trending?.length ? `Trending searches: ${trending.slice(0, 6).map((c) => c.symbol).join(", ")}.` : "",
+        ...reads.map((ctx) =>
+          ctx
+            ? `${ctx.base} daily: price ${ctx.price}, trend ${ctx.technicals.trend}, RSI ${ctx.technicals.rsi}, ADX ${ctx.technicals.adx}, score ${ctx.score} (${ctx.signal}), weekly trend ${ctx.higherTf?.trend ?? "?"}.`
+            : "",
+        ),
+        holdings.length ? `Current holdings:\n${holdings.join("\n")}` : "Current holdings: none yet.",
+      ];
+      const { completeJson } = await import("./ai.server");
+      const result = await completeJson(
+        { system: SYSTEM, messages: [{ role: "user", text: lines.filter(Boolean).join("\n") }], effort: "high", maxTokens: 10000, lang: data.lang },
+        StrategySchema,
+      );
+      if (!result.ok) return { ok: false, reason: result.reason };
+      const plan = normalize(result.value);
+      cache.set(key, { at: Date.now(), value: plan });
+      return { ok: true, plan };
     });
-    const lines = [
-      `Risk appetite: ${RISK_TEXT[data.risk]}. Horizon: ${HORIZON_TEXT[data.horizon]}.`,
-      global ? `Market: total cap ${global.marketCap ? (global.marketCap / 1e12).toFixed(2) + "T" : "?"} USD (24h ${global.marketCapChange24h?.toFixed(2) ?? "?"}%), BTC dominance ${global.btcDominance?.toFixed(1) ?? "?"}%, Fear & Greed ${global.fearGreed ? `${global.fearGreed.value} (${global.fearGreed.label})` : "?"}.` : "",
-      top.length ? `Top coins: ${top.join("; ")}.` : "",
-      trending?.length ? `Trending searches: ${trending.slice(0, 6).map((c) => c.symbol).join(", ")}.` : "",
-      ...reads.map((ctx) =>
-        ctx
-          ? `${ctx.base} daily: price ${ctx.price}, trend ${ctx.technicals.trend}, RSI ${ctx.technicals.rsi}, ADX ${ctx.technicals.adx}, score ${ctx.score} (${ctx.signal}), weekly trend ${ctx.higherTf?.trend ?? "?"}.`
-          : "",
-      ),
-      holdings.length ? `Current holdings:\n${holdings.join("\n")}` : "Current holdings: none yet.",
-    ];
-    const { completeJson } = await import("./ai.server");
-    const result = await completeJson(
-      { system: SYSTEM, messages: [{ role: "user", text: lines.filter(Boolean).join("\n") }], effort: "high", maxTokens: 10000, lang: data.lang },
-      StrategySchema,
-    );
-    if (!result.ok) return { ok: false, reason: result.reason };
-    const plan = normalize(result.value);
-    cache.set(key, { at: Date.now(), value: plan });
-    return { ok: true, plan };
   });
 
 /** Trim lists and make the allocation add up to 100. */

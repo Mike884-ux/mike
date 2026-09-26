@@ -15,5 +15,5 @@ export const authMiddleware = createMiddleware({ type: "function" }).server(asyn
   const request = getRequest();
   const session = request ? await auth.api.getSession({ headers: request.headers }) : null;
   if (!session?.user) throw new UnauthorizedError();
-  return next({ context: { userId: session.user.id } });
+  return next({ context: { userId: session.user.id, email: session.user.email ?? "" } });
 });

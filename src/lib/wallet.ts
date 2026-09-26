@@ -34,50 +34,52 @@ export const getWalletAdvice = createServerFn({ method: "POST" })
     const { positions } = await store.loadAccount(await getSql(), context.userId);
     if (!positions.length) return { ok: false, reason: "empty" };
     if (!allow(context.userId, "wallet-advice", 6, 180_000)) return { ok: false, reason: "too_often" };
-
-    const marketMod = await import("./market.server");
-    const { loadCoinContext } = await import("./coin-context.server");
-    const tickers = await marketMod.fetchTickers(positions.map((p) => p.symbol));
-    const priceOf = new Map(tickers.map((t) => [t.symbol, t.price]));
-    const rows = positions.map((p) => {
-      const price = priceOf.get(p.symbol) || p.entry;
-      return { ...p, price, value: price * p.qty, pnlPct: ((price - p.entry) / p.entry) * 100 };
+    const { withAiQuota } = await import("./quota.server");
+    return withAiQuota(context, "advice", async () => {
+      const marketMod = await import("./market.server");
+      const { loadCoinContext } = await import("./coin-context.server");
+      const tickers = await marketMod.fetchTickers(positions.map((p) => p.symbol));
+      const priceOf = new Map(tickers.map((t) => [t.symbol, t.price]));
+      const rows = positions.map((p) => {
+        const price = priceOf.get(p.symbol) || p.entry;
+        return { ...p, price, value: price * p.qty, pnlPct: ((price - p.entry) / p.entry) * 100 };
+      });
+      const total = rows.reduce((s, r) => s + r.value, 0);
+      const cost = rows.reduce((s, r) => s + r.entry * r.qty, 0);
+      // Technical read for the largest holdings only — keeps the request fast.
+      const top = [...rows].sort((a, b) => b.value - a.value).slice(0, 8);
+      const reads = new Map(
+        await Promise.all(
+          top.map(async (r) => [r.base, await loadCoinContext(r.base, "4h").catch(() => null)] as const),
+        ),
+      );
+      const lines = rows.map((r) => {
+        const ctx = reads.get(r.base);
+        const days = Math.floor((Date.now() - r.openedAt) / 86_400_000);
+        return [
+          `${r.base}: qty ${r.qty}, entry ${r.entry}, now ${r.price}, P/L ${r.pnlPct.toFixed(1)}%, held ${days} days,`,
+          `share ${total > 0 ? ((r.value / total) * 100).toFixed(1) : "?"}%`,
+          ctx ? `, 4h score ${ctx.score} (${ctx.signal}), daily trend ${ctx.higherTf?.trend ?? "?"}` : "",
+        ].join(" ");
+      });
+      const { completeText } = await import("./ai.server");
+      const result = await completeText({
+        system: WALLET_SYSTEM,
+        messages: [
+          {
+            role: "user",
+            text: [
+              `Portfolio: ${rows.length} holdings, value ${total.toFixed(2)} USD, total P/L ${cost > 0 ? (((total - cost) / cost) * 100).toFixed(1) : "0"}%.`,
+              ...lines,
+            ].join("\n"),
+          },
+        ],
+        effort: "medium",
+        maxTokens: 8000,
+        lang: data.lang,
+      });
+      return result.ok ? { ok: true, text: result.text } : { ok: false, reason: result.reason };
     });
-    const total = rows.reduce((s, r) => s + r.value, 0);
-    const cost = rows.reduce((s, r) => s + r.entry * r.qty, 0);
-    // Technical read for the largest holdings only — keeps the request fast.
-    const top = [...rows].sort((a, b) => b.value - a.value).slice(0, 8);
-    const reads = new Map(
-      await Promise.all(
-        top.map(async (r) => [r.base, await loadCoinContext(r.base, "4h").catch(() => null)] as const),
-      ),
-    );
-    const lines = rows.map((r) => {
-      const ctx = reads.get(r.base);
-      const days = Math.floor((Date.now() - r.openedAt) / 86_400_000);
-      return [
-        `${r.base}: qty ${r.qty}, entry ${r.entry}, now ${r.price}, P/L ${r.pnlPct.toFixed(1)}%, held ${days} days,`,
-        `share ${total > 0 ? ((r.value / total) * 100).toFixed(1) : "?"}%`,
-        ctx ? `, 4h score ${ctx.score} (${ctx.signal}), daily trend ${ctx.higherTf?.trend ?? "?"}` : "",
-      ].join(" ");
-    });
-    const { completeText } = await import("./ai.server");
-    const result = await completeText({
-      system: WALLET_SYSTEM,
-      messages: [
-        {
-          role: "user",
-          text: [
-            `Portfolio: ${rows.length} holdings, value ${total.toFixed(2)} USD, total P/L ${cost > 0 ? (((total - cost) / cost) * 100).toFixed(1) : "0"}%.`,
-            ...lines,
-          ].join("\n"),
-        },
-      ],
-      effort: "medium",
-      maxTokens: 8000,
-      lang: data.lang,
-    });
-    return result.ok ? { ok: true, text: result.text } : { ok: false, reason: result.reason };
   });
 
 export const PORTFOLIO_PERIODS = [
@@ -119,9 +121,22 @@ export const getPortfolioHistory = createServerFn({ method: "POST" })
     if (!data.positions.length) return [];
     const marketMod = await import("./market.server");
     const { interval, limit, bucketMs } = PERIOD_SPEC[data.period];
-    const candleLists = await Promise.all(data.positions.map((p) => marketMod.fetchKlines(p.symbol, interval, limit)));
+    const candleLists = await Promise.all(
+      data.positions.map((p) => (p.symbol.endsWith(".CG") ? geckoPoints(p.symbol, data.period) : marketMod.fetchKlines(p.symbol, interval, limit))),
+    );
     return portfolioSeries(
       data.positions.map((p, i) => ({ qty: p.qty, candles: candleLists[i] ?? [] })),
       bucketMs,
     );
   });
+
+/** Price history for coins that only CoinGecko knows (added from a coin page), shaped like candles. */
+async function geckoPoints(symbol: string, period: PortfolioPeriod): Promise<{ t: number; c: number }[]> {
+  const coins = await import("./coins.server");
+  const ticker = symbol.replace(/\.CG$/, "");
+  const coin = (await coins.getBySymbols([ticker]).catch(() => null))?.coins.find((c) => c.symbol === ticker);
+  if (!coin) return [];
+  const range = period === "1d" ? "1d" : period === "1y" ? "1y" : "1m";
+  const history = await coins.getHistory(coin.id, coin.symbol, range, coin.price).catch(() => null);
+  return (history?.points ?? []).map((p) => ({ t: p.t, c: p.c }));
+}

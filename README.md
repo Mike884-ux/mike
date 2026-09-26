@@ -24,7 +24,7 @@
 | Переменная | Обязательна | Зачем |
 | --- | --- | --- |
 | `BETTER_AUTH_SECRET` | да | Подпись сессий. Любая случайная строка от 32 символов. Без неё все выходят из аккаунта при каждом перезапуске. |
-| `DATABASE_URL` | да, для сохранения данных | Postgres. Бесплатно: Vercel → Storage → Neon. Без неё аккаунты, кошельки и сделки теряются при перезапуске. |
+| `DATABASE_URL` | да, для сохранения данных | Postgres. Бесплатно: Vercel → Storage → Neon. Подойдёт и `POSTGRES_URL`. Без базы вход, кошельки, тарифы и сделки теряются, а пользователей выкидывает из аккаунта — сайт покажет об этом предупреждение. |
 | `ANTHROPIC_API_KEY` | нет | Свой ключ с console.anthropic.com. Если его нет или он неверный, сайт сам берёт ИИ через Vercel AI Gateway. |
 | `ANTHROPIC_MODEL` | нет | Модель Claude, по умолчанию `claude-opus-5`. `claude-haiku-4-5` намного дешевле, но разбирает рынок поверхностнее. |
 | `AI_GATEWAY_MODEL` | нет | Модель через Vercel AI Gateway, по умолчанию `anthropic/claude-opus-5`. |
@@ -37,6 +37,13 @@
 | `TWITTER_CLIENT_ID`, `TWITTER_CLIENT_SECRET` | нет | Кнопка «Войти через X». Ключи из developer.x.com → Projects & Apps → User authentication settings (OAuth 2.0, Web App). |
 | `RESEND_API_KEY` | нет | Вход по коду из письма. Бесплатный ключ с resend.com. |
 | `MAIL_FROM` | нет | Отправитель писем, например `Скан <login@ваш-домен>`. Домен нужно подтвердить в Resend. Без подтверждённого домена Resend шлёт письма только на ваш собственный адрес. |
+
+| `ADMIN_EMAILS` | нет | Ваш email (или несколько через запятую). Открывает панель владельца `/admin`: статистика, выдача тарифов, платежи и ИИ-маркетолог. У админов нет лимитов ИИ. |
+| `NOWPAYMENTS_API_KEY`, `NOWPAYMENTS_IPN_SECRET` | нет | Оплата тарифов криптовалютой (USDT, BTC, ETH…). Ключи с nowpayments.io → Settings → Payments. IPN Callback URL: `https://<ваш-домен>/api/billing/nowpayments`. |
+| `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` | нет | Оплата картой. В Stripe → Developers → Webhooks добавьте `https://<ваш-домен>/api/billing/stripe` с событиями `checkout.session.completed` и `checkout.session.expired`. |
+| `PAY_CONTACT` | нет | Куда писать для оплаты вручную: `@telegram_ник`, ссылка или email. После оплаты выдайте тариф в `/admin`. |
+
+**Тарифы.** Free, Pro и Max с дневными лимитами ИИ, скидка 20% за год, оплата разовая без автосписаний. Новый аккаунт получает 3 дня Pro, приглашённый другом — 7 дней, пригласивший — +3 дня Pro за друга (до 30). Цены и лимиты меняются в `src/lib/plans.ts`. Если нет ни одного способа оплаты, кнопка «Оформить» предлагает написать вам или сообщает, что оплата скоро появится.
 
 **Вход через Google, X и по коду.** Кнопки появляются сами, когда заданы ключи. В настройках Google и X укажите адрес возврата `https://<ваш-домен>/api/auth/callback/google` и `https://<ваш-домен>/api/auth/callback/twitter`.
 
