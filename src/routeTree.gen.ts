@@ -18,6 +18,7 @@ import { Route as SiteNewsRouteImport } from './routes/_site/news'
 import { Route as SitePortfolioRouteImport } from './routes/_site/portfolio'
 import { Route as SitePricingRouteImport } from './routes/_site/pricing'
 import { Route as SiteSignalsRouteImport } from './routes/_site/signals'
+import { Route as ApiHealthRouteImport } from './routes/api/health'
 import { Route as SiteCoinsIdRouteImport } from './routes/_site/coins/$id'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 import { Route as ApiBillingNowpaymentsRouteImport } from './routes/api/billing/nowpayments'
@@ -72,6 +73,11 @@ const SiteSignalsRoute = SiteSignalsRouteImport.update({
   id: '/signals',
   path: '/signals',
   getParentRoute: () => SiteRoute,
+} as any)
+const ApiHealthRoute = ApiHealthRouteImport.update({
+  id: '/api/health',
+  path: '/api/health',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const SiteCoinsIdRoute = SiteCoinsIdRouteImport.update({
   id: '/coins/$id',
@@ -133,6 +139,7 @@ export interface FileRoutesByFullPath {
   '/portfolio': typeof SitePortfolioRoute
   '/pricing': typeof SitePricingRoute
   '/signals': typeof SiteSignalsRoute
+  '/api/health': typeof ApiHealthRoute
   '/coins/$id': typeof SiteCoinsIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/billing/nowpayments': typeof ApiBillingNowpaymentsRoute
@@ -152,6 +159,7 @@ export interface FileRoutesByTo {
   '/portfolio': typeof SitePortfolioRoute
   '/pricing': typeof SitePricingRoute
   '/signals': typeof SiteSignalsRoute
+  '/api/health': typeof ApiHealthRoute
   '/': typeof SiteIndexRoute
   '/coins/$id': typeof SiteCoinsIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
@@ -174,6 +182,7 @@ export interface FileRoutesById {
   '/_site/portfolio': typeof SitePortfolioRoute
   '/_site/pricing': typeof SitePricingRoute
   '/_site/signals': typeof SiteSignalsRoute
+  '/api/health': typeof ApiHealthRoute
   '/_site/': typeof SiteIndexRoute
   '/_site/coins/$id': typeof SiteCoinsIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
@@ -197,6 +206,7 @@ export interface FileRouteTypes {
     | '/portfolio'
     | '/pricing'
     | '/signals'
+    | '/api/health'
     | '/coins/$id'
     | '/api/auth/$'
     | '/api/billing/nowpayments'
@@ -216,6 +226,7 @@ export interface FileRouteTypes {
     | '/portfolio'
     | '/pricing'
     | '/signals'
+    | '/api/health'
     | '/'
     | '/coins/$id'
     | '/api/auth/$'
@@ -237,6 +248,7 @@ export interface FileRouteTypes {
     | '/_site/portfolio'
     | '/_site/pricing'
     | '/_site/signals'
+    | '/api/health'
     | '/_site/'
     | '/_site/coins/$id'
     | '/api/auth/$'
@@ -253,6 +265,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   SiteRoute: typeof SiteRouteWithChildren
   LoginRoute: typeof LoginRoute
+  ApiHealthRoute: typeof ApiHealthRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
   ApiBillingNowpaymentsRoute: typeof ApiBillingNowpaymentsRoute
   ApiBillingStripeRoute: typeof ApiBillingStripeRoute
@@ -328,6 +341,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/signals'
       preLoaderRoute: typeof SiteSignalsRouteImport
       parentRoute: typeof SiteRoute
+    }
+    '/api/health': {
+      id: '/api/health'
+      path: '/api/health'
+      fullPath: '/api/health'
+      preLoaderRoute: typeof ApiHealthRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/_site/coins/$id': {
       id: '/_site/coins/$id'
@@ -429,6 +449,7 @@ const SiteRouteWithChildren = SiteRoute._addFileChildren(SiteRouteChildren)
 const rootRouteChildren: RootRouteChildren = {
   SiteRoute: SiteRouteWithChildren,
   LoginRoute: LoginRoute,
+  ApiHealthRoute: ApiHealthRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
   ApiBillingNowpaymentsRoute: ApiBillingNowpaymentsRoute,
   ApiBillingStripeRoute: ApiBillingStripeRoute,
