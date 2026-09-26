@@ -1,10 +1,10 @@
 import { pendingMigrations } from "../../scripts/migration-plan.mjs";
+import { findDatabaseUrl } from "../../scripts/database-url.mjs";
 
 export type DbSource = "postgres" | "pglite";
 
-// Vercel's storage integrations name it DATABASE_URL (Neon) or POSTGRES_URL (Vercel Postgres / Supabase).
-const rawDatabaseUrl =
-  typeof process !== "undefined" ? process.env.DATABASE_URL?.trim() || process.env.POSTGRES_URL?.trim() || undefined : undefined;
+// DATABASE_URL, POSTGRES_URL or a custom-prefixed name from Vercel's storage integrations.
+const rawDatabaseUrl = typeof process !== "undefined" ? findDatabaseUrl(process.env) : undefined;
 const databaseUrl = rawDatabaseUrl && rawDatabaseUrl.trim() ? rawDatabaseUrl : undefined;
 
 export const dbSource: DbSource = databaseUrl ? "postgres" : "pglite";

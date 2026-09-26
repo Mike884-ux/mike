@@ -11,6 +11,7 @@ import { tanstackStartCookies } from "better-auth/tanstack-start";
 import { createHash, randomBytes } from "node:crypto";
 import { Pool } from "pg";
 import { ensureDbReady, getPglite } from "../db";
+import { findDatabaseUrl } from "../../../scripts/database-url.mjs";
 import { pgliteDialect } from "./pglite-dialect";
 
 void ensureDbReady();
@@ -39,7 +40,7 @@ function authSecret(): string {
   return globalAuthRef.__scannerAuthSecret__;
 }
 
-const databaseUrl = process.env.DATABASE_URL?.trim() || process.env.POSTGRES_URL?.trim() || undefined;
+const databaseUrl = findDatabaseUrl(process.env);
 const database = databaseUrl
   ? new Pool({ connectionString: databaseUrl })
   : { dialect: pgliteDialect(() => getPglite()), type: "postgres" as const };

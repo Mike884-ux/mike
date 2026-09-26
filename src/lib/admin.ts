@@ -3,6 +3,7 @@ import { authMiddleware } from "@/lib/auth/middleware";
 import type { AiFailureReason } from "./coin-detail";
 import type { AdminStats, PaymentRow } from "./billing-store.server";
 import { asLang } from "./lang";
+import { findDatabaseUrl } from "../../scripts/database-url.mjs";
 import {
   asPaidPlan,
   PLANS,
@@ -45,7 +46,7 @@ export const getAdminOverview = createServerFn({ method: "GET" })
     ]);
     const has = (...names: string[]) => names.every((n) => Boolean(process.env[n]?.trim()));
     const setup: SetupItem[] = [
-      { key: "DATABASE_URL", ok: has("DATABASE_URL") || has("POSTGRES_URL") },
+      { key: "DATABASE_URL", ok: Boolean(findDatabaseUrl(process.env)) },
       { key: "BETTER_AUTH_SECRET", ok: has("BETTER_AUTH_SECRET") },
       { key: "ANTHROPIC_API_KEY", ok: has("ANTHROPIC_API_KEY") || Boolean(process.env.VERCEL) },
       { key: "GOOGLE_CLIENT_ID", ok: has("GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET") },
