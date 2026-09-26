@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { Link, useRouterState } from "@tanstack/react-router";
 import { Bot, Coins, LineChart, Menu, Newspaper, Search, Wallet, X } from "lucide-react";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
@@ -74,7 +75,9 @@ function MobileMenu({ onClose }: { onClose: () => void }) {
       document.removeEventListener("keydown", onKey);
     };
   }, [onClose]);
-  return (
+  // Portal to <body>: the header's backdrop blur would otherwise trap this
+  // fixed overlay inside the header's own height.
+  return createPortal(
     <div className="fixed inset-0 z-[60] lg:hidden" role="dialog" aria-modal="true" aria-label={t("nav.menu")}>
       <button type="button" aria-label={t("common.close")} className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
       <div className="fade-up absolute inset-y-0 right-0 flex w-[min(20rem,88vw)] flex-col gap-5 overflow-y-auto bg-bg p-5 shadow-[var(--shadow-pop)]">
@@ -129,13 +132,14 @@ function MobileMenu({ onClose }: { onClose: () => void }) {
         </div>
         {user ? null : <AuthButtons stacked />}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
 function MobileSearch({ onClose }: { onClose: () => void }) {
   const t = useT();
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-[60] bg-bg/95 p-4 backdrop-blur-md md:hidden" role="dialog" aria-modal="true" aria-label={t("search.placeholder")}>
       <div className="flex items-center gap-2">
         <CoinSearch autoFocus onDone={onClose} className="flex-1" />
@@ -143,7 +147,8 @@ function MobileSearch({ onClose }: { onClose: () => void }) {
           {t("common.cancel")}
         </button>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
