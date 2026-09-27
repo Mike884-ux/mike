@@ -56,7 +56,9 @@ async function providers<R>(
   const list: Attempt<R>[] = [];
   if (hasDirectKey()) list.push(() => claude("direct"));
   if (await hasGateway()) list.push(() => claude("gateway"));
-  if (process.env.GEMINI_API_KEY?.trim()) list.push(gemini);
+  // An Anthropic key in GEMINI_API_KEY is used for Claude above, not sent to Google.
+  const geminiKey = process.env.GEMINI_API_KEY?.trim();
+  if (geminiKey && !geminiKey.startsWith("sk-ant-")) list.push(gemini);
   return list;
 }
 

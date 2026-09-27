@@ -27,9 +27,20 @@ function gatewayModel(): string {
   return process.env.AI_GATEWAY_MODEL?.trim() || "anthropic/claude-opus-5";
 }
 
+/**
+ * The owner's Anthropic key. One pasted into GEMINI_API_KEY (easy to do on
+ * Render's setup form) is recognised by its sk-ant- prefix and used too.
+ */
+export function anthropicApiKey(): string {
+  const direct = process.env.ANTHROPIC_API_KEY?.trim();
+  if (direct) return direct;
+  const other = process.env.GEMINI_API_KEY?.trim();
+  return other?.startsWith("sk-ant-") ? other : "";
+}
+
 /** True when a direct Anthropic key is configured. */
 export function hasDirectKey(): boolean {
-  return Boolean(process.env.ANTHROPIC_API_KEY?.trim());
+  return Boolean(anthropicApiKey());
 }
 
 type RequestContext = { get?: () => { headers?: Record<string, string | undefined> } | undefined };
@@ -76,7 +87,7 @@ let directClient: Anthropic | null = null;
 async function clientFor(route: ClaudeRoute): Promise<Anthropic | null> {
   if (route === "direct") {
     // Long timeout: with thinking on, a thorough chart analysis can take a while.
-    directClient ??= new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY, timeout: 120_000, maxRetries: 1 });
+    directClient ??= new Anthropic({ apiKey: anthropicApiKey(), timeout: 120_000, maxRetries: 1 });
     return directClient;
   }
   // The OIDC token is short-lived and per request, so the client is too.
