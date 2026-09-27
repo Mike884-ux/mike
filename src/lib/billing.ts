@@ -87,7 +87,9 @@ export const startCheckout = createServerFn({ method: "POST" })
       const session =
         provider === "stripe"
           ? await pay.stripeCheckout(input)
-          : await pay.nowpaymentsCheckout(input, data.method === "card" ? pay.nowpaymentsCardCurrency() : null);
+          : provider === "dodo"
+            ? await pay.dodoCheckout(input)
+            : await pay.nowpaymentsCheckout(input, data.method === "card" ? pay.nowpaymentsCardCurrency() : null);
       if (session.externalId) await store.setPaymentExternalId(sql, payment.id, session.externalId);
       return { ok: true, url: session.url };
     } catch (err) {

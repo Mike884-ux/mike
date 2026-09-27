@@ -60,6 +60,7 @@ export const getAdminOverview = createServerFn({ method: "GET" })
       { key: "NOWPAYMENTS_API_KEY", ok: has("NOWPAYMENTS_API_KEY", "NOWPAYMENTS_IPN_SECRET") },
       { key: "NOWPAYMENTS_CARD", ok: pay.cardProvider() === "nowpayments" },
       { key: "STRIPE_SECRET_KEY", ok: has("STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET") },
+      { key: "DODO_API_KEY", ok: has("DODO_API_KEY", "DODO_WEBHOOK_SECRET", "DODO_PRODUCT_ID") },
       { key: "PAY_CONTACT", ok: has("PAY_CONTACT") },
     ];
     return { stats, payments, setup };

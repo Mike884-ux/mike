@@ -2,8 +2,12 @@
  * Checkout with payment providers — **server-only**. No SDKs: plain HTTPS.
  *
  * - NOWPayments (crypto: USDT, BTC, ETH, …) — NOWPAYMENTS_API_KEY + NOWPAYMENTS_IPN_SECRET.
- * - Bank cards, either way:
+ * - Bank cards, whichever is set up first:
  *   - Stripe — STRIPE_SECRET_KEY + STRIPE_WEBHOOK_SECRET (not available in every country);
+ *   - Dodo Payments (merchant of record, works for sellers in Tajikistan) —
+ *     DODO_API_KEY + DODO_WEBHOOK_SECRET + DODO_PRODUCT_ID: one one-time
+ *     "pay what you want" product, the site sets the price of each checkout.
+ *     DODO_MODE=test uses Dodo's test environment;
  *   - NOWPayments' card on-ramp (Guardarian): the customer pays by card and the
  *     owner receives crypto — NOWPAYMENTS_CARD=usd once NOWPayments has turned
  *     it on for the account. Its card partner has a minimum (NOWPAYMENTS_CARD_MIN, $20).
@@ -34,10 +38,14 @@ function cardMinimum(): number {
 
 const hasNowpayments = () => Boolean(env("NOWPAYMENTS_API_KEY") && env("NOWPAYMENTS_IPN_SECRET"));
 const hasStripe = () => Boolean(env("STRIPE_SECRET_KEY") && env("STRIPE_WEBHOOK_SECRET"));
+const hasDodo = () => Boolean(env("DODO_API_KEY") && env("DODO_WEBHOOK_SECRET") && env("DODO_PRODUCT_ID"));
 
-/** Who takes a card payment: Stripe when it is set up, otherwise NOWPayments' card on-ramp. */
-export function cardProvider(): "stripe" | "nowpayments" | null {
+export type CardProvider = "stripe" | "dodo" | "nowpayments";
+
+/** Who takes a card payment: Stripe, then Dodo Payments, then NOWPayments' card on-ramp. */
+export function cardProvider(): CardProvider | null {
   if (hasStripe()) return "stripe";
+  if (hasDodo()) return "dodo";
   return hasNowpayments() && nowpaymentsCardCurrency() ? "nowpayments" : null;
 }
 
@@ -232,5 +240,71 @@ export function verifyStripe(raw: string, header: string | null, now = Date.now(
   ) {
     return { paymentId, paid: false, failed: true, amount };
   }
+  return { paymentId, paid: false, failed: false, amount };
+}
+
+const dodoBase = () =>
+  env("DODO_MODE").toLowerCase() === "test" ? "https://test.dodopayments.com" : "https://live.dodopayments.com";
+
+/**
+ * Dodo Payments checkout session for one plan: the one-time product is "pay
+ * what you want", so the site sets the price; payment_id travels in metadata.
+ */
+export async function dodoCheckout(input: CheckoutInput): Promise<{ url: string; externalId: string }> {
+  const res = await fetch(`${dodoBase()}/checkouts`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${env("DODO_API_KEY")}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      product_cart: [{ product_id: env("DODO_PRODUCT_ID"), quantity: 1, amount: Math.round(input.amount * 100) }],
+      ...(input.email ? { customer: { email: input.email, name: input.email.split("@")[0] || input.email } } : {}),
+      billing_currency: "USD",
+      return_url: `${input.origin}/pricing?paid=1`,
+      metadata: { payment_id: input.paymentId, plan: `${PLAN_LABEL[input.plan]} ${input.period}` },
+    }),
+    signal: AbortSignal.timeout(15_000),
+  });
+  const data = (await res.json().catch(() => ({}))) as { session_id?: string; checkout_url?: string | null; message?: string };
+  if (!res.ok || !data.checkout_url) throw new Error(`dodo ${res.status}: ${data.message ?? ""}`);
+  return { url: data.checkout_url, externalId: data.session_id ?? "" };
+}
+
+/**
+ * Dodo signs webhooks the Standard Webhooks way: HMAC-SHA256 over
+ * "id.timestamp.body" with the base64 secret after "whsec_", sent as
+ * "v1,<base64>" (several may be space-separated); stale messages are refused.
+ */
+export function verifyDodo(
+  raw: string,
+  headers: { id: string | null; timestamp: string | null; signature: string | null },
+  now = Date.now(),
+): WebhookResult {
+  const secret = env("DODO_WEBHOOK_SECRET");
+  if (!secret || !headers.id || !headers.timestamp || !headers.signature) return null;
+  const ts = Number.parseInt(headers.timestamp, 10);
+  if (!Number.isFinite(ts) || Math.abs(now / 1000 - ts) > 300) return null;
+  const key = Buffer.from(secret.replace(/^whsec_/, ""), "base64");
+  if (!key.length) return null;
+  const expected = createHmac("sha256", key).update(`${headers.id}.${ts}.${raw}`).digest();
+  const valid = headers.signature.split(" ").some((part) => {
+    const [version, sig] = part.split(",");
+    if (version !== "v1" || !sig) return false;
+    const given = Buffer.from(sig, "base64");
+    return given.length === expected.length && timingSafeEqual(given, expected);
+  });
+  if (!valid) return null;
+  let event: { type?: string; data?: Record<string, unknown> };
+  try {
+    event = JSON.parse(raw);
+  } catch {
+    return null;
+  }
+  const data = event.data ?? {};
+  const metadata = (data.metadata ?? {}) as Record<string, unknown>;
+  const paymentId = String(metadata.payment_id ?? "");
+  // Amounts come in cents; the site asks for USD, so anything else skips the price check.
+  const cents = Number(data.total_amount);
+  const amount = String(data.currency ?? "").toUpperCase() === "USD" && Number.isFinite(cents) ? cents / 100 : null;
+  if (event.type === "payment.succeeded") return { paymentId, paid: true, failed: false, amount };
+  if (event.type === "payment.failed" || event.type === "payment.cancelled") return { paymentId, paid: false, failed: true, amount };
   return { paymentId, paid: false, failed: false, amount };
 }

@@ -1,7 +1,15 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createHmac } from "node:crypto";
-import { cardProvider, nowpaymentsCardCurrency, nowpaymentsCheckout, paymentOptions, verifyNowpayments } from "./payments.server.ts";
+import {
+  cardProvider,
+  dodoCheckout,
+  nowpaymentsCardCurrency,
+  nowpaymentsCheckout,
+  paymentOptions,
+  verifyDodo,
+  verifyNowpayments,
+} from "./payments.server.ts";
 
 const KEYS = [
   "NOWPAYMENTS_API_KEY",
@@ -10,6 +18,10 @@ const KEYS = [
   "NOWPAYMENTS_CARD_MIN",
   "STRIPE_SECRET_KEY",
   "STRIPE_WEBHOOK_SECRET",
+  "DODO_API_KEY",
+  "DODO_WEBHOOK_SECRET",
+  "DODO_PRODUCT_ID",
+  "DODO_MODE",
   "PAY_CONTACT",
 ] as const;
 
@@ -159,4 +171,81 @@ test("NOWPayments invoice: cards open on the fiat currency, text stays ASCII", a
   assert.equal(sent[1].body.ipn_callback_url, "https://skan.ai/api/billing/nowpayments");
   assert.match(String(sent[1].body.order_description), /^[\x20-\x7e]+$/);
   assert.equal(sent[1].body.order_description, "Skan Whale - 1 year");
+});
+
+const DODO_SECRET = `whsec_${Buffer.from("dodo-test-secret-0123456789").toString("base64")}`;
+const DODO = { DODO_API_KEY: "dodo_key", DODO_WEBHOOK_SECRET: DODO_SECRET, DODO_PRODUCT_ID: "pdt_123" };
+
+function signDodo(id: string, ts: number, body: string, secret = DODO_SECRET): string {
+  const key = Buffer.from(secret.replace(/^whsec_/, ""), "base64");
+  return `v1,${createHmac("sha256", key).update(`${id}.${ts}.${body}`).digest("base64")}`;
+}
+
+test("cards go to Dodo when it is set up (after Stripe, before the NOWPayments on-ramp), no minimum", () => {
+  withEnv({ ...DODO }, () => {
+    assert.equal(cardProvider(), "dodo");
+    assert.deepEqual(paymentOptions(), { crypto: false, card: true, cardMin: null, contact: null });
+  });
+  withEnv({ ...DODO, ...NOW, NOWPAYMENTS_CARD: "usd" }, () => assert.equal(cardProvider(), "dodo"));
+  withEnv({ ...DODO, ...STRIPE }, () => assert.equal(cardProvider(), "stripe"));
+  withEnv({ DODO_API_KEY: "k", DODO_WEBHOOK_SECRET: DODO_SECRET }, () => assert.equal(cardProvider(), null));
+});
+
+test("Dodo webhook: Standard Webhooks signature, payment.succeeded grants", () => {
+  withEnv({ ...DODO }, () => {
+    const now = 1_790_000_000_000;
+    const ts = Math.floor(now / 1000);
+    const body = JSON.stringify({
+      business_id: "bus_1",
+      type: "payment.succeeded",
+      timestamp: "2026-09-27T10:00:00Z",
+      data: { payload_type: "Payment", payment_id: "pay_dodo", total_amount: 900, currency: "USD", metadata: { payment_id: "pay-1" } },
+    });
+    const headers = { id: "msg_1", timestamp: String(ts), signature: signDodo("msg_1", ts, body) };
+    assert.deepEqual(verifyDodo(body, headers, now), { paymentId: "pay-1", paid: true, failed: false, amount: 9 });
+    // Several signatures, one of them right
+    assert.ok(verifyDodo(body, { ...headers, signature: `v1,AAAA ${headers.signature}` }, now));
+    // Forged, tampered, stale or unsigned
+    assert.equal(verifyDodo(body, { ...headers, signature: signDodo("msg_1", ts, body, `whsec_${Buffer.from("other").toString("base64")}`) }, now), null);
+    assert.equal(verifyDodo(body.replace("900", "100"), headers, now), null);
+    assert.equal(verifyDodo(body, headers, now + 10 * 60_000), null);
+    assert.equal(verifyDodo(body, { ...headers, signature: null }, now), null);
+    // Other currency: no price check; failures reported
+    const eur = body.replace('"USD"', '"EUR"');
+    assert.equal(verifyDodo(eur, { ...headers, signature: signDodo("msg_1", ts, eur) }, now)?.amount, null);
+    const failed = body.replace("payment.succeeded", "payment.failed");
+    assert.deepEqual(verifyDodo(failed, { ...headers, signature: signDodo("msg_1", ts, failed) }, now), {
+      paymentId: "pay-1",
+      paid: false,
+      failed: true,
+      amount: 9,
+    });
+  });
+});
+
+test("Dodo checkout: price in cents on the pay-what-you-want product, payment id in metadata, test mode URL", async () => {
+  const sent: { url: string; body: Record<string, unknown>; auth: string | null }[] = [];
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = (async (url: string, init?: RequestInit) => {
+    sent.push({ url: String(url), body: JSON.parse(String(init?.body)), auth: new Headers(init?.headers).get("authorization") });
+    return new Response(JSON.stringify({ session_id: "cks_1", checkout_url: "https://checkout.dodopayments.com/cks_1" }), { status: 200 });
+  }) as typeof fetch;
+  const saved = { ...process.env };
+  Object.assign(process.env, DODO, { DODO_MODE: "test" });
+  try {
+    const input = { paymentId: "pay-1", plan: "pro" as const, period: "year" as const, amount: 86, email: "buyer@example.com", origin: "https://skan.ai" };
+    assert.deepEqual(await dodoCheckout(input), { url: "https://checkout.dodopayments.com/cks_1", externalId: "cks_1" });
+  } finally {
+    globalThis.fetch = realFetch;
+    for (const k of Object.keys(DODO).concat("DODO_MODE")) {
+      if (saved[k] === undefined) delete process.env[k];
+      else process.env[k] = saved[k];
+    }
+  }
+  assert.equal(sent[0].url, "https://test.dodopayments.com/checkouts");
+  assert.equal(sent[0].auth, "Bearer dodo_key");
+  assert.deepEqual(sent[0].body.product_cart, [{ product_id: "pdt_123", quantity: 1, amount: 8600 }]);
+  assert.deepEqual(sent[0].body.metadata, { payment_id: "pay-1", plan: "Pro year" });
+  assert.equal(sent[0].body.return_url, "https://skan.ai/pricing?paid=1");
+  assert.deepEqual(sent[0].body.customer, { email: "buyer@example.com", name: "buyer" });
 });

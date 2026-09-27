@@ -22,6 +22,7 @@ import { Route as SiteSignalsRouteImport } from './routes/_site/signals'
 import { Route as ApiHealthRouteImport } from './routes/api/health'
 import { Route as SiteCoinsIdRouteImport } from './routes/_site/coins/$id'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
+import { Route as ApiBillingDodoRouteImport } from './routes/api/billing/dodo'
 import { Route as ApiBillingNowpaymentsRouteImport } from './routes/api/billing/nowpayments'
 import { Route as ApiBillingStripeRouteImport } from './routes/api/billing/stripe'
 import { Route as ApiMarketGlobalRouteImport } from './routes/api/market/global'
@@ -95,6 +96,11 @@ const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   path: '/api/auth/$',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiBillingDodoRoute = ApiBillingDodoRouteImport.update({
+  id: '/api/billing/dodo',
+  path: '/api/billing/dodo',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiBillingNowpaymentsRoute = ApiBillingNowpaymentsRouteImport.update({
   id: '/api/billing/nowpayments',
   path: '/api/billing/nowpayments',
@@ -149,6 +155,7 @@ export interface FileRoutesByFullPath {
   '/api/health': typeof ApiHealthRoute
   '/coins/$id': typeof SiteCoinsIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/billing/dodo': typeof ApiBillingDodoRoute
   '/api/billing/nowpayments': typeof ApiBillingNowpaymentsRoute
   '/api/billing/stripe': typeof ApiBillingStripeRoute
   '/api/market/global': typeof ApiMarketGlobalRoute
@@ -171,6 +178,7 @@ export interface FileRoutesByTo {
   '/': typeof SiteIndexRoute
   '/coins/$id': typeof SiteCoinsIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/billing/dodo': typeof ApiBillingDodoRoute
   '/api/billing/nowpayments': typeof ApiBillingNowpaymentsRoute
   '/api/billing/stripe': typeof ApiBillingStripeRoute
   '/api/market/global': typeof ApiMarketGlobalRoute
@@ -195,6 +203,7 @@ export interface FileRoutesById {
   '/_site/': typeof SiteIndexRoute
   '/_site/coins/$id': typeof SiteCoinsIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/billing/dodo': typeof ApiBillingDodoRoute
   '/api/billing/nowpayments': typeof ApiBillingNowpaymentsRoute
   '/api/billing/stripe': typeof ApiBillingStripeRoute
   '/api/market/global': typeof ApiMarketGlobalRoute
@@ -219,6 +228,7 @@ export interface FileRouteTypes {
     | '/api/health'
     | '/coins/$id'
     | '/api/auth/$'
+    | '/api/billing/dodo'
     | '/api/billing/nowpayments'
     | '/api/billing/stripe'
     | '/api/market/global'
@@ -241,6 +251,7 @@ export interface FileRouteTypes {
     | '/'
     | '/coins/$id'
     | '/api/auth/$'
+    | '/api/billing/dodo'
     | '/api/billing/nowpayments'
     | '/api/billing/stripe'
     | '/api/market/global'
@@ -264,6 +275,7 @@ export interface FileRouteTypes {
     | '/_site/'
     | '/_site/coins/$id'
     | '/api/auth/$'
+    | '/api/billing/dodo'
     | '/api/billing/nowpayments'
     | '/api/billing/stripe'
     | '/api/market/global'
@@ -279,6 +291,7 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   ApiHealthRoute: typeof ApiHealthRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
+  ApiBillingDodoRoute: typeof ApiBillingDodoRoute
   ApiBillingNowpaymentsRoute: typeof ApiBillingNowpaymentsRoute
   ApiBillingStripeRoute: typeof ApiBillingStripeRoute
   ApiMarketGlobalRoute: typeof ApiMarketGlobalRoute
@@ -382,6 +395,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAuthSplatRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/billing/dodo': {
+      id: '/api/billing/dodo'
+      path: '/api/billing/dodo'
+      fullPath: '/api/billing/dodo'
+      preLoaderRoute: typeof ApiBillingDodoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/billing/nowpayments': {
       id: '/api/billing/nowpayments'
       path: '/api/billing/nowpayments'
@@ -472,6 +492,7 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   ApiHealthRoute: ApiHealthRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
+  ApiBillingDodoRoute: ApiBillingDodoRoute,
   ApiBillingNowpaymentsRoute: ApiBillingNowpaymentsRoute,
   ApiBillingStripeRoute: ApiBillingStripeRoute,
   ApiMarketGlobalRoute: ApiMarketGlobalRoute,
