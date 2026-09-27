@@ -8,7 +8,6 @@ services:
     plan: free
     # Binance's API refuses US servers, so the site runs in Europe.
     region: frankfurt
-    branch: main
     buildCommand: npm ci --include=dev && npm run build
     startCommand: npm start
     healthCheckPath: /api/health
