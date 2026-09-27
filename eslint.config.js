@@ -32,4 +32,9 @@ export default tseslint.config(
     extends: [js.configs.recommended, prettier],
     languageOptions: { ecmaVersion: 2022, globals: globals.node },
   },
+  {
+    // Static site for the door and laminate shop: plain browser scripts, no bundler.
+    files: ["dveri-laminat/**/*.js"],
+    languageOptions: { ecmaVersion: 2022, sourceType: "script", globals: globals.browser },
+  },
 );
