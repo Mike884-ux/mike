@@ -697,4 +697,7 @@ export const en: Record<MessageKey, string> = {
   "admin.dodo.err.failed": "Couldn't reach Dodo. Please try again in a minute.",
   "admin.dodo.modeTest": "test mode",
   "admin.dodo.modeLive": "live mode",
+  "login.verifySent": "We sent a 6-digit code to {email}. Enter it to confirm your email and sign in. No email? Check your spam folder.",
+  "login.verifyResent": "A new code is on its way to {email}.",
+  "login.verifyConfirm": "Confirm and sign in",
 };

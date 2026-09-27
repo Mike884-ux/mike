@@ -695,6 +695,9 @@ export const ru = {
   "admin.dodo.err.failed": "Не получилось связаться с Dodo. Попробуйте ещё раз через минуту.",
   "admin.dodo.modeTest": "тестовый режим",
   "admin.dodo.modeLive": "боевой режим",
+  "login.verifySent": "Мы отправили 6-значный код на {email}. Введите его, чтобы подтвердить почту и войти. Письма нет — проверьте «Спам».",
+  "login.verifyResent": "Отправили новый код на {email}.",
+  "login.verifyConfirm": "Подтвердить и войти",
 } as const;
 
 export type MessageKey = keyof typeof ru;

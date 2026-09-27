@@ -18,6 +18,7 @@ function authErrorKey(error: unknown): MessageKey {
   if (/password.{0,12}(short|least|min)|too short/.test(text)) return "login.err.short";
   if (/otp.{0,10}expired|expired/.test(text)) return "login.err.codeExpired";
   if (/invalid.{0,6}otp|invalid code|too_many_attempts/.test(text)) return "login.err.code";
+  if (/email.{0,4}not.{0,4}verified/.test(text)) return "login.verifySent";
   return "login.err.generic";
 }
 
@@ -145,14 +146,42 @@ export function LoginScreen({ initialMode = "signup", redirect = "/", providers:
   const [password, setPassword] = useState("");
   const [code, setCode] = useState("");
   const [codeSent, setCodeSent] = useState(false);
+  // Registration (or a sign-in of an unconfirmed account) waits for the code mailed to the address.
+  const [verifying, setVerifying] = useState(false);
+  const [notice, setNotice] = useState<MessageKey | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<MessageKey | null>(null);
   const providers = useQuery({ queryKey: ["auth-providers"], queryFn: () => getAuthProviders(), staleTime: Infinity, initialData: initialProviders });
   const codeAvailable = providers.data?.emailCode ?? false;
+  const mustVerify = providers.data?.emailVerify ?? false;
+
+  async function resendVerification() {
+    setError(null);
+    setBusy(true);
+    const { error: err } = await authClient.emailOtp.sendVerificationOtp({ email: email.trim().toLowerCase(), type: "email-verification" });
+    setBusy(false);
+    if (err) setError(authErrorKey(err));
+    else setNotice("login.verifyResent");
+  }
 
   async function submit(event: FormEvent) {
     event.preventDefault();
     const mail = email.trim().toLowerCase();
+    if (verifying) {
+      const otp = code.replace(/\D/g, "");
+      if (otp.length < 6) return setError("login.err.code");
+      setError(null);
+      setBusy(true);
+      try {
+        const { error: err } = await authClient.emailOtp.verifyEmail({ email: mail, otp });
+        if (err) throw err;
+        window.location.href = redirect;
+      } catch (err) {
+        setError(authErrorKey(err));
+        setBusy(false);
+      }
+      return;
+    }
     if (mode === "code") {
       if (!mail) return setError("login.err.empty");
       setError(null);
@@ -189,9 +218,22 @@ export function LoginScreen({ initialMode = "signup", redirect = "/", providers:
           ? await authClient.signUp.email({ email: mail, password, name: mail.split("@")[0] || "Scan" })
           : await authClient.signIn.email({ email: mail, password });
       if (err) throw err;
+      if (mode === "signup" && mustVerify) {
+        // No session yet: the account turns on after the emailed code.
+        setVerifying(true);
+        setNotice("login.verifySent");
+        setBusy(false);
+        return;
+      }
       window.location.href = redirect;
     } catch (err) {
-      setError(authErrorKey(err));
+      const key = authErrorKey(err);
+      if (key === "login.verifySent") {
+        // Signing in to an unconfirmed account: the server has just mailed a fresh code.
+        setVerifying(true);
+        setNotice("login.verifySent");
+        setError(null);
+      } else setError(key);
       setBusy(false);
     }
   }
@@ -284,7 +326,12 @@ export function LoginScreen({ initialMode = "signup", redirect = "/", providers:
                     />
                   </span>
                 </label>
-                {mode === "code" && codeSent ? (
+                {verifying && notice ? (
+                  <p role="status" className="rounded-lg bg-primary/10 px-3 py-2 text-sm text-fg">
+                    {t(notice, { email: email.trim() })}
+                  </p>
+                ) : null}
+                {(mode === "code" && codeSent) || verifying ? (
                   <label className="flex flex-col gap-1.5">
                     <span className="text-xs text-muted">{t("login.codeLabel", { email: email.trim() })}</span>
                     <span className="flex h-12 items-center gap-2.5 rounded-xl bg-surface-2 px-3.5 focus-within:ring-2 focus-within:ring-primary/40">
@@ -303,7 +350,7 @@ export function LoginScreen({ initialMode = "signup", redirect = "/", providers:
                   </label>
                 ) : null}
                 {mode === "code" && !codeSent ? <p className="text-xs leading-relaxed text-muted">{t("login.codeHint")}</p> : null}
-                <label className={`flex flex-col gap-1.5 ${mode === "code" ? "hidden" : ""}`}>
+                <label className={`flex flex-col gap-1.5 ${mode === "code" || verifying ? "hidden" : ""}`}>
                   <span className="text-xs text-muted">
                     {t("login.password")} <span className="text-faint">· {t("login.passwordHint")}</span>
                   </span>
@@ -332,14 +379,21 @@ export function LoginScreen({ initialMode = "signup", redirect = "/", providers:
                   className="bg-brand mt-2 flex h-12 items-center justify-center gap-2 rounded-xl text-sm font-semibold text-white shadow-[var(--shadow-glow)] disabled:opacity-60"
                 >
                   {busy ? <Loader2 className="size-4 animate-spin" /> : null}
-                  {mode === "code"
+                  {verifying
+                    ? t(busy ? "login.entering" : "login.verifyConfirm")
+                    : mode === "code"
                     ? t(busy ? (codeSent ? "login.entering" : "login.sendingCode") : codeSent ? "login.enter" : "login.sendCode")
                     : busy
                       ? t(mode === "signup" ? "login.creating" : "login.entering")
                       : t(mode === "signup" ? "login.create" : "login.enter")}
                 </button>
-                {mode === "code" && codeSent ? (
+                {mode === "code" && codeSent && !verifying ? (
                   <button type="button" disabled={busy} onClick={() => setCodeSent(false)} className="text-xs text-primary hover:opacity-80">
+                    {t("login.resend")}
+                  </button>
+                ) : null}
+                {verifying ? (
+                  <button type="button" disabled={busy} onClick={() => void resendVerification()} className="text-xs text-primary hover:opacity-80">
                     {t("login.resend")}
                   </button>
                 ) : null}

@@ -6,7 +6,7 @@
  */
 import { betterAuth } from "better-auth";
 import { bearer, emailOTP } from "better-auth/plugins";
-import { mailEnabled, sendMail } from "../mail.server";
+import { emailVerificationRequired, mailEnabled, sendMail } from "../mail.server";
 import { tanstackStartCookies } from "better-auth/tanstack-start";
 import { createHash, randomBytes } from "node:crypto";
 import { Pool } from "pg";
@@ -91,6 +91,13 @@ const twitterId = process.env.TWITTER_CLIENT_ID?.trim();
 const twitterSecret = process.env.TWITTER_CLIENT_SECRET?.trim();
 
 const OTP_SUBJECT = "Код для входа";
+const VERIFY_SUBJECT = "Подтвердите почту — Скан";
+function verifyText(otp: string): string {
+  return `Ваш код подтверждения: ${otp}\n\nВведите его на сайте, чтобы закончить регистрацию. Код действует 10 минут. Если вы не регистрировались, просто не обращайте внимания на это письмо.\n\nYour confirmation code: ${otp} (valid for 10 minutes).`;
+}
+
+/** Email+password accounts confirm their address with a code before the first sign-in (when mail reaches everyone). */
+const verifyEmails = emailVerificationRequired();
 function otpText(otp: string): string {
   return `Ваш код для входа: ${otp}\n\nКод действует 10 минут. Если вы не запрашивали вход, просто не обращайте внимания на это письмо.\n\nYour sign-in code: ${otp} (valid for 10 minutes).`;
 }
@@ -105,7 +112,8 @@ export const auth = betterAuth({
   database,
   trustedOrigins,
   session: { cookieCache: { enabled: true, maxAge: 300 } },
-  emailAndPassword: { enabled: true, minPasswordLength: 8, maxPasswordLength: 128 },
+  emailAndPassword: { enabled: true, minPasswordLength: 8, maxPasswordLength: 128, requireEmailVerification: verifyEmails },
+  emailVerification: { sendOnSignUp: verifyEmails, sendOnSignIn: verifyEmails, autoSignInAfterVerification: true },
   socialProviders: {
     ...(googleId && googleSecret ? { google: { clientId: googleId, clientSecret: googleSecret } } : {}),
     ...(twitterId && twitterSecret ? { twitter: { clientId: twitterId, clientSecret: twitterSecret } } : {}),
@@ -124,6 +132,7 @@ export const auth = betterAuth({
       "/sign-up/email": { window: 3600, max: 5 },
       "/email-otp/send-verification-otp": { window: 600, max: 4 },
       "/sign-in/email-otp": { window: 600, max: 8 },
+      "/email-otp/verify-email": { window: 600, max: 8 },
       "/change-password": { window: 600, max: 5 },
     },
   },
@@ -145,10 +154,12 @@ export const auth = betterAuth({
       otpLength: 6,
       expiresIn: 600,
       allowedAttempts: 5,
+      // Registration confirmation goes out as a code too, not a link.
+      overrideDefaultEmailVerification: true,
       async sendVerificationOTP({ email, otp, type }) {
         if (!mailEnabled()) throw new Error("mail is not configured");
-        if (type !== "sign-in") return;
-        await sendMail(email, OTP_SUBJECT, otpText(otp));
+        if (type === "sign-in") await sendMail(email, OTP_SUBJECT, otpText(otp));
+        else if (type === "email-verification") await sendMail(email, VERIFY_SUBJECT, verifyText(otp));
       },
     }),
     tanstackStartCookies(),

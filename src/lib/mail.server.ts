@@ -10,6 +10,18 @@ export function mailEnabled(): boolean {
   return Boolean(RESEND_KEY);
 }
 
+/**
+ * New email+password accounts must confirm a code sent to their inbox. Only
+ * when mail can reach everyone: Resend's test sender (no MAIL_FROM on a
+ * verified domain) delivers to the owner alone, and requiring codes then would
+ * lock every other sign-up out. EMAIL_VERIFICATION=on/off overrides.
+ */
+export function emailVerificationRequired(): boolean {
+  const flag = process.env.EMAIL_VERIFICATION?.trim().toLowerCase();
+  if (!RESEND_KEY || flag === "off") return false;
+  return flag === "on" || Boolean(process.env.MAIL_FROM?.trim());
+}
+
 export async function sendMail(to: string, subject: string, text: string): Promise<void> {
   if (!RESEND_KEY) throw new Error("RESEND_API_KEY is not set");
   const res = await fetch("https://api.resend.com/emails", {
