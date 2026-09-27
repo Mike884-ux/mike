@@ -58,11 +58,12 @@ export const startCheckout = createServerFn({ method: "POST" })
   }))
   .handler(async ({ data, context }): Promise<CheckoutResult> => {
     if (!data.plan) return { ok: false, error: "bad_input" };
-    const [{ getSql }, store, pay, { getRequest }] = await Promise.all([
+    const [{ getSql }, store, pay, { getRequest }, { publicOrigin }] = await Promise.all([
       import("./db"),
       import("./billing-store.server"),
       import("./payments.server"),
       import("@tanstack/react-start/server"),
+      import("./http.server"),
     ]);
     const stored = await pay.storedDodo();
     const options = pay.paymentOptions(stored);
@@ -73,7 +74,7 @@ export const startCheckout = createServerFn({ method: "POST" })
       return { ok: false, error: "min_amount" };
     const provider = data.method === "card" ? (pay.cardProvider(stored) ?? "stripe") : "nowpayments";
     const request = getRequest();
-    const origin = request ? new URL(request.url).origin : "";
+    const origin = request ? publicOrigin(request) : "";
     const sql = await getSql();
     const payment = await store.createPayment(sql, context.userId, data.plan, data.period, provider);
     try {

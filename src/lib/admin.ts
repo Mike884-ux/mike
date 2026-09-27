@@ -290,21 +290,25 @@ export const getDodoStatus = createServerFn({ method: "GET" })
  */
 export const adminConnectDodo = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .handler(async ({ context }): Promise<{ ok: true; status: DodoStatus } | { ok: false; error: "no_key" | "rejected" | "failed" }> => {
+  .handler(async ({ context }): Promise<{ ok: true; status: DodoStatus } | { ok: false; error: "no_key" | "rejected" | "failed"; detail?: string }> => {
     await requireAdmin(context.email);
     if (!process.env.DODO_API_KEY?.trim()) return { ok: false, error: "no_key" };
-    const [pay, { getSql }, store, { getRequest }] = await Promise.all([
+    const [pay, { getSql }, store, { getRequest }, { publicOrigin }] = await Promise.all([
       import("./payments.server"),
       import("./db"),
       import("./billing-store.server"),
       import("@tanstack/react-start/server"),
+      import("./http.server"),
     ]);
     const request = getRequest();
-    const origin = request ? new URL(request.url).origin : "";
+    const origin = request ? publicOrigin(request) : "";
     try {
-      const saved = await pay.connectDodo(`${origin}/api/billing/dodo`, await pay.storedDodo(true));
       const keys = pay.dodoKeys();
-      await store.setSettings(await getSql(), {
+      const sql = await getSql();
+      const saved = await pay.connectDodo(`${origin}/api/billing/dodo`, await pay.storedDodo(true), (productId) =>
+        store.setSettings(sql, { [keys.productId]: productId }),
+      );
+      await store.setSettings(sql, {
         [keys.productId]: saved.productId,
         [keys.webhookId]: saved.webhookId,
         [keys.webhookSecret]: saved.webhookSecret,
@@ -315,6 +319,8 @@ export const adminConnectDodo = createServerFn({ method: "POST" })
     } catch (err) {
       console.error("[admin] Dodo connect failed:", err);
       const status = err instanceof pay.DodoError ? err.status : 0;
-      return { ok: false, error: status === 401 || status === 403 ? "rejected" : "failed" };
+      // The owner sees Dodo's own answer, so a refused field or network trouble is visible without logs.
+      const detail = (err instanceof Error ? err.message : String(err)).replace(/Bearer\s+\S+/g, "Bearer …").slice(0, 300);
+      return { ok: false, error: status === 401 || status === 403 ? "rejected" : "failed", detail };
     }
   });

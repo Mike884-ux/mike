@@ -48,3 +48,18 @@ export function clientIp(request: Request): string {
 export function overBudget(request: Request, kind: string, max: number, windowMs = 60_000): Response | null {
   return allow(`ip:${clientIp(request)}`, kind, max, windowMs) ? null : jsonResponse({ error: "rate_limited" }, 429);
 }
+
+/**
+ * The site's public address for links sent to payment providers (webhooks,
+ * return pages). Behind Render's or Vercel's proxy the server itself is
+ * reached over plain HTTP, so the proxy's X-Forwarded-Proto wins, and any
+ * public host is https — providers refuse http:// webhook URLs.
+ */
+export function publicOrigin(request: Request): string {
+  const url = new URL(request.url);
+  const proto = request.headers.get("x-forwarded-proto")?.split(",")[0]?.trim();
+  if (proto === "https" || proto === "http") url.protocol = `${proto}:`;
+  const local = /^(localhost|127\.|\[::1\]|0\.0\.0\.0|10\.|192\.168\.)/.test(url.hostname);
+  if (!local) url.protocol = "https:";
+  return url.origin;
+}

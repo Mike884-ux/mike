@@ -580,7 +580,7 @@ export const ru = {
   "admin.aiToday": "ИИ-запросов сегодня",
   "admin.referred": "пришли по приглашениям: {n}",
   "admin.setup": "Что подключено",
-  "admin.setupHint": "Ключи задаются в Vercel → Settings → Environment Variables. После изменения нажмите Redeploy.",
+  "admin.setupHint": "Ключи задаются в настройках хостинга: Render → Environment (или Vercel → Settings → Environment Variables). После сохранения сайт перезапускается сам.",
   "admin.members": "Выдать тариф",
   "admin.membersHint": "Найдите пользователя по email и выдайте Pro или Whale на нужное число дней — например, после оплаты переводом или для розыгрыша.",
   "admin.find": "Найти",

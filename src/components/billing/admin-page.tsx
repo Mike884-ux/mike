@@ -348,6 +348,9 @@ function DodoConnect() {
       {failure ? (
         <p role="alert" className="mt-3 rounded-lg bg-short/10 px-3 py-2 text-sm text-short">
           {t(failure === "no_key" ? "admin.dodo.noKey" : failure === "rejected" ? "admin.dodo.err.rejected" : "admin.dodo.err.failed")}
+          {connect.data && !connect.data.ok && connect.data.detail ? (
+            <span className="mt-1 block font-mono text-xs break-all opacity-80">{connect.data.detail}</span>
+          ) : null}
         </p>
       ) : null}
       {connect.isError ? <p className="mt-3 text-sm text-short">{t("admin.dodo.err.failed")}</p> : null}

@@ -266,8 +266,14 @@ async function dodoApi<T>(path: string, init: { method?: string; body?: unknown 
     ...(init.body === undefined ? {} : { body: JSON.stringify(init.body) }),
     signal: AbortSignal.timeout(15_000),
   });
-  const data = (await res.json().catch(() => ({}))) as T & { message?: string };
-  if (!res.ok) throw new DodoError(res.status, data.message ?? "");
+  const text = await res.text().catch(() => "");
+  let data = {} as T & { message?: string; code?: string };
+  try {
+    data = JSON.parse(text);
+  } catch {
+    /* not JSON */
+  }
+  if (!res.ok) throw new DodoError(res.status, `${init.method ?? "GET"} ${path}: ${data.message ?? data.code ?? text.slice(0, 200)}`);
   return data;
 }
 
@@ -286,7 +292,11 @@ const DODO_EVENTS = ["payment.succeeded", "payment.failed", "payment.cancelled"]
  * you want" from $5, tax included) and a webhook to `webhookUrl` unless the
  * saved ones already fit, and returns what to save.
  */
-export async function connectDodo(webhookUrl: string, stored: DodoStored = {}): Promise<Required<DodoStored>> {
+export async function connectDodo(
+  webhookUrl: string,
+  stored: DodoStored = {},
+  saveProduct?: (productId: string) => Promise<void>,
+): Promise<Required<DodoStored>> {
   let productId = stored.productId ?? "";
   if (!productId) {
     const product = await dodoApi<{ product_id?: string }>("/products", {
@@ -309,6 +319,8 @@ export async function connectDodo(webhookUrl: string, stored: DodoStored = {}): 
     });
     if (!product.product_id) throw new DodoError(0, "no product_id");
     productId = product.product_id;
+    // Saved right away, so a failed webhook step doesn't create a second product on retry.
+    await saveProduct?.(productId);
   }
   let webhookId = stored.webhookId ?? "";
   let webhookSecret = stored.webhookSecret ?? "";

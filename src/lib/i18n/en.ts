@@ -582,7 +582,7 @@ export const en: Record<MessageKey, string> = {
   "admin.aiToday": "AI requests today",
   "admin.referred": "joined by invite: {n}",
   "admin.setup": "What's connected",
-  "admin.setupHint": "Keys live in Vercel → Settings → Environment Variables. Redeploy after changing them.",
+  "admin.setupHint": "Keys are set in your host's settings: Render → Environment (or Vercel → Settings → Environment Variables). The site restarts by itself after saving.",
   "admin.members": "Grant a plan",
   "admin.membersHint": "Find a user by email and give Pro or Whale for any number of days — e.g. after a manual payment or for a giveaway.",
   "admin.find": "Find",
