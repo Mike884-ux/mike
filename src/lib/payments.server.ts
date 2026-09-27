@@ -5,8 +5,10 @@
  * - Bank cards, whichever is set up first:
  *   - Stripe — STRIPE_SECRET_KEY + STRIPE_WEBHOOK_SECRET (not available in every country);
  *   - Dodo Payments (merchant of record, works for sellers in Tajikistan) —
- *     DODO_API_KEY + DODO_WEBHOOK_SECRET + DODO_PRODUCT_ID: one one-time
- *     "pay what you want" product, the site sets the price of each checkout.
+ *     DODO_API_KEY, then one click in /admin creates the product (one-time,
+ *     "pay what you want": the site sets each checkout's price) and the
+ *     webhook, and saves their ids and the signing secret in the database.
+ *     DODO_PRODUCT_ID / DODO_WEBHOOK_SECRET, when set, win over the saved ones.
  *     DODO_MODE=test uses Dodo's test environment;
  *   - NOWPayments' card on-ramp (Guardarian): the customer pays by card and the
  *     owner receives crypto — NOWPAYMENTS_CARD=usd once NOWPayments has turned
@@ -38,19 +40,31 @@ function cardMinimum(): number {
 
 const hasNowpayments = () => Boolean(env("NOWPAYMENTS_API_KEY") && env("NOWPAYMENTS_IPN_SECRET"));
 const hasStripe = () => Boolean(env("STRIPE_SECRET_KEY") && env("STRIPE_WEBHOOK_SECRET"));
-const hasDodo = () => Boolean(env("DODO_API_KEY") && env("DODO_WEBHOOK_SECRET") && env("DODO_PRODUCT_ID"));
+/** Dodo product and webhook saved from /admin (per test/live mode). */
+export type DodoStored = { productId?: string; webhookId?: string; webhookSecret?: string; webhookUrl?: string };
+export type DodoConfig = { apiKey: string; productId: string; webhookSecret: string };
+
+export const dodoMode = (): "test" | "live" => (env("DODO_MODE").toLowerCase() === "test" ? "test" : "live");
+
+/** Everything a Dodo checkout needs, or null while something is missing. Env values win. */
+export function resolveDodo(stored: DodoStored = {}): DodoConfig | null {
+  const apiKey = env("DODO_API_KEY");
+  const productId = env("DODO_PRODUCT_ID") || stored.productId || "";
+  const webhookSecret = env("DODO_WEBHOOK_SECRET") || stored.webhookSecret || "";
+  return apiKey && productId && webhookSecret ? { apiKey, productId, webhookSecret } : null;
+}
 
 export type CardProvider = "stripe" | "dodo" | "nowpayments";
 
 /** Who takes a card payment: Stripe, then Dodo Payments, then NOWPayments' card on-ramp. */
-export function cardProvider(): CardProvider | null {
+export function cardProvider(stored?: DodoStored): CardProvider | null {
   if (hasStripe()) return "stripe";
-  if (hasDodo()) return "dodo";
+  if (resolveDodo(stored)) return "dodo";
   return hasNowpayments() && nowpaymentsCardCurrency() ? "nowpayments" : null;
 }
 
-export function paymentOptions(): PaymentOptions {
-  const card = cardProvider();
+export function paymentOptions(stored?: DodoStored): PaymentOptions {
+  const card = cardProvider(stored);
   return {
     crypto: hasNowpayments(),
     card: card !== null,
@@ -243,19 +257,116 @@ export function verifyStripe(raw: string, header: string | null, now = Date.now(
   return { paymentId, paid: false, failed: false, amount };
 }
 
-const dodoBase = () =>
-  env("DODO_MODE").toLowerCase() === "test" ? "https://test.dodopayments.com" : "https://live.dodopayments.com";
+const dodoBase = () => (dodoMode() === "test" ? "https://test.dodopayments.com" : "https://live.dodopayments.com");
+
+async function dodoApi<T>(path: string, init: { method?: string; body?: unknown } = {}): Promise<T> {
+  const res = await fetch(`${dodoBase()}${path}`, {
+    method: init.method ?? "GET",
+    headers: { Authorization: `Bearer ${env("DODO_API_KEY")}`, "Content-Type": "application/json" },
+    ...(init.body === undefined ? {} : { body: JSON.stringify(init.body) }),
+    signal: AbortSignal.timeout(15_000),
+  });
+  const data = (await res.json().catch(() => ({}))) as T & { message?: string };
+  if (!res.ok) throw new DodoError(res.status, data.message ?? "");
+  return data;
+}
+
+export class DodoError extends Error {
+  readonly status: number;
+  constructor(status: number, detail: string) {
+    super(`dodo ${status}: ${detail}`);
+    this.status = status;
+  }
+}
+
+const DODO_EVENTS = ["payment.succeeded", "payment.failed", "payment.cancelled"];
+
+/**
+ * One-click setup from /admin: creates the site's product (one-time, "pay what
+ * you want" from $5, tax included) and a webhook to `webhookUrl` unless the
+ * saved ones already fit, and returns what to save.
+ */
+export async function connectDodo(webhookUrl: string, stored: DodoStored = {}): Promise<Required<DodoStored>> {
+  let productId = stored.productId ?? "";
+  if (!productId) {
+    const product = await dodoApi<{ product_id?: string }>("/products", {
+      method: "POST",
+      body: {
+        name: "Skan subscription",
+        description: "Skan Pro / Whale access for a month or a year (one-time payment, no auto-renewal).",
+        tax_category: "saas",
+        price: {
+          type: "one_time_price",
+          currency: "USD",
+          price: 500,
+          discount: 0,
+          pay_what_you_want: true,
+          suggested_price: 900,
+          purchasing_power_parity: false,
+          tax_inclusive: true,
+        },
+      },
+    });
+    if (!product.product_id) throw new DodoError(0, "no product_id");
+    productId = product.product_id;
+  }
+  let webhookId = stored.webhookId ?? "";
+  let webhookSecret = stored.webhookSecret ?? "";
+  if (!webhookSecret || stored.webhookUrl !== webhookUrl) {
+    const hook = await dodoApi<{ id?: string }>("/webhooks", {
+      method: "POST",
+      body: { url: webhookUrl, description: "Skan site", filter_types: DODO_EVENTS },
+    });
+    if (!hook.id) throw new DodoError(0, "no webhook id");
+    webhookId = hook.id;
+    webhookSecret = (await dodoApi<{ secret?: string }>(`/webhooks/${encodeURIComponent(hook.id)}/secret`)).secret ?? "";
+    if (!webhookSecret) throw new DodoError(0, "no webhook secret");
+  }
+  return { productId, webhookId, webhookSecret, webhookUrl };
+}
+
+/** Saved Dodo settings for the current mode (cached for a minute; /admin refreshes it). */
+let storedCache: { at: number; mode: string; value: DodoStored } | null = null;
+
+export const dodoKeys = (mode = dodoMode()) => ({
+  productId: `dodo:${mode}:product_id`,
+  webhookId: `dodo:${mode}:webhook_id`,
+  webhookSecret: `dodo:${mode}:webhook_secret`,
+  webhookUrl: `dodo:${mode}:webhook_url`,
+});
+
+export async function storedDodo(fresh = false): Promise<DodoStored> {
+  if (!env("DODO_API_KEY")) return {};
+  const mode = dodoMode();
+  if (!fresh && storedCache && storedCache.mode === mode && Date.now() - storedCache.at < 60_000) return storedCache.value;
+  try {
+    const [{ getSql }, store] = await Promise.all([import("./db"), import("./billing-store.server")]);
+    const keys = dodoKeys(mode);
+    const row = await store.getSettings(await getSql(), Object.values(keys));
+    const value: DodoStored = {
+      productId: row[keys.productId],
+      webhookId: row[keys.webhookId],
+      webhookSecret: row[keys.webhookSecret],
+      webhookUrl: row[keys.webhookUrl],
+    };
+    storedCache = { at: Date.now(), mode, value };
+    return value;
+  } catch (err) {
+    console.error("[billing] could not read Dodo settings:", err);
+    return {};
+  }
+}
 
 /**
  * Dodo Payments checkout session for one plan: the one-time product is "pay
  * what you want", so the site sets the price; payment_id travels in metadata.
  */
-export async function dodoCheckout(input: CheckoutInput): Promise<{ url: string; externalId: string }> {
+export async function dodoCheckout(input: CheckoutInput, config: DodoConfig): Promise<{ url: string; externalId: string }> {
   const res = await fetch(`${dodoBase()}/checkouts`, {
     method: "POST",
-    headers: { Authorization: `Bearer ${env("DODO_API_KEY")}`, "Content-Type": "application/json" },
+    headers: { Authorization: `Bearer ${config.apiKey}`, "Content-Type": "application/json" },
     body: JSON.stringify({
-      product_cart: [{ product_id: env("DODO_PRODUCT_ID"), quantity: 1, amount: Math.round(input.amount * 100) }],
+      product_cart: [{ product_id: config.productId, quantity: 1, amount: Math.round(input.amount * 100) }],
       ...(input.email ? { customer: { email: input.email, name: input.email.split("@")[0] || input.email } } : {}),
       billing_currency: "USD",
       return_url: `${input.origin}/pricing?paid=1`,
@@ -277,8 +388,8 @@ export function verifyDodo(
   raw: string,
   headers: { id: string | null; timestamp: string | null; signature: string | null },
   now = Date.now(),
+  secret = env("DODO_WEBHOOK_SECRET"),
 ): WebhookResult {
-  const secret = env("DODO_WEBHOOK_SECRET");
   if (!secret || !headers.id || !headers.timestamp || !headers.signature) return null;
   const ts = Number.parseInt(headers.timestamp, 10);
   if (!Number.isFinite(ts) || Math.abs(now / 1000 - ts) > 300) return null;

@@ -4,6 +4,7 @@ import {
   Check,
   CheckCircle2,
   Copy,
+  CreditCard,
   DollarSign,
   Loader2,
   ListChecks,
@@ -17,11 +18,13 @@ import {
   Zap,
 } from "lucide-react";
 import {
+  adminConnectDodo,
   adminFindMember,
   adminGrantWaitlist,
   adminSetPlan,
   generateMarketing,
   getAdminOverview,
+  getDodoStatus,
   getWaitlist,
   MARKETING_CHANNELS,
   MARKETING_GOALS,
@@ -286,6 +289,72 @@ function Marketer() {
   );
 }
 
+/** Card payments through Dodo Payments: with DODO_API_KEY set, one click creates the product and webhook. */
+function DodoConnect() {
+  const t = useT();
+  const client = useQueryClient();
+  const status = useQuery({ queryKey: ["admin-dodo"], queryFn: () => getDodoStatus(), staleTime: 30_000 });
+  const connect = useMutation({
+    mutationFn: () => adminConnectDodo(),
+    onSuccess: (res) => {
+      if (res.ok) {
+        client.setQueryData(["admin-dodo"], res.status);
+        void client.invalidateQueries({ queryKey: ["site-status"] });
+      }
+    },
+  });
+  const data = status.data;
+  const failure = connect.data && !connect.data.ok ? connect.data.error : null;
+  const mode = data ? t(data.mode === "test" ? "admin.dodo.modeTest" : "admin.dodo.modeLive") : "";
+  return (
+    <section className="rounded-3xl bg-surface p-5 shadow-[var(--shadow-border)]">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <h2 className="flex items-center gap-2 font-display text-lg font-bold text-fg">
+            <CreditCard className="size-5 text-primary" />
+            {t("admin.dodo.title")}
+          </h2>
+          <p className="mt-1 text-sm text-muted">
+            {!data
+              ? "…"
+              : !data.hasKey
+                ? t("admin.dodo.noKey")
+                : data.connected
+                  ? t("admin.dodo.connected", { mode })
+                  : t("admin.dodo.ready", { mode })}
+          </p>
+          {data?.connected && data.webhookUrl ? <p className="mt-1 truncate font-mono text-xs text-faint">{data.webhookUrl}</p> : null}
+        </div>
+        {data?.hasKey ? (
+          <button
+            type="button"
+            disabled={connect.isPending}
+            onClick={() => connect.mutate()}
+            className={cn(
+              "flex h-10 items-center gap-2 rounded-xl px-4 text-sm font-semibold disabled:opacity-50",
+              data.connected ? "bg-surface-2 text-fg" : "bg-brand text-white",
+            )}
+          >
+            {connect.isPending ? <Loader2 className="size-4 animate-spin" /> : data.connected ? <CheckCircle2 className="size-4 text-long" /> : <Zap className="size-4" />}
+            {t(data.connected ? "admin.dodo.reconnect" : "admin.dodo.connect")}
+          </button>
+        ) : null}
+      </div>
+      {connect.data?.ok ? (
+        <p role="status" className="mt-3 text-sm text-long">
+          {t("admin.dodo.done")}
+        </p>
+      ) : null}
+      {failure ? (
+        <p role="alert" className="mt-3 rounded-lg bg-short/10 px-3 py-2 text-sm text-short">
+          {t(failure === "no_key" ? "admin.dodo.noKey" : failure === "rejected" ? "admin.dodo.err.rejected" : "admin.dodo.err.failed")}
+        </p>
+      ) : null}
+      {connect.isError ? <p className="mt-3 text-sm text-short">{t("admin.dodo.err.failed")}</p> : null}
+    </section>
+  );
+}
+
 /** People who asked to buy while online payment was off — and the button that keeps the gift promise. */
 function Waitlist() {
   const t = useT();
@@ -421,6 +490,8 @@ export function AdminPage() {
         </ul>
         <p className="mt-3 text-xs text-faint">{t("admin.setupHint")}</p>
       </section>
+
+      <DodoConnect />
 
       <div className="grid gap-6 lg:grid-cols-2">
         <Members />

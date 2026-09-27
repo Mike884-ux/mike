@@ -60,7 +60,7 @@ export const getAdminOverview = createServerFn({ method: "GET" })
       { key: "NOWPAYMENTS_API_KEY", ok: has("NOWPAYMENTS_API_KEY", "NOWPAYMENTS_IPN_SECRET") },
       { key: "NOWPAYMENTS_CARD", ok: pay.cardProvider() === "nowpayments" },
       { key: "STRIPE_SECRET_KEY", ok: has("STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET") },
-      { key: "DODO_API_KEY", ok: has("DODO_API_KEY", "DODO_WEBHOOK_SECRET", "DODO_PRODUCT_ID") },
+      { key: "DODO_API_KEY", ok: pay.cardProvider(await pay.storedDodo()) === "dodo" },
       { key: "PAY_CONTACT", ok: has("PAY_CONTACT") },
     ];
     return { stats, payments, setup };
@@ -254,4 +254,67 @@ export const adminGrantWaitlist = createServerFn({ method: "POST" })
     const result = await store.grantWaitlist(await getSql(), WAITLIST_GIFT_DAYS);
     console.log(`[admin] ${context.email} granted waitlist Pro: ${result.granted}, pending ${result.pending}`);
     return result;
+  });
+
+export type DodoStatus = {
+  hasKey: boolean;
+  mode: "test" | "live";
+  connected: boolean;
+  webhookUrl: string | null;
+  productId: string | null;
+};
+
+async function dodoStatus(): Promise<DodoStatus> {
+  const pay = await import("./payments.server");
+  const stored = await pay.storedDodo(true);
+  const config = pay.resolveDodo(stored);
+  return {
+    hasKey: Boolean(process.env.DODO_API_KEY?.trim()),
+    mode: pay.dodoMode(),
+    connected: Boolean(config),
+    webhookUrl: stored.webhookUrl ?? null,
+    productId: config?.productId ?? null,
+  };
+}
+
+export const getDodoStatus = createServerFn({ method: "GET" })
+  .middleware([authMiddleware])
+  .handler(async ({ context }) => {
+    await requireAdmin(context.email);
+    return dodoStatus();
+  });
+
+/**
+ * One click in /admin: with DODO_API_KEY set, creates the Dodo product and the
+ * webhook to this site, and saves them — no copying ids or secrets by hand.
+ */
+export const adminConnectDodo = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .handler(async ({ context }): Promise<{ ok: true; status: DodoStatus } | { ok: false; error: "no_key" | "rejected" | "failed" }> => {
+    await requireAdmin(context.email);
+    if (!process.env.DODO_API_KEY?.trim()) return { ok: false, error: "no_key" };
+    const [pay, { getSql }, store, { getRequest }] = await Promise.all([
+      import("./payments.server"),
+      import("./db"),
+      import("./billing-store.server"),
+      import("@tanstack/react-start/server"),
+    ]);
+    const request = getRequest();
+    const origin = request ? new URL(request.url).origin : "";
+    try {
+      const saved = await pay.connectDodo(`${origin}/api/billing/dodo`, await pay.storedDodo(true));
+      const keys = pay.dodoKeys();
+      await store.setSettings(await getSql(), {
+        [keys.productId]: saved.productId,
+        [keys.webhookId]: saved.webhookId,
+        [keys.webhookSecret]: saved.webhookSecret,
+        [keys.webhookUrl]: saved.webhookUrl,
+      });
+      console.log(`[admin] ${context.email} connected Dodo (${pay.dodoMode()}) → ${saved.webhookUrl}`);
+      return { ok: true, status: await dodoStatus() };
+    } catch (err) {
+      console.error("[admin] Dodo connect failed:", err);
+      const status = err instanceof pay.DodoError ? err.status : 0;
+      return { ok: false, error: status === 401 || status === 403 ? "rejected" : "failed" };
+    }
   });

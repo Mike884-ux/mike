@@ -14,6 +14,8 @@ import {
   markPaid,
   usageToday,
   type SqlLike,
+  getSettings,
+  setSettings,
 } from "./billing-store.server.ts";
 import { PLANS } from "./plans.ts";
 
@@ -125,4 +127,15 @@ test("the waiting list keeps one row per email and grants Pro to those with an a
   const after = await loadPlan(sql, "u1");
   assert.equal(after.plan, "pro");
   assert.equal(after.trial, false);
+});
+
+test("site settings are saved, updated and read back by key", async () => {
+  const sql = await db();
+  assert.deepEqual(await getSettings(sql, ["dodo:test:product_id"]), {});
+  await setSettings(sql, { "dodo:test:product_id": "pdt_1", "dodo:test:webhook_secret": "whsec_a" });
+  await setSettings(sql, { "dodo:test:product_id": "pdt_2" });
+  assert.deepEqual(await getSettings(sql, ["dodo:test:product_id", "dodo:test:webhook_secret", "missing"]), {
+    "dodo:test:product_id": "pdt_2",
+    "dodo:test:webhook_secret": "whsec_a",
+  });
 });

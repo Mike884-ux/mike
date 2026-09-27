@@ -684,6 +684,17 @@ export const ru = {
   "share.nfa": "Не финансовая рекомендация",
   "share.text": "{base}: сигнал «{signal}» на {interval} по 8 индикаторам. Разбор ИИ и уровни — на Скане 👉 {link}",
   "pay.cardMin": "Картой — от {min}. Выберите оплату за год или оплатите криптой.",
+  "admin.dodo.title": "Оплата картой — Dodo Payments",
+  "admin.dodo.noKey": "Добавьте в Render → Environment переменную DODO_API_KEY (ключ из Dodo → Developer → API Keys), для тестового ключа ещё DODO_MODE = test. Потом обновите эту страницу.",
+  "admin.dodo.ready": "Ключ есть ({mode}). Нажмите кнопку — сайт сам создаст в Dodo товар и webhook.",
+  "admin.dodo.connected": "Подключено ({mode}). Кнопка «Оплатить картой» работает, подписка включается сама после оплаты.",
+  "admin.dodo.connect": "Подключить Dodo",
+  "admin.dodo.reconnect": "Подключить заново",
+  "admin.dodo.done": "Готово! Товар и webhook созданы в Dodo.",
+  "admin.dodo.err.rejected": "Dodo не принял ключ. Проверьте DODO_API_KEY и режим: для ключа из Test Mode нужна переменная DODO_MODE = test.",
+  "admin.dodo.err.failed": "Не получилось связаться с Dodo. Попробуйте ещё раз через минуту.",
+  "admin.dodo.modeTest": "тестовый режим",
+  "admin.dodo.modeLive": "боевой режим",
 } as const;
 
 export type MessageKey = keyof typeof ru;

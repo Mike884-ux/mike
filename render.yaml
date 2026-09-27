@@ -28,7 +28,5 @@ services:
         sync: false
       - key: DODO_API_KEY
         sync: false
-      - key: DODO_WEBHOOK_SECRET
-        sync: false
-      - key: DODO_PRODUCT_ID
+      - key: DODO_MODE
         sync: false

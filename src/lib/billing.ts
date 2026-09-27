@@ -35,10 +35,10 @@ export type SiteStatus = { payments: PaymentOptions; dbTemporary: boolean; excha
 
 /** Public: how people can pay, exchange referral codes, and whether accounts are stored for real. */
 export const getSiteStatus = createServerFn({ method: "GET" }).handler(async (): Promise<SiteStatus> => {
-  const [{ paymentOptions }, { dbSource }] = await Promise.all([import("./payments.server"), import("./db")]);
+  const [pay, { dbSource }] = await Promise.all([import("./payments.server"), import("./db")]);
   const ref = (name: string) => process.env[name]?.trim() || null;
   return {
-    payments: paymentOptions(),
+    payments: pay.paymentOptions(await pay.storedDodo()),
     dbTemporary: Boolean(process.env.VERCEL || process.env.RENDER) && dbSource === "pglite",
     exchanges: { binance: ref("BINANCE_REF"), bybit: ref("BYBIT_REF") },
   };
@@ -64,13 +64,14 @@ export const startCheckout = createServerFn({ method: "POST" })
       import("./payments.server"),
       import("@tanstack/react-start/server"),
     ]);
-    const options = pay.paymentOptions();
+    const stored = await pay.storedDodo();
+    const options = pay.paymentOptions(stored);
     if ((data.method === "card" && !options.card) || (data.method === "crypto" && !options.crypto))
       return { ok: false, error: "unavailable" };
     // The card on-ramp's partner refuses payments below its minimum.
     if (data.method === "card" && options.cardMin !== null && priceOf(data.plan, data.period) < options.cardMin)
       return { ok: false, error: "min_amount" };
-    const provider = data.method === "card" ? (pay.cardProvider() ?? "stripe") : "nowpayments";
+    const provider = data.method === "card" ? (pay.cardProvider(stored) ?? "stripe") : "nowpayments";
     const request = getRequest();
     const origin = request ? new URL(request.url).origin : "";
     const sql = await getSql();
@@ -88,7 +89,7 @@ export const startCheckout = createServerFn({ method: "POST" })
         provider === "stripe"
           ? await pay.stripeCheckout(input)
           : provider === "dodo"
-            ? await pay.dodoCheckout(input)
+            ? await pay.dodoCheckout(input, pay.resolveDodo(stored)!)
             : await pay.nowpaymentsCheckout(input, data.method === "card" ? pay.nowpaymentsCardCurrency() : null);
       if (session.externalId) await store.setPaymentExternalId(sql, payment.id, session.externalId);
       return { ok: true, url: session.url };

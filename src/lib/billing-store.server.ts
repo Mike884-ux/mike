@@ -441,3 +441,17 @@ export async function grantWaitlist(sql: SqlLike, days: number): Promise<{ grant
   const [left] = await sql<{ n: number }>`select count(*)::int as n from waitlist where granted_at is null`;
   return { granted: rows.length, pending: Number(left?.n ?? 0) };
 }
+
+/** Site settings saved from /admin; missing keys are simply absent from the result. */
+export async function getSettings(sql: SqlLike, keys: string[]): Promise<Record<string, string>> {
+  if (!keys.length) return {};
+  const rows = await sql<{ key: string; value: string }>`select key, value from app_settings where key = any(${keys})`;
+  return Object.fromEntries(rows.map((r) => [r.key, r.value]));
+}
+
+export async function setSettings(sql: SqlLike, values: Record<string, string>): Promise<void> {
+  for (const [key, value] of Object.entries(values)) {
+    await sql`insert into app_settings (key, value) values (${key}, ${value})
+      on conflict (key) do update set value = excluded.value, updated_at = now()`;
+  }
+}

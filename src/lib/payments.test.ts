@@ -3,10 +3,12 @@ import assert from "node:assert/strict";
 import { createHmac } from "node:crypto";
 import {
   cardProvider,
+  connectDodo,
   dodoCheckout,
   nowpaymentsCardCurrency,
   nowpaymentsCheckout,
   paymentOptions,
+  resolveDodo,
   verifyDodo,
   verifyNowpayments,
 } from "./payments.server.ts";
@@ -234,7 +236,8 @@ test("Dodo checkout: price in cents on the pay-what-you-want product, payment id
   Object.assign(process.env, DODO, { DODO_MODE: "test" });
   try {
     const input = { paymentId: "pay-1", plan: "pro" as const, period: "year" as const, amount: 86, email: "buyer@example.com", origin: "https://skan.ai" };
-    assert.deepEqual(await dodoCheckout(input), { url: "https://checkout.dodopayments.com/cks_1", externalId: "cks_1" });
+    const config = { apiKey: "dodo_key", productId: "pdt_123", webhookSecret: DODO_SECRET };
+    assert.deepEqual(await dodoCheckout(input, config), { url: "https://checkout.dodopayments.com/cks_1", externalId: "cks_1" });
   } finally {
     globalThis.fetch = realFetch;
     for (const k of Object.keys(DODO).concat("DODO_MODE")) {
@@ -248,4 +251,61 @@ test("Dodo checkout: price in cents on the pay-what-you-want product, payment id
   assert.deepEqual(sent[0].body.metadata, { payment_id: "pay-1", plan: "Pro year" });
   assert.equal(sent[0].body.return_url, "https://skan.ai/pricing?paid=1");
   assert.deepEqual(sent[0].body.customer, { email: "buyer@example.com", name: "buyer" });
+});
+
+test("Dodo saved from /admin: the API key plus the saved product and secret turn cards on; env wins", () => {
+  withEnv({ DODO_API_KEY: "k" }, () => {
+    assert.equal(cardProvider({}), null);
+    assert.equal(cardProvider({ productId: "pdt_saved", webhookSecret: DODO_SECRET }), "dodo");
+    assert.deepEqual(resolveDodo({ productId: "pdt_saved", webhookSecret: DODO_SECRET }), {
+      apiKey: "k",
+      productId: "pdt_saved",
+      webhookSecret: DODO_SECRET,
+    });
+  });
+  withEnv({ DODO_API_KEY: "k", DODO_PRODUCT_ID: "pdt_env" }, () =>
+    assert.equal(resolveDodo({ productId: "pdt_saved", webhookSecret: DODO_SECRET })?.productId, "pdt_env"),
+  );
+  withEnv({}, () => assert.equal(cardProvider({ productId: "pdt_saved", webhookSecret: DODO_SECRET }), null));
+});
+
+test("Dodo one-click connect: creates the product and webhook once, reuses them after", async () => {
+  const calls: { method: string; url: string; body: Record<string, unknown> | null }[] = [];
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = (async (url: string, init?: RequestInit) => {
+    const method = init?.method ?? "GET";
+    calls.push({ method, url: String(url), body: init?.body ? JSON.parse(String(init.body)) : null });
+    const u = String(url);
+    const out = u.endsWith("/products") ? { product_id: "pdt_new" } : u.endsWith("/webhooks") ? { id: "wh_1" } : { secret: "whsec_c2VjcmV0" };
+    return new Response(JSON.stringify(out), { status: 200 });
+  }) as typeof fetch;
+  const saved = process.env.DODO_API_KEY;
+  const savedMode = process.env.DODO_MODE;
+  process.env.DODO_API_KEY = "k";
+  process.env.DODO_MODE = "test";
+  try {
+    const url = "https://skan-dfbl.onrender.com/api/billing/dodo";
+    const first = await connectDodo(url);
+    assert.deepEqual(first, { productId: "pdt_new", webhookId: "wh_1", webhookSecret: "whsec_c2VjcmV0", webhookUrl: url });
+    assert.deepEqual(
+      calls.map((c) => `${c.method} ${c.url.replace("https://test.dodopayments.com", "")}`),
+      ["POST /products", "POST /webhooks", "GET /webhooks/wh_1/secret"],
+    );
+    const price = calls[0].body?.price as Record<string, unknown>;
+    assert.equal(price.pay_what_you_want, true);
+    assert.equal(price.type, "one_time_price");
+    assert.deepEqual(calls[1].body?.filter_types, ["payment.succeeded", "payment.failed", "payment.cancelled"]);
+    calls.length = 0;
+    assert.deepEqual(await connectDodo(url, first), first);
+    assert.equal(calls.length, 0);
+    // A new site address gets a new webhook, the product stays.
+    await connectDodo("https://skan.ai/api/billing/dodo", first);
+    assert.deepEqual(calls.map((c) => c.url.replace("https://test.dodopayments.com", "")), ["/webhooks", "/webhooks/wh_1/secret"]);
+  } finally {
+    globalThis.fetch = realFetch;
+    if (saved === undefined) delete process.env.DODO_API_KEY;
+    else process.env.DODO_API_KEY = saved;
+    if (savedMode === undefined) delete process.env.DODO_MODE;
+    else process.env.DODO_MODE = savedMode;
+  }
 });
