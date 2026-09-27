@@ -19,10 +19,25 @@ export function jsonResponse(data: unknown, status = 200, cache: CacheOptions = 
   });
 }
 
+/**
+ * Headers that carry the visitor's address, most trusted first. Vercel sets
+ * its own; Render sits behind Cloudflare, which overwrites CF-Connecting-IP,
+ * while X-Forwarded-For there keeps whatever the client sent (only appended
+ * to), so it is the last resort and read from the right.
+ */
+export const IP_HEADERS = process.env.RENDER
+  ? ["cf-connecting-ip", "true-client-ip", "x-forwarded-for"]
+  : ["x-vercel-forwarded-for", "x-real-ip", "x-forwarded-for"];
+
 export function clientIp(request: Request): string {
-  const header =
-    request.headers.get("x-vercel-forwarded-for") ?? request.headers.get("x-real-ip") ?? request.headers.get("x-forwarded-for") ?? "";
-  return header.split(",")[0]?.trim() || "unknown";
+  for (const name of IP_HEADERS) {
+    const value = request.headers.get(name);
+    if (!value) continue;
+    const parts = value.split(",").map((part) => part.trim()).filter(Boolean);
+    const ip = process.env.RENDER && name === "x-forwarded-for" ? parts.at(-1) : parts[0];
+    if (ip) return ip;
+  }
+  return "unknown";
 }
 
 /**

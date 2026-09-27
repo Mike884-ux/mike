@@ -1,0 +1,27 @@
+# Render Blueprint: free hosting for the site as a plain Node server.
+# Render → New → Blueprint → pick this repository; it asks for the values
+# marked `sync: false` and makes BETTER_AUTH_SECRET by itself.
+services:
+  - type: web
+    name: skan
+    runtime: node
+    plan: free
+    # Binance's API refuses US servers, so the site runs in Europe.
+    region: frankfurt
+    branch: main
+    buildCommand: npm ci --include=dev && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: DATABASE_URL
+        sync: false
+      - key: BETTER_AUTH_SECRET
+        generateValue: true
+      - key: ADMIN_EMAILS
+        sync: false
+      - key: PAY_CONTACT
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false

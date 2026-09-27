@@ -50,6 +50,7 @@ export const getAdminOverview = createServerFn({ method: "GET" })
       { key: "DATABASE_URL", ok: Boolean(findDatabaseUrl(process.env)) },
       { key: "BETTER_AUTH_SECRET", ok: has("BETTER_AUTH_SECRET") },
       { key: "ANTHROPIC_API_KEY", ok: has("ANTHROPIC_API_KEY") || Boolean(process.env.VERCEL) },
+      { key: "GEMINI_API_KEY", ok: has("GEMINI_API_KEY") },
       { key: "GOOGLE_CLIENT_ID", ok: has("GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET") },
       { key: "TWITTER_CLIENT_ID", ok: has("TWITTER_CLIENT_ID", "TWITTER_CLIENT_SECRET") },
       { key: "RESEND_API_KEY", ok: has("RESEND_API_KEY") },

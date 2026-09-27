@@ -62,6 +62,12 @@ function pgliteBootstrapPlugin(): Plugin {
   };
 }
 
+/**
+ * Where the server build runs: Vercel by default, a plain Node server on
+ * Render (it sets RENDER=true while building), or NITRO_PRESET when given.
+ */
+const NITRO_PRESET = process.env.NITRO_PRESET?.trim() || (process.env.RENDER ? "node-server" : "vercel");
+
 export default defineConfig(({ command, isPreview }) => ({
   server: {
     host: "0.0.0.0",
@@ -85,7 +91,7 @@ export default defineConfig(({ command, isPreview }) => ({
     ...(command === "build" || isPreview
       ? [
           nitro({
-            preset: "vercel",
+            preset: NITRO_PRESET,
             // PGLite loads its WASM/data files from disk next to its own module.
             // Bundling it dropped pglite.data, and the server crashed on boot
             // whenever DATABASE_URL was unset. Trace the full package instead.

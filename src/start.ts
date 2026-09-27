@@ -9,11 +9,13 @@ const csrf = createCsrfMiddleware({ filter: (ctx) => ctx.handlerType === "server
 
 /**
  * Own domain: when CANONICAL_HOST is set (e.g. "skan.ai"), production page
- * visits to the technical *.vercel.app address are sent there permanently,
+ * visits to the technical *.vercel.app / *.onrender.com address are sent there permanently,
  * path and query kept. Preview deployments keep working on their own addresses.
  */
 const canonicalHost = createMiddleware({ type: "request" }).server(({ request, next }) => {
-  const location = canonicalRedirect(request.url, process.env.CANONICAL_HOST, process.env.VERCEL_ENV, request.method);
+  // Render has no preview deployments: a Render server is always production.
+  const env = process.env.VERCEL_ENV ?? (process.env.RENDER ? "production" : undefined);
+  const location = canonicalRedirect(request.url, process.env.CANONICAL_HOST, env, request.method);
   if (location) return new Response(null, { status: 308, headers: { Location: location, "Cache-Control": "no-store" } });
   return next();
 });

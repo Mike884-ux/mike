@@ -65,14 +65,15 @@ const LOCAL_DEV_ORIGINS = isProduction
     ];
 
 /**
- * Hosts this deployment answers on. Vercel exposes its own domains as system
- * env vars; APP_HOSTS (comma-separated) adds custom domains. Without these the
- * dynamic base URL only accepted localhost, so sign-in broke once deployed.
+ * Hosts this deployment answers on. Vercel and Render expose their own domains
+ * as system env vars; APP_HOSTS (comma-separated) adds custom domains. Without
+ * these the dynamic base URL only accepted localhost, so sign-in broke once deployed.
  */
 const deployHosts = [
   process.env.VERCEL_PROJECT_PRODUCTION_URL,
   process.env.VERCEL_BRANCH_URL,
   process.env.VERCEL_URL,
+  process.env.RENDER_EXTERNAL_HOSTNAME,
   ...(process.env.APP_HOSTS ?? "").split(","),
 ]
   .map((host) => host?.trim().replace(/^https?:\/\//, "").replace(/\/.*$/, ""))
@@ -130,8 +131,11 @@ export const auth = betterAuth({
     defaultCookieAttributes: { sameSite: "lax", path: "/" },
     useSecureCookies: isProduction,
     ipAddress: {
-      // Vercel sets x-vercel-forwarded-for / x-real-ip itself; clients can't forge them there.
-      ipAddressHeaders: ["x-vercel-forwarded-for", "x-real-ip", "x-forwarded-for"],
+      // Vercel sets x-vercel-forwarded-for / x-real-ip itself and Render's Cloudflare
+      // edge sets cf-connecting-ip; clients can't forge those there.
+      ipAddressHeaders: process.env.RENDER
+        ? ["cf-connecting-ip", "true-client-ip"]
+        : ["x-vercel-forwarded-for", "x-real-ip", "x-forwarded-for"],
     },
   },
   plugins: [

@@ -25,7 +25,7 @@ export const Route = createFileRoute("/api/health")({
           tables,
           error,
           authSecret: has("BETTER_AUTH_SECRET"),
-          ai: has("ANTHROPIC_API_KEY") || Boolean(process.env.VERCEL),
+          ai: has("ANTHROPIC_API_KEY") || has("AI_GATEWAY_API_KEY") || has("GEMINI_API_KEY") || Boolean(process.env.VERCEL),
           admin: has("ADMIN_EMAILS"),
         };
         return new Response(JSON.stringify(body, null, 2), {

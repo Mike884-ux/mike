@@ -12,6 +12,7 @@
     "db:migrate": "node scripts/migrate.mjs",
     "build:dev": "node scripts/with-app-env.mjs vite build --mode development",
     "preview": "node scripts/with-app-env.mjs vite preview",
+    "start": "node .output/server/index.mjs",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "test": "node --experimental-strip-types --test src/lib/portfolio-math.test.ts src/lib/indicators.test.ts src/lib/account-store.test.ts src/lib/coins-map.test.ts src/lib/format.test.ts src/lib/billing-store.test.ts src/lib/canonical.test.ts src/lib/payments.test.ts",

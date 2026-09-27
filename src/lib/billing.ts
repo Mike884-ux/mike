@@ -39,7 +39,7 @@ export const getSiteStatus = createServerFn({ method: "GET" }).handler(async ():
   const ref = (name: string) => process.env[name]?.trim() || null;
   return {
     payments: paymentOptions(),
-    dbTemporary: Boolean(process.env.VERCEL) && dbSource === "pglite",
+    dbTemporary: Boolean(process.env.VERCEL || process.env.RENDER) && dbSource === "pglite",
     exchanges: { binance: ref("BINANCE_REF"), bybit: ref("BYBIT_REF") },
   };
 });

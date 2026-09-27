@@ -9,6 +9,7 @@ test("production vercel.app visits move to the own domain, path and query kept",
   );
   assert.equal(canonicalRedirect("https://scan-delta-ashy.vercel.app/", "https://www.skan.ai/", "production"), "https://www.skan.ai/");
   assert.equal(canonicalRedirect("https://scan-delta-ashy.vercel.app/pricing", "skan.ai", "production", "HEAD"), "https://skan.ai/pricing");
+  assert.equal(canonicalRedirect("https://skan.onrender.com/signals", "skan.ai", "production"), "https://skan.ai/signals");
 });
 
 test("no redirect without a domain, outside production, or already on the domain", () => {
