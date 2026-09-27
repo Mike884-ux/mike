@@ -23,7 +23,7 @@
 
 1. Зайдите на render.com через GitHub и разрешите доступ к репозиторию.
 2. **New → Blueprint**, выберите репозиторий, ветку `main`.
-3. Render спросит значения: `DATABASE_URL` — строка подключения из Neon; `ADMIN_EMAILS` — ваш email; `PAY_CONTACT` — ваш Telegram; `GEMINI_API_KEY` — бесплатный ключ ИИ с aistudio.google.com (можно пропустить, тогда ИИ не будет отвечать). `BETTER_AUTH_SECRET` Render создаст сам.
+3. Render спросит значения: `DATABASE_URL` — строка подключения из Neon; `ADMIN_EMAILS` — ваш email; `PAY_CONTACT` — ваш Telegram; `ANTHROPIC_API_KEY` — ваш ключ Claude API с console.anthropic.com, или `GEMINI_API_KEY` — бесплатный ключ ИИ с aistudio.google.com (без ключа ИИ не будет отвечать). `BETTER_AUTH_SECRET` Render создаст сам.
 4. **Apply**. Сборка занимает 5–10 минут, адрес будет вида `https://skan.onrender.com`.
 
 Бесплатный сервер засыпает, если 15 минут никто не заходит: первый визит после этого открывается около минуты, дальше всё работает как обычно. Переменные потом меняются в Render → сервис → Environment.
