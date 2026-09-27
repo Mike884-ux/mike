@@ -22,6 +22,12 @@ import { PLAN_LABEL, type PaidPlan, type Period, type PaymentOptions } from "./p
 
 const env = (name: string) => process.env[name]?.trim() || "";
 
+/**
+ * An API key as pasted into a host's settings: only its first word counts, so
+ * a note typed after it ("… вот мой ключ") can't end up in an HTTP header.
+ */
+const apiKey = (name: string) => env(name).split(/\s+/)[0] ?? "";
+
 const DEFAULT_CARD_MIN = 20;
 
 /** The fiat currency NOWPayments charges cards in, or null when its card on-ramp is off. */
@@ -48,10 +54,10 @@ export const dodoMode = (): "test" | "live" => (env("DODO_MODE").toLowerCase() =
 
 /** Everything a Dodo checkout needs, or null while something is missing. Env values win. */
 export function resolveDodo(stored: DodoStored = {}): DodoConfig | null {
-  const apiKey = env("DODO_API_KEY");
+  const key = apiKey("DODO_API_KEY");
   const productId = env("DODO_PRODUCT_ID") || stored.productId || "";
   const webhookSecret = env("DODO_WEBHOOK_SECRET") || stored.webhookSecret || "";
-  return apiKey && productId && webhookSecret ? { apiKey, productId, webhookSecret } : null;
+  return key && productId && webhookSecret ? { apiKey: key, productId, webhookSecret } : null;
 }
 
 export type CardProvider = "stripe" | "dodo" | "nowpayments";
@@ -262,7 +268,7 @@ const dodoBase = () => (dodoMode() === "test" ? "https://test.dodopayments.com" 
 async function dodoApi<T>(path: string, init: { method?: string; body?: unknown } = {}): Promise<T> {
   const res = await fetch(`${dodoBase()}${path}`, {
     method: init.method ?? "GET",
-    headers: { Authorization: `Bearer ${env("DODO_API_KEY")}`, "Content-Type": "application/json" },
+    headers: { Authorization: `Bearer ${apiKey("DODO_API_KEY")}`, "Content-Type": "application/json" },
     ...(init.body === undefined ? {} : { body: JSON.stringify(init.body) }),
     signal: AbortSignal.timeout(15_000),
   });

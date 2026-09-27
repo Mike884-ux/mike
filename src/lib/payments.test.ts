@@ -309,3 +309,9 @@ test("Dodo one-click connect: creates the product and webhook once, reuses them 
     else process.env.DODO_MODE = savedMode;
   }
 });
+
+test("Dodo key: words pasted after the key are ignored", () => {
+  withEnv({ DODO_API_KEY: "abc.DEF123  вот мой ключ" }, () =>
+    assert.equal(resolveDodo({ productId: "pdt_1", webhookSecret: DODO_SECRET })?.apiKey, "abc.DEF123"),
+  );
+});
