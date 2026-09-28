@@ -21,6 +21,8 @@
       instagram: "",
       address: "",
       mapUrl: "",
+      map: null,
+      mapQuery: "",
       hours: [],
       currency: "смн",
       about: "",
@@ -729,6 +731,74 @@
     );
   }
 
+  /* Карта салона. На iPhone открываются Apple Карты, на Android — выбор приложения
+     (Google Maps, Яндекс Карты, 2ГИС), на компьютере — Google Maps в новой вкладке.
+     Если в data.js есть точка салона, карта сразу строит маршрут от места покупателя. */
+  function mapHref() {
+    const ua = navigator.userAgent || "";
+    const ios =
+      /iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
+    const android = /Android/i.test(ua);
+    const pt = Array.isArray(CFG.map) && CFG.map.length === 2 ? CFG.map.join(",") : "";
+    const q =
+      CFG.mapQuery || (pt ? "" : CFG.mapUrl ? "" : [CFG.name, CFG.city].filter(Boolean).join(", "));
+    const e = encodeURIComponent;
+    if (!pt && !q) return CFG.mapUrl || "";
+    if (ios)
+      return "https://maps.apple.com/?" + (pt ? "daddr=" + pt + "&q=" + e(CFG.name) : "q=" + e(q));
+    if (android)
+      return pt ? "geo:" + pt + "?q=" + pt + "(" + e(CFG.name) + ")" : "geo:0,0?q=" + e(q);
+    if (pt) return "https://www.google.com/maps/dir/?api=1&destination=" + pt;
+    return CFG.mapUrl || "https://www.google.com/maps/search/?api=1&query=" + e(q);
+  }
+
+  function mapLink(cls, label) {
+    const href = mapHref();
+    if (!href) return "";
+    // карта телефона открывается в приложении, веб-карта — в новой вкладке
+    const app = /^(geo:|https:\/\/maps\.apple\.com)/.test(href);
+    return (
+      '<a class="' +
+      cls +
+      '" href="' +
+      esc(href) +
+      '"' +
+      (app ? "" : ' target="_blank" rel="noopener"') +
+      ">" +
+      icon("pin") +
+      label +
+      "</a>"
+    );
+  }
+
+  /* Визитка салона на главной — как на логотипе: название, телефоны директора и менеджеров. */
+  function brandCard() {
+    if (!PHONES.length) return "";
+    const name = tr(CFG.name);
+    const euro = CFG.euroLogo && /^[ЕEеe]/.test(name);
+    return (
+      '<section class="wrap section brand-sec"><div class="brand-card">' +
+      '<div class="brand-id">' +
+      (CFG.logo
+        ? '<img class="brand-logo" src="' +
+          esc(CFG.logo) +
+          '" alt="' +
+          esc(name) +
+          '" width="132" height="132" />'
+        : "") +
+      '<div><p class="brand-name" translate="no">' +
+      (euro ? '<span class="logo-euro">' + EURO + esc(name.slice(1)) + "</span>" : esc(name)) +
+      '</p><p class="brand-tag">Межкомнатные двери · Входные двери · Ламинат</p>' +
+      '<p class="brand-hint">Звоните или пишите в WhatsApp — ответим на вопросы и поможем выбрать.</p></div></div>' +
+      '<div class="brand-main">' +
+      phoneList("phones-brand") +
+      '<div class="brand-acts">' +
+      mapLink("btn btn-light", "Как добраться") +
+      measureButton(null, "btn-light") +
+      "</div></div></div></section>"
+    );
+  }
+
   function shareButton(p) {
     return (
       '<button class="btn btn-glass" data-act="share" data-id="' +
@@ -753,7 +823,8 @@
           '<p class="hint calls-hint">Звоните или пишите в WhatsApp — ответим на вопросы и поможем выбрать.</p>' +
           phoneList() +
           '<div class="calls-measure">' +
-          measureButton(null, "btn-primary btn-block") +
+          measureButton(null, "btn-primary") +
+          mapLink("btn btn-glass", "Как добраться") +
           "</div>" +
           contactList(),
         "",
@@ -1173,8 +1244,14 @@
       (CFG.hours || [])
         .map((h) => '<span class="f-line">' + esc(h[0]) + ": " + esc(h[1]) + "</span>")
         .join("") +
-      (CFG.mapUrl
-        ? '<a href="' + esc(CFG.mapUrl) + '" target="_blank" rel="noopener">Как добраться →</a>'
+      (mapHref()
+        ? '<a href="' +
+          esc(mapHref()) +
+          '"' +
+          (/^(geo:|https:\/\/maps\.apple\.com)/.test(mapHref())
+            ? ""
+            : ' target="_blank" rel="noopener"') +
+          ">Как добраться →</a>"
         : "") +
       "</div>" +
       "<div><h4>Связаться</h4>" +
@@ -1894,6 +1971,7 @@
       '</div><div class="fit-caption" id="fitCaption">' +
       stageTag() +
       "</div></div></div></section>" +
+      brandCard() +
       // категории
       '<section class="wrap section"><div class="section-head"><div><p class="eyebrow">Каталог</p><h2 class="h2">Что есть в салоне</h2></div></div><div class="cats">' +
       catCard(
@@ -1972,7 +2050,7 @@
         .map((s) => '<li class="step glass-soft"><h3>' + s[0] + "</h3><p>" + s[1] + "</p></li>")
         .join("") +
       "</ol></section>" +
-      visitBlock();
+      visitBlock(false);
 
     hydrate(app);
     loadInstagram(app);
@@ -2036,13 +2114,7 @@
           icon("ig") +
           "Instagram</a>"
         : "") +
-      (CFG.mapUrl
-        ? '<a class="btn btn-glass" href="' +
-          esc(CFG.mapUrl) +
-          '" target="_blank" rel="noopener">' +
-          icon("pin") +
-          "На карте</a>"
-        : "") +
+      mapLink("btn btn-glass", "Как добраться") +
       "</div>"
     );
   }

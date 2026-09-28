@@ -3713,7 +3713,157 @@ select.field option {
 }
 
 .calls-measure {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
   margin: 12px 0 16px;
+}
+
+.calls-measure .btn {
+  flex: 1 1 auto;
+}
+
+/* ------------------------------------------------------------------ визитка на главной */
+
+.brand-card {
+  --ink: #ffffff;
+  --ink-2: rgba(255, 255, 255, 0.88);
+  --ink-3: rgba(255, 255, 255, 0.72);
+  --field: rgba(255, 255, 255, 0.12);
+  --line: rgba(255, 255, 255, 0.16);
+  --line-2: rgba(255, 255, 255, 0.3);
+  --accent-soft: rgba(255, 255, 255, 0.2);
+  position: relative;
+  display: grid;
+  gap: 22px;
+  padding: 24px;
+  overflow: hidden;
+  border-radius: var(--r-xl);
+  background:
+    radial-gradient(60% 90% at 0% 0%, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0) 60%),
+    linear-gradient(150deg, #0c66e0, #0a4fb8 65%, #083f96);
+  color: #fff;
+  box-shadow: 0 30px 60px -30px rgba(8, 50, 140, 0.75);
+}
+
+.brand-id {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.brand-logo {
+  width: 132px;
+  height: 132px;
+  flex: none;
+  border-radius: 50%;
+  box-shadow:
+    0 0 0 4px rgba(255, 255, 255, 0.92),
+    0 18px 36px -14px rgba(0, 10, 40, 0.55);
+}
+
+.brand-name {
+  font: 600 clamp(26px, 3.2vw, 38px)/1.05 var(--font-display);
+  letter-spacing: 0.03em;
+}
+
+.brand-tag {
+  margin-top: 10px;
+  font: 700 12px/1.4 var(--font-body);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+
+.brand-hint {
+  margin-top: 10px;
+  max-width: 30em;
+  font-size: 15px;
+  color: var(--ink-2);
+}
+
+.brand-main {
+  display: grid;
+  gap: 14px;
+  align-content: start;
+}
+
+.phones-brand {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr));
+}
+
+.phones-brand li {
+  background: rgba(255, 255, 255, 0.12);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.18);
+}
+
+.phones-brand li:first-child {
+  background: rgba(255, 255, 255, 0.22);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.34);
+}
+
+/* подписи — красные, как «ДИРЕКТОР» на логотипе */
+.phones-brand .ph-role {
+  justify-self: start;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: #e3141c;
+  color: #fff;
+  font-size: 10.5px;
+}
+
+.phones-brand .ph-num {
+  font-size: 18px;
+}
+
+.phones-brand .ph-call {
+  background: #fff;
+  color: #0a56c8;
+}
+
+.brand-acts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.brand-acts .btn {
+  flex: 1 1 auto;
+}
+
+.btn-light {
+  background: #fff;
+  color: #0a4fb8;
+  box-shadow: 0 12px 24px -14px rgba(0, 10, 40, 0.6);
+}
+
+.btn-light:hover {
+  filter: brightness(0.97);
+}
+
+@media (min-width: 900px) {
+  .brand-card {
+    grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
+    align-items: center;
+    gap: 34px;
+    padding: 32px 36px;
+  }
+}
+
+@media (max-width: 480px) {
+  .brand-card {
+    padding: 20px 16px;
+  }
+  .brand-id {
+    gap: 14px;
+  }
+  .brand-logo {
+    width: 96px;
+    height: 96px;
+  }
+  .brand-name {
+    font-size: 24px;
+  }
 }
 
 .service .btn {
