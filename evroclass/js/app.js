@@ -1219,7 +1219,7 @@
       "</div></div></div>";
     $("#notice").innerHTML =
       CFG.demo && !demoHidden
-        ? '<div class="wrap demo-note"><div class="glass-soft"><span><b>Демо-каталог.</b> Товары, цены и контакты — примеры. Свои данные впишите в файл <code>js/data.js</code>.</span><button class="btn btn-glass btn-sm" data-act="demo-hide">Понятно</button></div></div>'
+        ? '<div class="wrap demo-note"><div class="glass-soft"><span><b>Демо-каталог.</b> Товары и цены — примеры. Свои товары впишите в файл <code>js/data.js</code>.</span><button class="btn btn-glass btn-sm" data-act="demo-hide">Понятно</button></div></div>'
         : "";
 
     renderMbar();

@@ -67,9 +67,9 @@ window.SHOP_I18N = {
     ["салон дверей и ламината", "door and laminate showroom", "салони дарҳо ва ламинат"],
     ["Демо-каталог.", "Demo catalogue.", "Каталоги намунавӣ."],
     [
-      "Товары, цены и контакты — примеры. Свои данные впишите в файл",
-      "Products, prices and contacts are examples. Enter your own data in the file",
-      "Мол, нарх ва тамос намунаанд. Маълумоти худро нависед дар файли",
+      "Товары и цены — примеры. Свои товары впишите в файл",
+      "Products and prices are examples. Enter your own products in the file",
+      "Мол ва нархҳо намунаанд. Моли худро нависед дар файли",
     ],
     ["Понятно", "Got it", "Фаҳмо"],
     ["Каталог", "Catalogue", "Каталог"],
