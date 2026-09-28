@@ -10,7 +10,7 @@ import appCss from "../styles.css?url";
 const APP_NAME = "Скан";
 
 export const Route = createRootRoute({
-  head: () => ({
+  head: ({ loaderData }) => ({
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1, viewport-fit=cover" },
@@ -20,6 +20,7 @@ export const Route = createRootRoute({
         name: "description",
         content: "Цены, рыночная капитализация и графики криптовалют в реальном времени, сигналы по индикаторам и разбор рынка от ИИ.",
       },
+      ...(loaderData?.googleVerification ? [{ name: "google-site-verification", content: loaderData.googleVerification }] : []),
     ],
     links: [
       { rel: "stylesheet", href: appCss },
@@ -27,6 +28,8 @@ export const Route = createRootRoute({
     ],
     scripts: [{ children: THEME_BOOT_SCRIPT }],
   }),
+  // Google Search Console ownership check without uploading files: the owner pastes the code into GOOGLE_SITE_VERIFICATION.
+  loader: () => ({ googleVerification: typeof window === "undefined" ? (process.env.GOOGLE_SITE_VERIFICATION?.trim() ?? "") : "" }),
   component: RootDocument,
   notFoundComponent: NotFound,
 });

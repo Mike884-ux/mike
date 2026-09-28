@@ -12,7 +12,7 @@ export const Route = createFileRoute("/_site/pricing")({
         ? true
         : undefined,
   }),
-  head: () => ({ meta: [{ title: "Тарифы — Скан" }] }),
+  head: () => ({ meta: [{ title: "Тарифы — Скан" }, { name: "description", content: "Тарифы Скан: бесплатный доступ к ценам и сигналам, Pro и Whale с ИИ-аналитиком, уведомлениями в Telegram и расширенным скринером." }] }),
   component: Page,
 });
 

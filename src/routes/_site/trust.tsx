@@ -5,7 +5,10 @@ import { Container } from "@/components/site/shell";
 import { useSiteStatus } from "@/lib/use-billing";
 import { useT } from "@/lib/i18n";
 
-export const Route = createFileRoute("/_site/trust")({ component: TrustPage });
+export const Route = createFileRoute("/_site/trust")({
+  head: () => ({ meta: [{ title: "Прозрачность и безопасность — Скан" }, { name: "description", content: "Откуда Скан берёт данные, как работают сигналы, какие риски у крипторынка и как связаться с поддержкой." }] }),
+  component: TrustPage,
+});
 
 function Card({ icon: Icon, title, children }: { icon: typeof Database; title: string; children: ReactNode }) {
   return (

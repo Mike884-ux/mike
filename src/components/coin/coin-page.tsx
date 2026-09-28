@@ -16,6 +16,7 @@ import { ChangePill, CoinLogo, Meter } from "@/components/market/bits";
 import { Container } from "@/components/site/shell";
 import { AboutSection, ChartSection, NewsSection, PerformanceRow, RecordsSection, SignalsSection } from "@/components/coin/coin-sections";
 import { TradeDialog } from "@/components/coin/trade-dialog";
+import { coinIntro, type CoinSeo } from "@/lib/seo";
 import { AlertDialog } from "@/components/alerts/alert-dialog";
 import { TradeButtons } from "@/components/trade-buttons";
 import { isTradable } from "@/lib/exchanges";
@@ -337,10 +338,20 @@ function Converter({ coin }: { coin: CoinInfo }) {
   );
 }
 
-function CoinSkeleton() {
+/** While the coin loads: skeleton, plus the name and a summary from the server render for search engines. */
+function CoinSkeleton({ seo }: { seo: CoinSeo | null }) {
   return (
     <Container className="py-6">
-      <span className="skeleton block h-4 w-48" />
+      {seo ? (
+        <div className="max-w-3xl">
+          <h1 className="font-display text-2xl font-bold text-fg">
+            {seo.name} ({seo.symbol})
+          </h1>
+          <p className="mt-2 text-sm leading-relaxed text-muted">{coinIntro(seo)}</p>
+        </div>
+      ) : (
+        <span className="skeleton block h-4 w-48" />
+      )}
       <div className="mt-6 grid gap-8 lg:grid-cols-[minmax(0,380px)_minmax(0,1fr)]">
         <div className="flex flex-col gap-4">
           <span className="skeleton h-10 w-2/3" />
@@ -373,7 +384,7 @@ function Missing({ notFound, onRetry }: { notFound: boolean; onRetry: () => void
   );
 }
 
-export function CoinPage({ id }: { id: string }) {
+export function CoinPage({ id, seo = null }: { id: string; seo?: CoinSeo | null }) {
   const t = useT();
   const lang = useSettings((s) => s.lang);
   const navigate = useNavigate();
@@ -390,7 +401,7 @@ export function CoinPage({ id }: { id: string }) {
     if (coin) document.title = `${coin.name} (${coin.symbol}) ${usdPrice(coin.price)} — ${t("app.name")}`;
   }, [coin, t]);
 
-  if (query.isLoading) return <CoinSkeleton />;
+  if (query.isLoading) return <CoinSkeleton seo={seo} />;
   if (!coin) {
     const notFound = query.error instanceof MarketError && query.error.status === 404;
     return <Missing notFound={notFound} onRetry={() => void query.refetch()} />;
