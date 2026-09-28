@@ -38,6 +38,7 @@ demoData = swap(
 demoData = swap(demoData, /whatsapp: "\d+"/, 'whatsapp: "992000000000"');
 demoData = swap(demoData, /instagram: "evroclass_tj"/, 'instagram: ""');
 demoData = swap(demoData, /mapQuery: "Евро Класс, Душанбе"/, 'mapQuery: ""');
+demoData = swap(demoData, /instagramPosts: \[[^\]]*\]/, "instagramPosts: []");
 demoData = inlineImages(demoData);
 
 body = body.replace(/<script src="(js\/[\w.-]+\.js)"><\/script>/g, (m, p) => {

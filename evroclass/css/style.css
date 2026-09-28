@@ -1886,6 +1886,71 @@ main:focus {
     inset 0 0 0 1px var(--line);
 }
 
+.ig-embeds blockquote.instagram-media a.ig-fallback {
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  padding: 0;
+  background: none;
+  color: var(--ink);
+  text-align: center;
+}
+
+.ig-fallback .ig-ring {
+  width: 96px;
+  height: 96px;
+}
+
+.ig-fallback .ig-play {
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  margin-top: 6px;
+  border-radius: 50%;
+  background: linear-gradient(180deg, var(--cta-hi), var(--cta) 48%, var(--cta-2));
+  color: #fff;
+  box-shadow: 0 12px 24px -12px var(--cta-2);
+}
+
+.ig-fallback .ig-play .i {
+  width: 26px;
+  height: 26px;
+  margin-left: 4px;
+}
+
+.ig-fallback b {
+  font: 600 18px/1.2 var(--font-body);
+}
+
+.ig-fallback span:last-child {
+  font-size: 14px;
+  color: var(--ink-3);
+}
+
+/* один-два ролика: слева ролик, справа карточка профиля */
+.ig-few {
+  display: grid;
+  gap: 16px;
+  align-items: start;
+}
+
+@media (min-width: 900px) {
+  .ig-few {
+    grid-template-columns: minmax(0, 400px) minmax(0, 1fr);
+  }
+  .ig-few .ig-embeds {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .ig-few .ig-card {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+  .ig-few .ig-card .btn {
+    grid-column: 1 / -1;
+    justify-self: start;
+  }
+}
+
 .ig-embeds blockquote.instagram-media a {
   display: inline-flex;
   align-items: center;

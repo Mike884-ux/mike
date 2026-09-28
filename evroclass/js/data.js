@@ -43,7 +43,7 @@ window.SHOP_CONFIG = {
   // Ролики из Instagram: в приложении откройте ролик, нажмите ⋯ → «Копировать ссылку»
   // и вставьте ссылку сюда в кавычках. Сайт покажет ролик прямо на главной.
   // Пример: ["https://www.instagram.com/reel/ABC123/", "https://www.instagram.com/p/XYZ789/"]
-  instagramPosts: [],
+  instagramPosts: ["https://www.instagram.com/evroclass_tj/reel/Dc5jb9nMENO/"],
   // Свои видеофайлы: положите .mp4 в папку video/ и перечислите их здесь.
   // Пример: { src: "video/reklama-1.mp4", title: "Входная дверь с терморазрывом" }
   // poster — картинка до запуска видео (необязательно): poster: "video/reklama-1.jpg"

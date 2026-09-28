@@ -1810,7 +1810,7 @@
     );
   }
 
-  function igCard() {
+  function igCard(withHint) {
     return (
       '<a class="ig-card glass" href="' +
       igUrl() +
@@ -1822,7 +1822,7 @@
       '<span class="btn btn-primary">' +
       icon("ig") +
       "Открыть Instagram</span></a>" +
-      (CFG.demo
+      (CFG.demo && withHint !== false
         ? '<p class="hint ig-hint">Чтобы ролики показывались прямо здесь, вставьте ссылки на них в <span class="mono">instagramPosts</span> в файле <span class="mono">js/data.js</span> или положите видеофайлы в папку <span class="mono">video/</span>.</p>'
         : "")
     );
@@ -1843,12 +1843,23 @@
             (p) =>
               '<blockquote class="instagram-media" data-instgrm-permalink="' +
               esc(p) +
-              '" data-instgrm-version="14"><a href="' +
+              '" data-instgrm-version="14"><a class="ig-fallback" href="' +
               esc(p) +
-              '" target="_blank" rel="noopener">Смотреть в Instagram</a></blockquote>',
+              '" target="_blank" rel="noopener"><span class="ig-ring">' +
+              (CFG.logo
+                ? '<img src="' + esc(CFG.logo) + '" alt="" width="72" height="72" />'
+                : LOGO) +
+              '</span><span class="ig-play">' +
+              icon("play", "i-fill") +
+              "</span><b>Смотреть видео</b><span>" +
+              (handle ? "@" + esc(handle) + " · " : "") +
+              "Instagram</span></a></blockquote>",
           )
           .join("") +
         "</div>";
+    // Когда роликов мало, рядом — карточка профиля Instagram, чтобы подписались.
+    if (posts.length && posts.length < 3 && handle && !vids.length)
+      body = '<div class="ig-few">' + body + igCard(false) + "</div>";
     if (!body) body = igCard();
     return (
       '<section class="wrap section" id="media"><div class="section-head"><div><p class="eyebrow">' +
