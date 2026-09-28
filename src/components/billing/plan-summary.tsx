@@ -53,6 +53,8 @@ export function PlanSummary({ onNavigate }: { onNavigate?: () => void }) {
         ) : null}
       </div>
       <div className="mt-2.5 flex flex-col gap-2">
+        <Meter label={t("credits.month", { n: billing.credits.limit })} used={billing.credits.used} limit={billing.credits.limit} />
+        <p className="text-xs text-muted">{t("credits.reset", { date: billing.credits.resetsAt.slice(0, 10) })}</p>
         <Meter
           label={t("plan.analysis")}
           used={billing.used.analysis}

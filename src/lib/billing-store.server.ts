@@ -6,6 +6,9 @@
 import { randomBytes, randomUUID } from "node:crypto";
 import {
   AI_KINDS,
+  AI_CREDIT_COST,
+  MONTHLY_CREDITS,
+  TRIAL_CREDITS,
   PERIOD_DAYS,
   PLANS,
   REFERRAL_BONUS_CAP,
@@ -17,6 +20,7 @@ import {
   type PaidPlan,
   type Period,
   type PlanId,
+  type CreditBalance,
 } from "./plans.ts";
 
 export interface SqlLike {
@@ -111,6 +115,20 @@ export type Consumed =
   | { ok: true; plan: PlanId; refund: () => Promise<void> }
   | { ok: false; plan: PlanId; limit: number };
 
+function creditMonth(now: number): string {
+  return `${usageDay(now).slice(0, 7)}-01`;
+}
+
+export async function creditBalance(sql: SqlLike, userId: string, state: PlanState, now = Date.now()): Promise<CreditBalance> {
+  const [row] = await sql<{ used: number }>`select used from ai_credits where user_id = ${userId} and month = ${creditMonth(now)}`;
+  const date = new Date(now);
+  return {
+    used: Number(row?.used ?? 0),
+    limit: state.trial ? TRIAL_CREDITS : MONTHLY_CREDITS[state.plan],
+    resetsAt: new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 1)).toISOString(),
+  };
+}
+
 /**
  * Takes one AI request from today's allowance, atomically: the increment only
  * happens while the count is under the plan's limit. `refund` gives it back
@@ -133,11 +151,43 @@ export async function consumeAi(
     where ai_usage.count < ${limit}
     returning count`;
   if (!rows.length) return { ok: false, plan: state.plan, limit };
+  const month = creditMonth(now);
+  const cost = AI_CREDIT_COST[kind];
+  const creditLimit = state.trial ? TRIAL_CREDITS : MONTHLY_CREDITS[state.plan];
+  const releaseDaily = () => sql`update ai_usage set count = greatest(count - 1, 0) where user_id = ${userId} and day = ${day} and kind = ${kind}`;
+  if (!opts.unlimited) {
+    try {
+      // The upsert predicate is evaluated while holding the row lock, including
+      // concurrent calls of different kinds. Never use a read-then-write check.
+      const reserved = await sql<{ used: number }>`
+        insert into ai_credits (user_id, month, used) values (${userId}, ${month}, ${cost})
+        on conflict (user_id, month) do update set used = ai_credits.used + ${cost}
+        where ai_credits.used + ${cost} <= ${creditLimit}
+        returning used`;
+      if (!reserved.length) {
+        await releaseDaily();
+        return { ok: false, plan: state.plan, limit: creditLimit };
+      }
+    } catch (err) {
+      await releaseDaily();
+      throw err;
+    }
+  }
+  let refunded = false;
   return {
     ok: true,
     plan: state.plan,
     refund: async () => {
-      await sql`update ai_usage set count = greatest(count - 1, 0) where user_id = ${userId} and day = ${day} and kind = ${kind}`;
+      if (refunded) return;
+      refunded = true;
+      // Both refunds commit in one statement; a failed query may be retried.
+      try {
+        await sql`with daily as (
+          update ai_usage set count = greatest(count - 1, 0)
+          where user_id = ${userId} and day = ${day} and kind = ${kind}
+        ) update ai_credits set used = greatest(used - ${opts.unlimited ? 0 : cost}, 0)
+          where user_id = ${userId} and month = ${month}`;
+      } catch (err) { refunded = false; throw err; }
     },
   };
 }

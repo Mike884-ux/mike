@@ -28,6 +28,7 @@ export const getBilling = createServerFn({ method: "GET" })
       referrals,
       refBonusDays: state.refBonusDays,
       isAdmin: isAdminEmail(context.email),
+      credits: await store.creditBalance(sql, context.userId, state),
     };
   });
 

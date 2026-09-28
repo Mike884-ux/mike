@@ -67,9 +67,13 @@ export function MarketCapCard({ stats, firstPage }: { stats: GlobalStats | undef
               <p className="mt-1 text-[11px] text-faint">{t("hl.capCaption")}</p>
             </>
           ) : (
-            <p className="mt-auto text-xs text-muted">
-              {t("stats.volume")}: <span className="font-semibold text-fg">{usdCompact(stats.volume24h)}</span>
-            </p>
+            <div className="mt-auto">
+              <div className="market-radar-mini" aria-hidden><span /></div>
+              <p className="mt-2 text-[11px] leading-relaxed text-faint">{t("market.noHistory")}</p>
+              <p className="mt-1 text-xs text-muted">
+                {t("stats.volume")}: <span className="font-semibold text-fg">{usdCompact(stats.volume24h)}</span>
+              </p>
+            </div>
           )}
         </>
       ) : (
@@ -145,23 +149,31 @@ export function FearGreedCard({ stats }: { stats: GlobalStats | undefined }) {
   );
 }
 
-export function TrendingCard({ coins, loading }: { coins: TrendingCoin[] | undefined; loading: boolean }) {
+export function TrendingCard({ coins, marketCoins, loading }: { coins: TrendingCoin[] | undefined; marketCoins?: MarketCoin[]; loading: boolean }) {
   const t = useT();
+  const marketBySymbol = useMemo(
+    () => new Map((marketCoins ?? []).map((coin) => [coin.symbol.toUpperCase(), coin])),
+    [marketCoins],
+  );
   return (
     <HighlightCard icon={<Flame className="size-4 text-short" />} title={t("hl.trending")}>
       {coins?.length ? (
         <div className="flex flex-col">
-          {coins.slice(0, 4).map((coin) => (
-            <CoinLine
-              key={coin.id}
-              id={coin.id}
-              rank={coin.rank}
-              name={coin.name}
-              symbol={coin.symbol}
-              image={coin.image}
-              right={<Change value={coin.change24h} className="text-xs" />}
-            />
-          ))}
+          {coins.slice(0, 4).map((coin) => {
+            const market = marketBySymbol.get(coin.symbol.toUpperCase());
+            return (
+              <CoinLine
+                key={coin.id}
+                id={coin.id}
+                rank={market?.rank ?? coin.rank}
+                name={coin.name}
+                symbol={coin.symbol}
+                image={coin.image}
+                right={<Change value={market?.change24h ?? coin.change24h} className="text-xs" />}
+              />
+            );
+          })}
+          <p className="mt-auto pt-2 text-[11px] leading-relaxed text-faint">{t("market.trendingSource")}</p>
         </div>
       ) : loading ? (
         <LinesSkeleton />

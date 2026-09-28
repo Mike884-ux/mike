@@ -32,7 +32,7 @@ export const useSettings = create<SettingsState>()(
     (set) => ({
       lang: "ru",
       country: "TJ",
-      theme: "light",
+      theme: "dark",
       currency: "USD",
       highlights: true,
       setLang: (lang) => set({ lang }),
@@ -50,7 +50,7 @@ export const useSettings = create<SettingsState>()(
           ...current,
           ...saved,
           lang: asLang(saved.lang ?? current.lang),
-          theme: saved.theme === "dark" || saved.theme === "system" ? saved.theme : "light",
+          theme: saved.theme === "light" || saved.theme === "system" ? saved.theme : "dark",
           currency: saved.currency === "BTC" ? "BTC" : "USD",
         };
       },
@@ -62,4 +62,4 @@ export const useSettings = create<SettingsState>()(
  * Runs in <head> before the first paint, so a dark-theme visitor never sees a
  * white flash while the app loads.
  */
-export const THEME_BOOT_SCRIPT = `try{var s=JSON.parse(localStorage.getItem("${SETTINGS_KEY}")||"{}").state||{};var d=s.theme==="dark"||(s.theme==="system"&&window.matchMedia&&matchMedia("(prefers-color-scheme: dark)").matches);document.documentElement.dataset.theme=d?"dark":"light";document.documentElement.lang=s.lang==="en"?"en":"ru"}catch(e){}`;
+export const THEME_BOOT_SCRIPT = `try{var s=JSON.parse(localStorage.getItem("${SETTINGS_KEY}")||"{}").state||{};var d=!s.theme||s.theme==="dark"||(s.theme==="system"&&window.matchMedia&&matchMedia("(prefers-color-scheme: dark)").matches);document.documentElement.dataset.theme=d?"dark":"light";document.documentElement.lang=s.lang==="en"?"en":"ru"}catch(e){}`;

@@ -1,17 +1,17 @@
-import { useMemo, type ReactNode } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { ChevronDown, ChevronLeft, ChevronRight, LayoutGrid, Rocket, Star, TrendingDown } from "lucide-react";
+import { ArrowRight, ChevronDown, ChevronLeft, ChevronRight, Eye, LayoutGrid, Rocket, Sparkles, Star, TrendingDown } from "lucide-react";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import { CATEGORIES, MAX_PAGES, PAGE_SIZE, type CategoryId, type ListingResponse, type MarketCoin } from "@/lib/coins";
-import { usdCompact } from "@/lib/format";
+import { usdCompact, usdPrice } from "@/lib/format";
 import { useT, type MessageKey } from "@/lib/i18n";
 import { scanMarket } from "@/lib/scan";
 import { useSettings } from "@/lib/settings-store";
 import { useFavorites } from "@/lib/use-account";
 import { useGlobalStats, useListing, useTrending, useWatchlist } from "@/lib/use-market";
 import { cn } from "@/lib/utils";
-import { ChangePill } from "@/components/market/bits";
+import { Change, ChangePill } from "@/components/market/bits";
 import { FearGreedCard, MarketCapCard, MoversCard, TrendingCard, useMovers } from "@/components/market/highlights";
 import { MarketTable, TableSkeleton, type SignalInfo } from "@/components/market/market-table";
 import { Container } from "@/components/site/shell";
@@ -116,8 +116,76 @@ function SourceNote({ listing }: { listing: ListingResponse | undefined }) {
   if (!listing) return null;
   return (
     <p className="mt-3 text-xs text-faint">
-      {listing.source === "coingecko" ? t("home.sourceLive") : t("home.sourceFallback", { source: listing.source === "coinpaprika" ? "CoinPaprika" : "Binance" })}
+      {t("market.source", {
+        source: listing.source === "coingecko" ? "CoinGecko" : listing.source === "coinpaprika" ? "CoinPaprika" : "Binance",
+        time: new Date(listing.updatedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      })}
     </p>
+  );
+}
+
+function MarketOrb() {
+  return (
+    <div className="market-orb" aria-hidden>
+      <div className="market-orb__halo" />
+      <div className="market-orb__sphere">
+        <span className="market-orb__ring market-orb__ring--one" />
+        <span className="market-orb__ring market-orb__ring--two" />
+        <span className="market-orb__line" />
+        <span className="market-orb__dot market-orb__dot--one" />
+        <span className="market-orb__dot market-orb__dot--two" />
+        <span className="market-orb__dot market-orb__dot--three" />
+      </div>
+    </div>
+  );
+}
+
+function LaunchPanel({ coins, favorites, onToggle }: { coins: MarketCoin[]; favorites: string[]; onToggle: (symbol: string) => void }) {
+  const t = useT();
+  const [selected, setSelected] = useState(0);
+  const coin = coins[Math.min(selected, Math.max(0, coins.length - 1))] ?? null;
+  const saved = coin ? favorites.includes(coin.symbol) : false;
+  const change = coin?.change24h ?? 0;
+  return (
+    <section className="launch-panel overflow-hidden rounded-[28px] p-5 sm:p-7">
+      <div className="grid items-center gap-8 lg:grid-cols-[1.08fr_.92fr]">
+        <div className="relative z-10">
+          <p className="text-xs font-extrabold tracking-[.18em] text-accent">{t("launch.eyebrow")}</p>
+          <h1 className="mt-3 max-w-xl font-display text-4xl font-extrabold leading-[1.02] text-white sm:text-6xl">{t("launch.title")}</h1>
+          <p className="mt-4 max-w-xl text-base leading-relaxed text-slate-300 sm:text-lg">{t("launch.subtitle")}</p>
+          <a href="#market-snapshot" className="mt-6 inline-flex h-11 items-center gap-2 rounded-xl bg-white px-5 text-sm font-bold text-slate-950 transition hover:bg-cyan-50">
+            <Eye className="size-4" /> {t("launch.demo")} <ArrowRight className="size-4" />
+          </a>
+        </div>
+        <MarketOrb />
+      </div>
+      <div id="market-snapshot" className="launch-panel__snapshot relative z-10 mt-8 grid gap-5 rounded-2xl p-5 lg:grid-cols-[.85fr_1.15fr]">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[.15em] text-accent">{t("launch.sample")}</p>
+          <h2 className="mt-2 font-display text-2xl font-bold text-white">{t("launch.brief")}</h2>
+          <p className="mt-2 text-sm leading-relaxed text-slate-400">{t("launch.briefText")}</p>
+          {coin ? <>
+            <label className="mt-5 block text-xs font-semibold text-slate-400" htmlFor="snapshot-coin">{t("launch.coin")}</label>
+            <select id="snapshot-coin" value={selected} onChange={(event) => setSelected(Number(event.target.value))} className="mt-2 h-11 w-full rounded-xl border border-white/10 bg-slate-950/70 px-3 text-sm font-semibold text-white outline-none focus:border-accent">
+              {coins.slice(0, 8).map((item, index) => <option key={item.id} value={index}>{item.name} · {item.symbol}</option>)}
+            </select>
+          </> : <div className="skeleton mt-5 h-11 w-full bg-white/10" />}
+        </div>
+        {coin ? <div className="rounded-2xl border border-white/10 bg-slate-950/55 p-5">
+          <div className="grid gap-4 sm:grid-cols-3">
+            <div><p className="text-xs text-slate-500">{coin.symbol}</p><p className="mt-1 text-xl font-bold text-white">{usdPrice(coin.price)}</p></div>
+            <div><p className="text-xs text-slate-500">{t("launch.change")}</p><Change value={coin.change24h} className="mt-1 text-xl font-bold" /></div>
+            <div><p className="text-xs text-slate-500">{t("launch.volume")}</p><p className="mt-1 text-xl font-bold text-white">{usdCompact(coin.volume24h)}</p></div>
+          </div>
+          <p className="mt-5 border-t border-white/10 pt-4 text-sm leading-relaxed text-slate-300">{t("launch.context", { change: Math.abs(change).toFixed(2) })}</p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <button type="button" onClick={() => onToggle(coin.symbol)} className="inline-flex h-10 items-center gap-2 rounded-xl bg-accent px-4 text-sm font-bold text-slate-950"><Star className={cn("size-4", saved && "fill-current")} />{t(saved ? "launch.saved" : "launch.save")}</button>
+            <Link to="/pricing" className="inline-flex h-10 items-center gap-2 rounded-xl border border-white/10 px-4 text-sm font-bold text-white hover:bg-white/5"><Sparkles className="size-4 text-primary" />{t("launch.proCta")}</Link>
+          </div>
+          <p className="mt-3 text-[11px] leading-relaxed text-slate-500">{t("launch.disclaimer")}</p>
+        </div> : <div className="rounded-2xl border border-white/10 bg-slate-950/55 p-5"><div className="skeleton h-5 w-1/3 bg-white/10" /><div className="skeleton mt-5 h-20 w-full bg-white/10" /><div className="skeleton mt-5 h-10 w-2/3 bg-white/10" /></div>}
+      </div>
+    </section>
   );
 }
 
@@ -223,9 +291,10 @@ export function HomePage({ page, tab }: { page: number; tab: HomeTab }) {
 
   return (
     <Container className="py-6 sm:py-8">
-      <div className="flex flex-wrap items-end justify-between gap-4">
+      <LaunchPanel coins={firstPage.data?.coins ?? []} favorites={favorites} onToggle={onToggleFavorite} />
+      <div className="mt-10 flex flex-wrap items-end justify-between gap-4">
         <div className="min-w-0">
-          <h1 className="font-display text-2xl font-bold text-fg sm:text-[28px]">{t("home.title")}</h1>
+          <h2 className="font-display text-2xl font-bold text-fg sm:text-[28px]">{t("home.title")}</h2>
           <p className="mt-2 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-sm text-muted">
             {s?.marketCap ? (
               <>
@@ -243,7 +312,7 @@ export function HomePage({ page, tab }: { page: number; tab: HomeTab }) {
 
       {highlights ? (
         <div className="no-scrollbar -mx-4 mt-5 flex snap-x snap-mandatory scroll-px-4 gap-3 overflow-x-auto px-4 sm:mx-0 sm:grid sm:grid-cols-2 sm:gap-4 sm:overflow-visible sm:px-0 xl:grid-cols-4 [&>*]:w-[85%] [&>*]:shrink-0 [&>*]:snap-start sm:[&>*]:w-auto">
-          <TrendingCard coins={trending.data} loading={trending.isLoading} />
+          <TrendingCard coins={trending.data} marketCoins={firstPage.data?.coins} loading={trending.isLoading} />
           <MoversCard firstPage={firstPage.data?.coins} />
           <MarketCapCard stats={s} firstPage={firstPage.data?.source === "coingecko" ? firstPage.data.coins : undefined} />
           <FearGreedCard stats={s} />

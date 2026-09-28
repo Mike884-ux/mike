@@ -23,6 +23,8 @@ import { joinWaitlist, startCheckout } from "@/lib/billing";
 import { useT, type MessageKey } from "@/lib/i18n";
 import {
   AI_KINDS,
+  MONTHLY_CREDITS,
+  TRIAL_CREDITS,
   PLANS,
   REFERRAL_BONUS_CAP,
   REFERRAL_BONUS_DAYS,
@@ -224,6 +226,7 @@ function PlanCard({
       )}
 
       <ul className="mt-6 flex flex-col gap-2.5 border-t border-border pt-5">
+        <Feature ok strong>{t("credits.month", { n: MONTHLY_CREDITS[plan] })}</Feature>
         <Feature ok>{t("pricing.f.market")}</Feature>
         {AI_KINDS.map((kind) => (
           <Feature key={kind} ok={spec.limits[kind] > 0} strong={paid && kind === "analysis"}>
@@ -561,6 +564,7 @@ function Faq() {
 function CompareTable() {
   const t = useT();
   const rows: { label: string; values: string[] }[] = [
+    { label: t("credits.month", { n: "" }).trim(), values: ["free", "pro", "max"].map(p => String(MONTHLY_CREDITS[p as PlanId])) },
     { label: t("compare.market"), values: ["✓", "✓", "✓"] },
     ...AI_KINDS.map((kind) => ({
       label: t(`compare.${kind}` as MessageKey),
@@ -611,7 +615,8 @@ function CompareTable() {
           ))}
         </tbody>
       </table>
-      <p className="px-5 pb-4 text-xs text-faint">{t("compare.note")}</p>
+      <p className="px-5 pb-2 text-sm text-muted">{t("credits.rules")}</p>
+      <p className="px-5 pb-4 text-sm text-muted">{t("credits.trial", { n: TRIAL_CREDITS })}</p>
     </div>
   );
 }
@@ -622,7 +627,7 @@ export function PricingPage({ paid, canceled }: { paid: boolean; canceled: boole
   const user = useMember();
   const billing = useBilling();
   const status = useSiteStatus();
-  const [period, setPeriod] = useState<Period>("year");
+  const [period, setPeriod] = useState<Period>("month");
   const [choosing, setChoosing] = useState<PaidPlan | null>(null);
   const current = billing.data
     ? billing.data.trial

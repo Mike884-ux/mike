@@ -22,6 +22,9 @@ export function SiteFooter() {
               </li>
             ))}
           </ul>
+          <Link to="/trust" className="mt-5 inline-flex text-sm font-semibold text-primary hover:opacity-80">
+            {t("trust.link")}
+          </Link>
         </div>
       </div>
       <div className="border-t border-border">

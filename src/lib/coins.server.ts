@@ -209,13 +209,16 @@ export async function getListing(page: number, category?: CategoryId): Promise<L
     const cg = await coingecko(`/coins/markets?${MARKETS_QUERY}&per_page=${PAGE_SIZE}&page=${page}${categoryQuery}`);
     if (cg.ok) {
       const coins = mapCgList(cg.data);
+      if (!category) coins.forEach((coin, index) => (coin.rank = (page - 1) * PAGE_SIZE + index + 1));
       // An empty later page is a real answer (past the end), not an outage.
       if (coins.length || page > 1 || category) return { coins, source: "coingecko", page, updatedAt: Date.now() };
     }
     if (category) return null;
     const board = await paprikaBoard();
     if (board?.length) {
-      return { coins: board.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE), source: "coinpaprika", page, updatedAt: Date.now() };
+      const coins = board.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+      coins.forEach((coin, index) => (coin.rank = (page - 1) * PAGE_SIZE + index + 1));
+      return { coins, source: "coinpaprika", page, updatedAt: Date.now() };
     }
     if (page === 1) {
       const tape = await binanceBoard();

@@ -5,6 +5,7 @@ import { PGlite } from "@electric-sql/pglite";
 import {
   claimReferral,
   consumeAi,
+  creditBalance,
   createPayment,
   grantPlan,
   grantWaitlist,
@@ -68,6 +69,24 @@ test("the daily quota stops at the limit and refunds failed calls", async () => 
   if (one.ok) await one.refund();
   assert.equal((await usageToday(sql, "u1", next)).analysis, 0);
   assert.equal((await consumeAi(sql, "u1", "analysis", { now: later, unlimited: true })).ok, true);
+});
+
+test("monthly AI credits are reserved atomically and refunded", async () => {
+  const sql = await db();
+  const joined = Date.now();
+  await loadPlan(sql, "u1", joined);
+  const now = joined + 5 * DAY; // trial ended: Free has 30 monthly credits
+  const state = await loadPlan(sql, "u1", now);
+  const month = `${new Date(now).toISOString().slice(0, 7)}-01`;
+  await sql`insert into ai_credits (user_id, month, used) values ('u1', ${month}, 29)`;
+  const finalCredit = await consumeAi(sql, "u1", "chat", { now });
+  assert.ok(finalCredit.ok);
+  assert.equal((await creditBalance(sql, "u1", state, now)).used, 30);
+  assert.equal((await consumeAi(sql, "u1", "chat", { now })).ok, false);
+  assert.equal((await usageToday(sql, "u1", now)).chat, 1, "a rejected credit reservation does not consume the daily quota");
+  if (finalCredit.ok) await finalCredit.refund();
+  assert.equal((await creditBalance(sql, "u1", state, now)).used, 29);
+  assert.equal((await usageToday(sql, "u1", now)).chat, 0);
 });
 
 test("a paid payment grants the plan exactly once, and time stacks", async () => {

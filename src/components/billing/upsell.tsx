@@ -1,27 +1,16 @@
 import { Link } from "@tanstack/react-router";
 import { Crown, Sparkles } from "lucide-react";
 import { useT } from "@/lib/i18n";
-import { PLAN_LABEL, PLANS } from "@/lib/plans";
+import { PLAN_LABEL } from "@/lib/plans";
 import { useBilling } from "@/lib/use-billing";
 import { cn } from "@/lib/utils";
 import { aiErrorKey } from "@/components/ui-bits";
-
-/** Hours and minutes until the daily AI allowance resets (00:00 UTC). */
-function useUntilReset(): string {
-  const t = useT();
-  const next = new Date();
-  next.setUTCHours(24, 0, 0, 0);
-  const mins = Math.max(1, Math.round((next.getTime() - Date.now()) / 60_000));
-  const h = Math.floor(mins / 60);
-  const m = mins % 60;
-  return h ? t("time.hm", { h, m }) : t("time.m", { m });
-}
 
 /** Shown when today's AI allowance is used up: what the next plan gives, and a way there. */
 export function LimitUpsell({ className }: { className?: string }) {
   const t = useT();
   const billing = useBilling().data;
-  const reset = useUntilReset();
+
   const onMax = billing?.plan === "max";
   const next = billing?.plan === "pro" ? "max" : "pro";
   return (
@@ -34,14 +23,7 @@ export function LimitUpsell({ className }: { className?: string }) {
         {t("limit.title")}
       </p>
       <p className="mt-1 text-sm leading-relaxed text-muted">
-        {onMax
-          ? t("limit.textMax", { reset })
-          : t("limit.text", {
-              plan: PLAN_LABEL[next],
-              n: PLANS[next].limits.analysis,
-              chat: PLANS[next].limits.chat,
-              reset,
-            })}
+        {t("credits.limit")}
       </p>
       {onMax ? null : (
         <Link

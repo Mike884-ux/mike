@@ -166,6 +166,107 @@
   background: linear-gradient(120deg, var(--color-primary) 0%, #5b8cff 55%, var(--color-accent) 130%);
 }
 
+.launch-panel {
+  position: relative;
+  isolation: isolate;
+  background:
+    linear-gradient(118deg, rgba(10, 17, 31, 0.98), rgba(8, 27, 38, 0.94)),
+    #08111f;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 28px 80px -40px rgba(46, 230, 182, 0.55);
+}
+
+.launch-panel::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background:
+    linear-gradient(rgba(46, 230, 182, 0.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(46, 230, 182, 0.045) 1px, transparent 1px),
+    radial-gradient(500px 350px at 85% 10%, rgba(46, 230, 182, 0.14), transparent 65%);
+  background-size: 44px 44px, 44px 44px, auto;
+  mask-image: linear-gradient(to bottom, black, transparent 78%);
+}
+
+.launch-panel__snapshot {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(10, 17, 31, 0.78);
+  backdrop-filter: blur(20px);
+}
+
+.market-orb {
+  position: relative;
+  display: grid;
+  min-height: 250px;
+  place-items: center;
+  perspective: 900px;
+}
+
+.market-orb__halo {
+  position: absolute;
+  width: 80%;
+  aspect-ratio: 1.75;
+  border-radius: 50%;
+  background: radial-gradient(ellipse, rgba(46, 230, 182, 0.25), transparent 65%);
+  filter: blur(18px);
+  transform: translateY(38%) rotateX(70deg);
+}
+
+.market-orb__sphere {
+  position: relative;
+  width: min(260px, 72vw);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 34% 26%, rgba(255, 255, 255, 0.2), transparent 8%),
+    radial-gradient(circle at 36% 30%, rgba(46, 230, 182, 0.35), transparent 38%),
+    radial-gradient(circle at 68% 70%, rgba(91, 140, 255, 0.22), transparent 45%),
+    #081827;
+  border: 1px solid rgba(126, 255, 229, 0.28);
+  box-shadow: inset -24px -28px 60px rgba(0, 0, 0, 0.55), inset 16px 14px 35px rgba(126, 255, 229, 0.1), 0 25px 70px -20px rgba(46, 230, 182, 0.5);
+  transform: rotateX(9deg) rotateY(-12deg);
+  animation: orb-float 7s ease-in-out infinite;
+}
+
+.market-orb__sphere::before,
+.market-orb__sphere::after,
+.market-orb__ring {
+  content: "";
+  position: absolute;
+  inset: 12%;
+  border: 1px solid rgba(126, 255, 229, 0.24);
+  border-radius: 50%;
+}
+.market-orb__sphere::before { transform: rotateX(68deg); }
+.market-orb__sphere::after { transform: rotateY(68deg); }
+.market-orb__ring--one { transform: rotate(36deg) scaleX(.42); }
+.market-orb__ring--two { transform: rotate(-42deg) scaleY(.42); }
+.market-orb__line {
+  position: absolute;
+  inset: 22% 16%;
+  background: linear-gradient(145deg, transparent 46%, #2ee6b6 47% 49%, transparent 50% 62%, #7c83ff 63% 65%, transparent 66%);
+  filter: drop-shadow(0 0 6px rgba(46, 230, 182, 0.8));
+}
+.market-orb__dot { position: absolute; width: 9px; aspect-ratio: 1; border-radius: 50%; background: #c9fff4; box-shadow: 0 0 16px #2ee6b6; }
+.market-orb__dot--one { left: 30%; top: 38%; }
+.market-orb__dot--two { right: 27%; top: 27%; }
+.market-orb__dot--three { right: 34%; bottom: 29%; }
+
+.market-radar-mini {
+  position: relative;
+  height: 42px;
+  overflow: hidden;
+  border-radius: 10px;
+  background: linear-gradient(rgba(46,230,182,.08) 1px, transparent 1px), linear-gradient(90deg, rgba(46,230,182,.08) 1px, transparent 1px);
+  background-size: 16px 16px;
+}
+.market-radar-mini span { position: absolute; inset: 18px 0 auto; height: 2px; background: linear-gradient(90deg, transparent, var(--color-accent), transparent); transform: rotate(-6deg); box-shadow: 0 0 8px var(--color-accent); }
+
+@keyframes orb-float {
+  0%, 100% { transform: translateY(0) rotateX(9deg) rotateY(-12deg); }
+  50% { transform: translateY(-10px) rotateX(12deg) rotateY(-5deg); }
+}
+
 /* Slow drifting glow behind the login hero. */
 .aurora {
   background:
@@ -264,6 +365,7 @@
   .fade-up,
   .flash-up,
   .flash-down,
+  .market-orb__sphere,
   .skeleton {
     animation: none;
     stroke-dashoffset: 0;

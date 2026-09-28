@@ -10,6 +10,12 @@ export type Period = (typeof PERIODS)[number];
 export const AI_KINDS = ["analysis", "chat", "advice", "strategy"] as const;
 export type AiKind = (typeof AI_KINDS)[number];
 
+/** Shared calendar-month credits; daily limits remain an additional burst cap. */
+export const AI_CREDIT_COST: Record<AiKind, number> = { analysis: 5, chat: 1, advice: 5, strategy: 10 };
+export const MONTHLY_CREDITS: Record<PlanId, number> = { free: 30, pro: 600, max: 2400 };
+export const TRIAL_CREDITS = 40;
+export type CreditBalance = { used: number; limit: number; resetsAt: string };
+
 export type PlanSpec = {
   id: PlanId;
   /** Monthly price; the yearly price is 12 months with the yearly discount. */
@@ -81,6 +87,7 @@ export type Billing = {
   referrals: number;
   refBonusDays: number;
   isAdmin: boolean;
+  credits: CreditBalance;
 };
 
 export type PaymentOptions = {
