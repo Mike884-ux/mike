@@ -20,4 +20,19 @@ const canonicalHost = createMiddleware({ type: "request" }).server(({ request, n
   return next();
 });
 
-export const startInstance = createStart(() => ({ requestMiddleware: [csrf, canonicalHost] }));
+/**
+ * On a long-running server the first request (Render's health check right
+ * after a deploy) starts the background loop: Telegram bot, alerts, keep-awake.
+ */
+let schedulerStarted = false;
+const scheduler = createMiddleware({ type: "request" }).server(({ next }) => {
+  if (!schedulerStarted) {
+    schedulerStarted = true;
+    void import("@/lib/scheduler.server")
+      .then((m) => m.ensureScheduler())
+      .catch((err) => console.error("[scheduler] failed to start:", err));
+  }
+  return next();
+});
+
+export const startInstance = createStart(() => ({ requestMiddleware: [csrf, scheduler, canonicalHost] }));

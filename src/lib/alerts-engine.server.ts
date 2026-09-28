@@ -10,7 +10,23 @@ import type { CoinRow } from "./scan";
 
 const PLAN_ORDER: Record<PlanId, number> = { max: 0, pro: 1, free: 2 };
 
-export type RunResult = { checked: number; fired: number; sent: number; failed: number };
+export type RunResult = { checked: number; fired: number; sent: number; failed: number; busy?: true };
+
+let running = false;
+
+/**
+ * One round at a time per process: the built-in scheduler and an outside cron
+ * may call at the same moment, and two rounds would send the same message twice.
+ */
+export async function runAlerts(origin: string, now = Date.now()): Promise<RunResult> {
+  if (running) return { checked: 0, fired: 0, sent: 0, failed: 0, busy: true };
+  running = true;
+  try {
+    return await checkAlerts(origin, now);
+  } finally {
+    running = false;
+  }
+}
 
 export function quoteOf(coin: MarketCoin | undefined): Quote | null {
   return coin && coin.price > 0 ? { price: coin.price, change24h: coin.change24h } : null;
@@ -34,7 +50,7 @@ export async function coinsBySymbol(symbols: string[]): Promise<MarketCoin[]> {
   return out;
 }
 
-export async function runAlerts(origin: string, now = Date.now()): Promise<RunResult> {
+async function checkAlerts(origin: string, now: number): Promise<RunResult> {
   const [{ getSql }, store, billing, tg, { runScan }] = await Promise.all([
     import("./db"),
     import("./alerts-store.server"),

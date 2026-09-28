@@ -1,6 +1,8 @@
 import type { MessageKey } from "./ru";
 
 export const en: Record<MessageKey, string> = {
+  "admin.tg.auto": "Alerts are checked automatically every 5 minutes and the site stays awake. Nothing else to set up.",
+  "admin.tg.cronBackup": "Backup: an outside check (optional)",
   "scr.saved": "My filters",
   "scr.savedEmpty": "Set filters and save them — they'll appear here.",
   "scr.save": "Save",
@@ -80,14 +82,14 @@ export const en: Record<MessageKey, string> = {
   "compare.screener": "Coins in the screener",
   "compare.screenerPro": "Volume, RSI and signal filters",
   "admin.tg.title": "Telegram bot and alerts",
-  "admin.tg.noKey": "Create a bot with @BotFather in Telegram and add its token in Render → Environment as TELEGRAM_BOT_TOKEN. Then refresh this page.",
-  "admin.tg.ready": "Token found. Press “Connect bot” and the site sets it up.",
+  "admin.tg.noKey": "Two steps: 1) in Telegram, send /newbot to @BotFather and get a token; 2) in Render → Environment add TELEGRAM_BOT_TOKEN with it. A couple of minutes after the restart the site connects the bot by itself.",
+  "admin.tg.ready": "Token found. The site connects the bot by itself within a minute of starting — or press “Connect bot”.",
   "admin.tg.connected": "Bot @{bot} is connected to the site.",
   "admin.tg.connect": "Connect bot",
   "admin.tg.reconnect": "Reconnect",
   "admin.tg.done": "Done! The bot answers messages.",
   "admin.tg.cronTitle": "Checking alerts every 5 minutes",
-  "admin.tg.cronText": "On cron-job.org create a job with this address, every 5 minutes. It also keeps the site awake. The address is secret — don't publish it.",
+  "admin.tg.cronText": "For an extra outside check: on cron-job.org create a job with this address, every 5 minutes. The address is secret — don't publish it.",
   "admin.tg.copy": "Copy",
   "admin.tg.copied": "Copied",
   "admin.tg.err.rejected": "Telegram rejected the token. Check TELEGRAM_BOT_TOKEN — @BotFather issues it.",

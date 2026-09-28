@@ -333,6 +333,8 @@ export type TelegramStatus = {
   /** The address for cron-job.org, with its key — shown to the owner only. */
   cronUrl: string | null;
   ownCronSecret: boolean;
+  /** The server checks alerts by itself (Render); the cron address is then only a backup. */
+  autoChecks: boolean;
 };
 
 async function telegramStatus(): Promise<TelegramStatus> {
@@ -352,6 +354,7 @@ async function telegramStatus(): Promise<TelegramStatus> {
     webhookUrl: saved["telegram:webhook_url"] ?? null,
     cronUrl: request && secret ? `${siteOrigin(request)}/api/cron/alerts?key=${encodeURIComponent(secret)}` : null,
     ownCronSecret: Boolean(process.env.CRON_SECRET?.trim()),
+    autoChecks: (await import("./scheduler.server")).schedulerEnabled(),
   };
 }
 
@@ -370,27 +373,16 @@ export const adminConnectTelegram = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .handler(async ({ context }): Promise<{ ok: true; status: TelegramStatus } | { ok: false; error: "no_key" | "rejected" | "failed"; detail?: string }> => {
     await requireAdmin(context.email);
-    const [tg, { getSql }, store, { getRequest }, { publicOrigin }] = await Promise.all([
+    const [tg, { getRequest }, { siteOrigin }] = await Promise.all([
       import("./telegram.server"),
-      import("./db"),
-      import("./billing-store.server"),
       import("@tanstack/react-start/server"),
       import("./http.server"),
     ]);
     if (!tg.botToken()) return { ok: false, error: "no_key" };
     const request = getRequest();
-    const webhookUrl = `${request ? publicOrigin(request) : ""}/api/telegram`;
     try {
-      const me = await tg.tg<{ username?: string }>("getMe");
-      await tg.tg("setWebhook", {
-        url: webhookUrl,
-        secret_token: tg.webhookSecret(),
-        allowed_updates: ["message"],
-        drop_pending_updates: true,
-      });
-      await tg.tg("setMyCommands", { commands: tg.BOT_COMMANDS });
-      await store.setSettings(await getSql(), { "telegram:bot_username": me.username ?? "", "telegram:webhook_url": webhookUrl });
-      console.log(`[admin] ${context.email} connected Telegram bot @${me.username} → ${webhookUrl}`);
+      const { username: me, webhookUrl } = await tg.connectBot(request ? siteOrigin(request) : "");
+      console.log(`[admin] ${context.email} connected Telegram bot @${me} → ${webhookUrl}`);
       return { ok: true, status: await telegramStatus() };
     } catch (err) {
       console.error("[admin] Telegram connect failed:", err);

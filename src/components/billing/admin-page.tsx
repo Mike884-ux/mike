@@ -331,9 +331,10 @@ function TelegramConnect() {
           </button>
         ) : null}
       </div>
+      {connected && data?.autoChecks ? <p className="mt-3 text-sm text-long">{t("admin.tg.auto")}</p> : null}
       {connected && data?.cronUrl ? (
-        <div className="mt-4 rounded-2xl bg-surface-2 p-4">
-          <p className="text-sm font-semibold text-fg">{t("admin.tg.cronTitle")}</p>
+        <details className="mt-4 rounded-2xl bg-surface-2 p-4" open={!data.autoChecks}>
+          <summary className="cursor-pointer text-sm font-semibold text-fg">{t(data.autoChecks ? "admin.tg.cronBackup" : "admin.tg.cronTitle")}</summary>
           <p className="mt-1 text-xs leading-relaxed text-muted">{t("admin.tg.cronText")}</p>
           <div className="mt-2 flex items-center gap-2">
             <code className="min-w-0 flex-1 truncate rounded-lg bg-surface px-3 py-2 font-mono text-xs text-fg">{data.cronUrl}</code>
@@ -351,7 +352,7 @@ function TelegramConnect() {
               {t(copied ? "admin.tg.copied" : "admin.tg.copy")}
             </button>
           </div>
-        </div>
+        </details>
       ) : null}
       {connect.data?.ok ? <p role="status" className="mt-3 text-sm text-long">{t("admin.tg.done")}</p> : null}
       {failure ? (

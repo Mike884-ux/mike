@@ -212,3 +212,25 @@ export function alertMessage(
   lines.push(`<i>${t.disclaimer}</i>`);
   return lines.join("\n");
 }
+
+/**
+ * Points the bot at this site: webhook with the secret header, the command
+ * menu, and its @username saved for the "Connect Telegram" links.
+ */
+export async function connectBot(origin: string): Promise<{ username: string; webhookUrl: string }> {
+  const [{ getSql }, store] = await Promise.all([import("./db"), import("./billing-store.server")]);
+  const webhookUrl = `${origin}/api/telegram`;
+  const me = await tg<{ username?: string }>("getMe");
+  await tg("setWebhook", { url: webhookUrl, secret_token: webhookSecret(), allowed_updates: ["message"], drop_pending_updates: true });
+  await tg("setMyCommands", { commands: BOT_COMMANDS });
+  const username = me.username ?? "";
+  await store.setSettings(await getSql(), { "telegram:bot_username": username, "telegram:webhook_url": webhookUrl });
+  return { username, webhookUrl };
+}
+
+/** The bot's webhook as last saved, to tell whether it still points here. */
+export async function savedWebhook(): Promise<string | null> {
+  const [{ getSql }, store] = await Promise.all([import("./db"), import("./billing-store.server")]);
+  const saved = await store.getSettings(await getSql(), ["telegram:webhook_url"]);
+  return saved["telegram:webhook_url"] ?? null;
+}
