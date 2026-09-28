@@ -17,6 +17,7 @@ export default tseslint.config(
       "src/routeTree.gen.ts",
       // сайт салона «Евро Класс» — отдельные файлы для браузера, не часть приложения
       "evroclass",
+      "evroclass-build",
     ],
   },
   {
