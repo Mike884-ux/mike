@@ -2,29 +2,44 @@
  * Claude backend via the official Anthropic SDK — **server-only**.
  *
  * Two routes to the same models:
- * - `direct`: api.anthropic.com with ANTHROPIC_API_KEY (model: ANTHROPIC_MODEL,
- *   default `claude-opus-5`).
+ * - `direct`: api.anthropic.com with ANTHROPIC_API_KEY.
  * - `gateway`: Vercel AI Gateway (Anthropic-compatible endpoint). On Vercel it
  *   authenticates with the deployment's own OIDC token, so the site owner does
  *   not have to create or paste any key. AI_GATEWAY_API_KEY works too (for local
- *   runs). Model: AI_GATEWAY_MODEL, default `anthropic/claude-opus-5`.
+ *   runs). Same models with the `anthropic/` prefix.
+ *
+ * The model depends on who asks: free members get the fast, cheap one
+ * (ANTHROPIC_MODEL_FREE, default `claude-haiku-4-5`), paying members the
+ * stronger one (ANTHROPIC_MODEL_PAID, else the older ANTHROPIC_MODEL, default
+ * `claude-sonnet-5`).
  */
 import Anthropic from "@anthropic-ai/sdk";
 import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import type { z } from "zod";
-import type { AiFailure, AiJsonResult, AiRequest, AiTextResult } from "./ai.server";
+import type { AiFailure, AiJsonResult, AiRequest, AiTextResult, AiTier } from "./ai.server";
 
 const GATEWAY_URL = process.env.AI_GATEWAY_BASE_URL?.trim() || "https://ai-gateway.vercel.sh";
 
 export type ClaudeRoute = "direct" | "gateway";
 
-function directModel(): string {
-  return process.env.ANTHROPIC_MODEL?.trim() || "claude-opus-5";
+export const FREE_MODEL = "claude-haiku-4-5";
+export const PAID_MODEL = "claude-sonnet-5";
+
+const env = (name: string) => process.env[name]?.trim() ?? "";
+
+/** The Claude model for a tier, as the Anthropic API names it. */
+export function modelFor(tier: AiTier): string {
+  if (tier === "free") return env("ANTHROPIC_MODEL_FREE") || FREE_MODEL;
+  return env("ANTHROPIC_MODEL_PAID") || env("ANTHROPIC_MODEL") || PAID_MODEL;
 }
 
-function gatewayModel(): string {
-  return process.env.AI_GATEWAY_MODEL?.trim() || "anthropic/claude-opus-5";
+/** The same model on the chosen route; AI_GATEWAY_MODEL still pins the paid one there. */
+export function routeModel(route: ClaudeRoute, tier: AiTier): string {
+  if (route === "direct") return modelFor(tier);
+  if (tier === "paid" && env("AI_GATEWAY_MODEL")) return env("AI_GATEWAY_MODEL");
+  const id = modelFor(tier);
+  return id.includes("/") ? id : `anthropic/${id}`;
 }
 
 /**
@@ -97,7 +112,7 @@ async function clientFor(route: ClaudeRoute): Promise<Anthropic | null> {
 }
 
 function baseParams(route: ClaudeRoute, req: AiRequest) {
-  const id = route === "direct" ? directModel() : gatewayModel();
+  const id = routeModel(route, req.tier ?? "paid");
   const caps = capabilities(route, id);
   return {
     params: {

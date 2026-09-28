@@ -33,9 +33,12 @@ export const getWalletAdvice = createServerFn({ method: "POST" })
     const [{ getSql }, store] = await Promise.all([import("./db"), import("./account-store.server")]);
     const { positions } = await store.loadAccount(await getSql(), context.userId);
     if (!positions.length) return { ok: false, reason: "empty" };
+    const [cache, quota] = await Promise.all([import("./ai-cache.server"), import("./quota.server")]);
+    const key = `wallet:${context.userId}:${data.lang}:${positions.map((p) => `${p.base}=${p.qty}@${p.entry}`).join(",")}`;
+    const hit = await cache.peekAi<string>(key, cache.AI_CACHE_TTL);
+    if (hit) return { ok: true, text: hit };
     if (!allow(context.userId, "wallet-advice", 6, 180_000)) return { ok: false, reason: "too_often" };
-    const { withAiQuota } = await import("./quota.server");
-    return withAiQuota(context, "advice", async () => {
+    const answer = await cache.shareAi<string, AiFailureReason>(key, () => quota.withAiQuota(context, "advice", async (_plan, tier) => {
       const marketMod = await import("./market.server");
       const { loadCoinContext } = await import("./coin-context.server");
       const tickers = await marketMod.fetchTickers(positions.map((p) => p.symbol));
@@ -77,9 +80,11 @@ export const getWalletAdvice = createServerFn({ method: "POST" })
         effort: "medium",
         maxTokens: 8000,
         lang: data.lang,
+        tier,
       });
-      return result.ok ? { ok: true, text: result.text } : { ok: false, reason: result.reason };
-    });
+      return result.ok ? { ok: true as const, value: result.text } : { ok: false as const, reason: result.reason };
+    }));
+    return answer.ok ? { ok: true, text: answer.value } : answer;
   });
 
 export const PORTFOLIO_PERIODS = [

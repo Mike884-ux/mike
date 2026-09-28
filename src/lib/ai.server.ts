@@ -19,6 +19,9 @@ export type AiFailure =
   | "refused"
   | "unavailable";
 
+/** Free members are answered by the cheap model, paying ones by the stronger one. */
+export type AiTier = "free" | "paid";
+
 export type AiMessage = { role: "user" | "assistant"; text: string };
 
 export type AiRequest = {
@@ -28,6 +31,8 @@ export type AiRequest = {
   effort?: "low" | "medium" | "high";
   maxTokens?: number;
   lang?: Lang;
+  /** Which model answers; defaults to the paid one (owner tools). */
+  tier?: AiTier;
 };
 
 export type AiTextResult = { ok: true; text: string } | { ok: false; reason: AiFailure };

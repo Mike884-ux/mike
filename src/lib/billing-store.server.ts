@@ -192,6 +192,39 @@ export async function consumeAi(
   };
 }
 
+/** Real AI requests the whole site may make per day (UTC). AI_DAILY_LIMIT overrides it. */
+export const SITE_AI_DAILY_LIMIT = 1500;
+
+export function siteAiLimit(): number {
+  const n = Math.floor(Number(process.env.AI_DAILY_LIMIT?.trim()));
+  return Number.isFinite(n) && n > 0 ? n : SITE_AI_DAILY_LIMIT;
+}
+
+/**
+ * Books one of today's site-wide AI requests. Null when the day's ceiling is
+ * reached; otherwise a function that gives the request back after a failure.
+ */
+export async function takeSiteAi(sql: SqlLike, limit: number, now = Date.now()): Promise<(() => Promise<void>) | null> {
+  const day = usageDay(now);
+  const rows = await sql<{ count: number }>`
+    insert into ai_site_usage (day, count) values (${day}, 1)
+    on conflict (day) do update set count = ai_site_usage.count + 1
+    where ai_site_usage.count < ${limit}
+    returning count`;
+  if (!rows.length) return null;
+  let given = false;
+  return async () => {
+    if (given) return;
+    given = true;
+    await sql`update ai_site_usage set count = greatest(count - 1, 0) where day = ${day}`;
+  };
+}
+
+export async function siteAiToday(sql: SqlLike, now = Date.now()): Promise<number> {
+  const rows = await sql<{ count: number }>`select count from ai_site_usage where day = ${usageDay(now)}`;
+  return Number(rows[0]?.count ?? 0);
+}
+
 /** Adds days of a paid plan. Time left on the current plan carries over. */
 export async function grantPlan(
   sql: SqlLike,

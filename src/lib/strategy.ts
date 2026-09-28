@@ -45,9 +45,6 @@ const RISK_TEXT: Record<Risk, string> = {
 };
 const HORIZON_TEXT: Record<Horizon, string> = { short: "short: weeks", medium: "medium: 3–12 months", long: "long: 1–4 years" };
 
-const cache = new Map<string, { at: number; value: StrategyPlan }>();
-const TTL = 10 * 60_000;
-
 /** A personalised strategy from live market data and the member's saved portfolio. */
 export const getStrategyAdvice = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
@@ -59,12 +56,13 @@ export const getStrategyAdvice = createServerFn({ method: "POST" })
   .handler(async ({ data, context }): Promise<{ ok: true; plan: StrategyPlan } | { ok: false; reason: AiFailureReason }> => {
     const [{ getSql }, store] = await Promise.all([import("./db"), import("./account-store.server")]);
     const { positions } = await store.loadAccount(await getSql(), context.userId);
-    const key = `${context.userId}:${data.risk}:${data.horizon}:${data.lang}:${positions.map((p) => `${p.base}=${p.qty}`).join(",")}`;
-    const hit = cache.get(key);
-    if (hit && Date.now() - hit.at < TTL) return { ok: true, plan: hit.value };
+    const [cache, quota] = await Promise.all([import("./ai-cache.server"), import("./quota.server")]);
+    // Personal: the same member with the same holdings and answers gets the plan again for free.
+    const key = `strategy:${context.userId}:${data.risk}:${data.horizon}:${data.lang}:${positions.map((p) => `${p.base}=${p.qty}`).join(",")}`;
+    const hit = await cache.peekAi<StrategyPlan>(key, cache.AI_CACHE_TTL);
+    if (hit) return { ok: true, plan: hit };
     if (!allow(context.userId, "strategy", 6, 300_000)) return { ok: false, reason: "too_often" };
-    const { withAiQuota } = await import("./quota.server");
-    return withAiQuota(context, "strategy", async () => {
+    const answer = await cache.shareAi<StrategyPlan, AiFailureReason>(key, () => quota.withAiQuota(context, "strategy", async (_plan, tier) => {
       const [coins, market, { loadCoinContext }] = await Promise.all([
         import("./coins.server"),
         import("./market.server"),
@@ -97,14 +95,13 @@ export const getStrategyAdvice = createServerFn({ method: "POST" })
       ];
       const { completeJson } = await import("./ai.server");
       const result = await completeJson(
-        { system: SYSTEM, messages: [{ role: "user", text: lines.filter(Boolean).join("\n") }], effort: "high", maxTokens: 10000, lang: data.lang },
+        { system: SYSTEM, messages: [{ role: "user", text: lines.filter(Boolean).join("\n") }], effort: "high", maxTokens: 10000, lang: data.lang, tier },
         StrategySchema,
       );
-      if (!result.ok) return { ok: false, reason: result.reason };
-      const plan = normalize(result.value);
-      cache.set(key, { at: Date.now(), value: plan });
-      return { ok: true, plan };
-    });
+      if (!result.ok) return { ok: false as const, reason: result.reason };
+      return { ok: true as const, value: normalize(result.value) };
+    }));
+    return answer.ok ? { ok: true, plan: answer.value } : answer;
   });
 
 /** Trim lists and make the allocation add up to 100. */

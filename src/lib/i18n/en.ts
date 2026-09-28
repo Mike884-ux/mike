@@ -282,6 +282,7 @@ export const en: Record<MessageKey, string> = {
   "aiErr.too_often": "Too many requests. Wait a couple of minutes.",
   "aiErr.no_data": "No data to analyze.",
   "aiErr.empty": "Your wallet is empty.",
+  "aiErr.busy": "The AI has reached today's limit. Try again tomorrow — ready-made coin analyses still open.",
 
   "wallet.title": "Spot wallet",
   "wallet.subtitle": "Positions and trades are saved to your account and available on any device.",
@@ -742,6 +743,8 @@ export const en: Record<MessageKey, string> = {
   "admin.revenue30": "Revenue, 30 days",
   "admin.revenueTotal": "total ${n}",
   "admin.aiToday": "AI requests today",
+  "admin.aiModels": "AI models: free members — {free}, paying members — {paid}.",
+  "admin.aiLimitHint": "At most {n} AI requests a day for the whole site (AI_DAILY_LIMIT). Answers served from the cache don't count.",
   "admin.referred": "joined by invite: {n}",
   "admin.setup": "What's connected",
   "admin.setupHint": "Keys are set in your host's settings: Render → Environment (or Vercel → Settings → Environment Variables). The site restarts by itself after saving.",

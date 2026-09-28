@@ -43,7 +43,7 @@ export const PLANS: Record<PlanId, PlanSpec> = {
     id: "pro",
     month: 9,
     year: yearly(9),
-    limits: { analysis: 40, chat: 150, advice: 10, strategy: 5 },
+    limits: { analysis: 50, chat: 150, advice: 10, strategy: 5 },
   },
   max: {
     id: "max",

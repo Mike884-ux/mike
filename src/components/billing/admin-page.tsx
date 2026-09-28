@@ -521,7 +521,7 @@ export function AdminPage() {
       </div>
     );
   }
-  const { stats, payments, setup } = overview.data;
+  const { stats, payments, setup, ai } = overview.data;
   return (
     <div className="flex flex-col gap-6">
       <h1 className="font-display text-2xl font-bold text-fg sm:text-3xl">{t("admin.title")}</h1>
@@ -547,7 +547,7 @@ export function AdminPage() {
         <Tile
           icon={<Sparkles className="size-3.5" />}
           label={t("admin.aiToday")}
-          value={String(stats.aiToday)}
+          value={`${ai.today} / ${ai.limit}`}
           hint={t("admin.referred", { n: stats.referred })}
         />
       </div>
@@ -568,6 +568,10 @@ export function AdminPage() {
             </li>
           ))}
         </ul>
+        <p className="mt-3 text-sm text-muted">
+          {t("admin.aiModels", { free: ai.freeModel, paid: ai.paidModel })}
+        </p>
+        <p className="mt-1 text-xs text-faint">{t("admin.aiLimitHint", { n: ai.limit })}</p>
         <p className="mt-3 text-xs text-faint">{t("admin.setupHint")}</p>
       </section>
 

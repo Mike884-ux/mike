@@ -230,17 +230,28 @@ async function enrichHeadlines(items: NewsItem[], lang: Lang): Promise<NewsItem[
   const key = `${lang}|${items.map((item) => item.title).join("|")}`;
   const hit = enrichCache.get(key);
   if (hit && Date.now() - hit.at < NEWS_TTL) return hit.value;
-  const { completeJson } = await import("./ai.server");
-  const result = await completeJson(
-    {
-      system:
-        "You process market headlines. For each numbered headline return its index, the title rewritten in the target language (keep company and coin names; if the target language is English keep the original title), and tone: bull if it is likely good for prices of the assets it mentions, bear if likely bad, neutral otherwise.",
-      messages: [{ role: "user", text: items.map((item, i) => `${i}. ${item.title}`).join("\n") }],
-      effort: "low",
-      maxTokens: 4000,
-      lang,
-    },
-    EnrichSchema,
+  const [cache, { withSiteBudget }, { completeJson }] = await Promise.all([
+    import("./ai-cache.server"),
+    import("./quota.server"),
+    import("./ai.server"),
+  ]);
+  // Shared by every reader and kept across restarts; the fast model is plenty for this.
+  const result = await cache.cachedAi(`news:${key}`, NEWS_TTL, () =>
+    withSiteBudget({}, async () => {
+      const answer = await completeJson(
+        {
+          system:
+            "You process market headlines. For each numbered headline return its index, the title rewritten in the target language (keep company and coin names; if the target language is English keep the original title), and tone: bull if it is likely good for prices of the assets it mentions, bear if likely bad, neutral otherwise.",
+          messages: [{ role: "user", text: items.map((item, i) => `${i}. ${item.title}`).join("\n") }],
+          effort: "low",
+          maxTokens: 4000,
+          lang,
+          tier: "free",
+        },
+        EnrichSchema,
+      );
+      return answer.ok ? { ok: true as const, value: answer.value } : { ok: false as const, reason: answer.reason };
+    }),
   );
   if (!result.ok) return items;
   const byIndex = new Map(result.value.items.map((row) => [row.index, row]));

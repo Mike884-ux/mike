@@ -34,7 +34,7 @@ export const chatWithAi = createServerFn({ method: "POST" })
     if (!messages.length || messages.at(-1)!.role !== "user") return { ok: false, reason: "no_data" };
     if (!allow(context.userId, "ai-chat", 20, 180_000)) return { ok: false, reason: "too_often" };
     const { withAiQuota } = await import("./quota.server");
-    return withAiQuota(context, "chat", async (plan) => {
+    return withAiQuota(context, "chat", async (plan, tier) => {
       // Attach live numbers when the question names an asset ("что с солана?").
       const base = detectBaseInText(messages.at(-1)!.text);
       let live = "";
@@ -63,6 +63,7 @@ export const chatWithAi = createServerFn({ method: "POST" })
         effort: plan === "max" ? "high" : "medium",
         maxTokens: 8000,
         lang: data.lang,
+        tier,
       });
       return result.ok ? { ok: true, text: result.text } : { ok: false, reason: result.reason };
     });

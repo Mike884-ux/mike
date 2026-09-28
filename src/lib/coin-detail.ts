@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { authMiddleware } from "@/lib/auth/middleware";
-import type { AiFailure } from "./ai.server";
+import type { AiFailure, AiTier } from "./ai.server";
 import type { CoinContext } from "./coin-context.server";
 import { factorTextRu } from "./indicators";
 import { asLang } from "./lang";
@@ -11,7 +11,7 @@ import { asInterval, type AiLevels } from "./types";
 
 export type CoinChartData = Omit<CoinContext, "symbol">;
 
-export type AiFailureReason = AiFailure | "too_often" | "no_data" | "limit";
+export type AiFailureReason = AiFailure | "too_often" | "no_data" | "limit" | "busy";
 
 /** Lets the detail view switch timeframe on its own, independent of the scanner's global interval. */
 export const getCoinChart = createServerFn({ method: "POST" })
@@ -140,9 +140,6 @@ export function sanitizeLevels(raw: RawLevels, price: number, technicalScore: nu
   };
 }
 
-const chartCache = new Map<string, { at: number; value: AiLevels }>();
-const CHART_TTL = 180_000;
-
 const ANALYST_SYSTEM = `You are a senior crypto and equity market analyst writing for a retail trader.
 You get fresh numbers computed from real candles: indicators, a points-based technical score, the trend on the next higher timeframe, a walk-forward backtest of the indicator rule on this very asset, buyer/seller volume share, the Fear & Greed index and recent headlines.
 
@@ -190,52 +187,56 @@ export const analyzeChartAi = createServerFn({ method: "POST" })
   }))
   .handler(async ({ data, context }): Promise<{ ok: true; levels: AiLevels } | { ok: false; reason: AiFailureReason }> => {
     if (!data.base || !assetOf(data.base)) return { ok: false, reason: "no_data" };
-    const key = `${data.base}:${data.interval}:${data.lang}`;
-    const hit = chartCache.get(key);
-    if (hit && Date.now() - hit.at < CHART_TTL) return { ok: true, levels: hit.value };
+    const [cache, quota] = await Promise.all([import("./ai-cache.server"), import("./quota.server")]);
+    // One answer per coin, timeframe, language and model, shared by everyone for 15 minutes.
+    // A free member may also get the stronger model's answer when one is ready — it costs nothing.
+    const keyFor = (tier: AiTier) => `chart:${tier}:${data.base}:${data.interval}:${data.lang}`;
+    const tier = await quota.aiTierFor(context);
+    for (const t of tier === "free" ? (["paid", "free"] as const) : (["paid"] as const)) {
+      const hit = await cache.peekAi<AiLevels>(keyFor(t), cache.AI_CACHE_TTL);
+      if (hit) return { ok: true, levels: hit };
+    }
     if (!allow(context.userId, "chart-ai", 10, 180_000)) return { ok: false, reason: "too_often" };
-    const { withAiQuota } = await import("./quota.server");
-    return withAiQuota(context, "analysis", async () => {
-      const { loadCoinContext } = await import("./coin-context.server");
-      const marketMod = await import("./market.server");
-      const { queryHeadlines } = await import("./news.server");
-      const ctx = await loadCoinContext(data.base, data.interval);
-      if (!ctx) return { ok: false, reason: "no_data" };
-      const [buyRatio, fng, headlines] = await Promise.all([
-        marketMod.fetchBuyPressure(ctx.symbol, data.interval).catch(() => null),
-        assetOf(data.base)?.kind === "crypto" ? marketMod.fetchFearGreed().catch(() => undefined) : Promise.resolve(undefined),
-        queryHeadlines(data.base, "raw").catch(() => []),
-      ]);
+    const answer = await cache.shareAi<AiLevels, AiFailureReason>(keyFor(tier), () =>
+      quota.withAiQuota(context, "analysis", async () => {
+        const { loadCoinContext } = await import("./coin-context.server");
+        const marketMod = await import("./market.server");
+        const { queryHeadlines } = await import("./news.server");
+        const ctx = await loadCoinContext(data.base, data.interval);
+        if (!ctx) return { ok: false as const, reason: "no_data" as const };
+        const [buyRatio, fng, headlines] = await Promise.all([
+          marketMod.fetchBuyPressure(ctx.symbol, data.interval).catch(() => null),
+          assetOf(data.base)?.kind === "crypto" ? marketMod.fetchFearGreed().catch(() => undefined) : Promise.resolve(undefined),
+          queryHeadlines(data.base, "raw").catch(() => []),
+        ]);
 
-      const { completeJson } = await import("./ai.server");
-      const result = await completeJson(
-        {
-          system: ANALYST_SYSTEM,
-          messages: [
-            {
-              role: "user",
-              text: `Timeframe: ${data.interval}.\n${describeContext(ctx, {
-                buyRatio,
-                fng,
-                headlines: headlines.slice(0, 6).map((h) => h.title),
-              })}`,
-            },
-          ],
-          effort: "high",
-          maxTokens: 12000,
-          lang: data.lang,
-        },
-        LevelsSchema,
-      );
-      if (!result.ok) return { ok: false, reason: result.reason };
-      const levels = sanitizeLevels(result.value, ctx.price, ctx.score);
-      chartCache.set(key, { at: Date.now(), value: levels });
-      return { ok: true, levels };
-    });
+        const { completeJson } = await import("./ai.server");
+        const result = await completeJson(
+          {
+            system: ANALYST_SYSTEM,
+            messages: [
+              {
+                role: "user",
+                text: `Timeframe: ${data.interval}.\n${describeContext(ctx, {
+                  buyRatio,
+                  fng,
+                  headlines: headlines.slice(0, 6).map((h) => h.title),
+                })}`,
+              },
+            ],
+            effort: "high",
+            maxTokens: 12000,
+            lang: data.lang,
+            tier,
+          },
+          LevelsSchema,
+        );
+        if (!result.ok) return { ok: false as const, reason: result.reason };
+        return { ok: true as const, value: sanitizeLevels(result.value, ctx.price, ctx.score) };
+      }),
+    );
+    return answer.ok ? { ok: true, levels: answer.value } : answer;
   });
-
-const simpleCache = new Map<string, { at: number; value: string }>();
-const SIMPLE_TTL = 180_000;
 
 /** Rephrases an already-generated AI verdict in plain, jargon-free language for a non-trader. */
 export const explainSimple = createServerFn({ method: "POST" })
@@ -252,33 +253,39 @@ export const explainSimple = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }): Promise<{ ok: true; text: string } | { ok: false; reason: AiFailureReason }> => {
     if (!data.base || !data.verdict) return { ok: false, reason: "no_data" };
-    const key = `${data.base}:${data.interval}:${data.lang}:${data.verdict}`;
-    const hit = simpleCache.get(key);
-    if (hit && Date.now() - hit.at < SIMPLE_TTL) return { ok: true, text: hit.value };
+    const [cache, quota] = await Promise.all([import("./ai-cache.server"), import("./quota.server")]);
+    const key = `simple:${data.base}:${data.interval}:${data.lang}:${data.direction}:${data.verdict}\n${data.reasons.join("\n")}`;
+    const hit = await cache.peekAi<string>(key, cache.AI_CACHE_TTL);
+    if (hit) return { ok: true, text: hit };
     if (!allow(context.userId, "chart-ai", 10, 180_000)) return { ok: false, reason: "too_often" };
-    const { completeText } = await import("./ai.server");
     const direction = data.direction === "LONG" ? "buy" : data.direction === "SHORT" ? "sell" : "wait";
-    const result = await completeText({
-      system:
-        "Explain a market analyst's conclusion to someone who has never traded, as if to a friend. No jargon (RSI, MACD, EMA, support, long/short) — translate their meaning into everyday words. 3–5 short sentences. No guarantees, no investment advice. Plain text only: no headings, no markdown, no JSON.",
-      messages: [
-        {
-          role: "user",
-          text: [
-            `Asset: ${data.base}.`,
-            `Analyst conclusion: ${data.verdict}`,
-            data.reasons.length ? `Reasons: ${data.reasons.join("; ")}` : "",
-            `Suggested action: ${direction}.`,
-          ]
-            .filter(Boolean)
-            .join("\n"),
-        },
-      ],
-      effort: "low",
-      maxTokens: 2000,
-      lang: data.lang,
-    });
-    if (!result.ok) return { ok: false, reason: result.reason };
-    simpleCache.set(key, { at: Date.now(), value: result.text });
-    return { ok: true, text: result.text };
+    const answer = await cache.shareAi<string, AiFailureReason>(key, () =>
+      quota.withSiteBudget(context, async () => {
+        const { completeText } = await import("./ai.server");
+        const result = await completeText({
+          system:
+            "Explain a market analyst's conclusion to someone who has never traded, as if to a friend. No jargon (RSI, MACD, EMA, support, long/short) — translate their meaning into everyday words. 3–5 short sentences. No guarantees, no investment advice. Plain text only: no headings, no markdown, no JSON.",
+          messages: [
+            {
+              role: "user",
+              text: [
+                `Asset: ${data.base}.`,
+                `Analyst conclusion: ${data.verdict}`,
+                data.reasons.length ? `Reasons: ${data.reasons.join("; ")}` : "",
+                `Suggested action: ${direction}.`,
+              ]
+                .filter(Boolean)
+                .join("\n"),
+            },
+          ],
+          effort: "low",
+          maxTokens: 2000,
+          lang: data.lang,
+          // Rephrasing is easy work: the fast model does it for everyone.
+          tier: "free",
+        });
+        return result.ok ? { ok: true as const, value: result.text } : { ok: false as const, reason: result.reason };
+      }),
+    );
+    return answer.ok ? { ok: true, text: answer.value } : answer;
   });

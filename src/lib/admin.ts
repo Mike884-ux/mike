@@ -28,23 +28,29 @@ async function requireAdmin(email: string) {
 
 export type SetupItem = { key: string; ok: boolean };
 
-export type AdminOverview = { stats: AdminStats; payments: PaymentRow[]; setup: SetupItem[] };
+/** Real AI requests today against the site's ceiling, and the model each tier gets. */
+export type AiLoad = { today: number; limit: number; freeModel: string; paidModel: string };
+
+export type AdminOverview = { stats: AdminStats; payments: PaymentRow[]; setup: SetupItem[]; ai: AiLoad };
 
 /** Numbers for the owner: sign-ups, paying members, revenue, AI load, and which keys are set. */
 export const getAdminOverview = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
   .handler(async ({ context }): Promise<AdminOverview> => {
     await requireAdmin(context.email);
-    const [{ getSql }, store, pay] = await Promise.all([
+    const [{ getSql }, store, pay, claude] = await Promise.all([
       import("./db"),
       import("./billing-store.server"),
       import("./payments.server"),
+      import("./claude.server"),
     ]);
     const sql = await getSql();
-    const [stats, payments] = await Promise.all([
+    const [stats, payments, aiToday] = await Promise.all([
       store.adminStats(sql),
       store.recentPayments(sql, 30),
+      store.siteAiToday(sql),
     ]);
+    const ai: AiLoad = { today: aiToday, limit: store.siteAiLimit(), freeModel: claude.modelFor("free"), paidModel: claude.modelFor("paid") };
     const has = (...names: string[]) => names.every((n) => Boolean(process.env[n]?.trim()));
     const setup: SetupItem[] = [
       { key: "DATABASE_URL", ok: Boolean(findDatabaseUrl(process.env)) },
@@ -64,7 +70,7 @@ export const getAdminOverview = createServerFn({ method: "GET" })
       { key: "PAY_CONTACT", ok: has("PAY_CONTACT") },
       { key: "TELEGRAM_BOT_TOKEN", ok: has("TELEGRAM_BOT_TOKEN") },
     ];
-    return { stats, payments, setup };
+    return { stats, payments, setup, ai };
   });
 
 export type MemberInfo = {
