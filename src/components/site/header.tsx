@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { Link, useRouterState } from "@tanstack/react-router";
-import { Bot, Coins, Crown, LineChart, Menu, Search, Sparkles, Wallet, X } from "lucide-react";
+import { Bot, Coins, Crown, LineChart, Menu, Search, SlidersHorizontal, Sparkles, Wallet, X } from "lucide-react";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import { useBilling } from "@/lib/use-billing";
 import { useHydrated } from "@/lib/use-hydrated";
@@ -17,6 +17,7 @@ import { ThemeToggle, useChangeLang } from "@/components/site/prefs";
 export const NAV = [
   { to: "/", label: "nav.coins", icon: Coins, exact: true },
   { to: "/signals", label: "nav.signals", icon: LineChart, exact: false },
+  { to: "/screener", label: "nav.screener", icon: SlidersHorizontal, exact: false },
   { to: "/portfolio", label: "nav.portfolio", icon: Wallet, exact: false },
   { to: "/ai", label: "nav.ai", icon: Bot, exact: false },
   { to: "/pricing", label: "nav.pricing", icon: Crown, exact: false },
@@ -192,7 +193,7 @@ export function SiteHeader() {
 
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-bg/85 backdrop-blur-xl">
-      <div className="mx-auto flex h-16 max-w-[1440px] items-center gap-4 px-4 sm:px-6">
+      <div className="mx-auto flex h-16 max-w-[1440px] items-center gap-3 px-4 sm:px-6 xl:gap-4">
         <Brand />
         <nav className="hidden items-center gap-0.5 lg:flex" aria-label={t("nav.menu")}>
           {NAV.map((item) => (
@@ -202,14 +203,14 @@ export function SiteHeader() {
               activeOptions={{ exact: item.exact }}
               activeProps={{ className: "text-fg after:opacity-100" }}
               inactiveProps={{ className: "text-muted after:opacity-0" }}
-              className="relative flex h-16 items-center px-3 text-sm font-semibold outline-none transition-colors after:absolute after:inset-x-3 after:bottom-0 after:h-0.5 after:rounded-full after:bg-primary after:transition-opacity hover:text-fg focus-visible:text-fg"
+              className="relative flex h-16 items-center px-2 text-sm font-semibold whitespace-nowrap outline-none transition-colors after:absolute after:inset-x-2 after:bottom-0 xl:px-3 xl:after:inset-x-3 after:h-0.5 after:rounded-full after:bg-primary after:transition-opacity hover:text-fg focus-visible:text-fg"
             >
               {t(item.label)}
             </Link>
           ))}
         </nav>
         <div className="flex-1" />
-        <CoinSearch className="hidden w-64 md:block lg:hidden xl:block xl:w-72" />
+        <CoinSearch className="hidden w-64 md:block lg:hidden xl:block xl:w-56 min-[1400px]:w-72" />
         <div className="flex items-center gap-1.5">
           <button
             type="button"

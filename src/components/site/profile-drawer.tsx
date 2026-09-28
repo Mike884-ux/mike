@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { create } from "zustand";
 import {
   ArrowLeftRight,
+  Bell,
   Bot,
   ChevronRight,
   Compass,
@@ -17,6 +18,7 @@ import {
   Moon,
   Newspaper,
   ShieldCheck,
+  SlidersHorizontal,
   Sun,
   Wallet,
   X,
@@ -162,6 +164,8 @@ function Row({ icon, label, onClick, to, href, hash, danger, children }: {
 
 const ACTIONS: { to: string; search?: Record<string, string>; hash?: string; label: MessageKey; icon: typeof Bot; tone: string }[] = [
   { to: "/signals", label: "drawer.a.signals", icon: LineChart, tone: "from-emerald-400 to-teal-600" },
+  { to: "/screener", label: "drawer.a.screener", icon: SlidersHorizontal, tone: "from-cyan-400 to-sky-600" },
+  { to: "/alerts", label: "drawer.a.alerts", icon: Bell, tone: "from-orange-400 to-red-500" },
   { to: "/ai", label: "drawer.a.ai", icon: Bot, tone: "from-indigo-400 to-violet-600" },
   { to: "/ai", search: { tab: "strategy" }, label: "drawer.a.strategy", icon: Compass, tone: "from-sky-400 to-blue-600" },
   { to: "/converter", label: "drawer.a.converter", icon: ArrowLeftRight, tone: "from-amber-300 to-orange-500" },

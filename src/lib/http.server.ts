@@ -63,3 +63,9 @@ export function publicOrigin(request: Request): string {
   if (!local) url.protocol = "https:";
   return url.origin;
 }
+
+/** Where links in messages should point: the owner's domain when set, else this request's host. */
+export function siteOrigin(request: Request): string {
+  const host = process.env.CANONICAL_HOST?.trim().replace(/^https?:\/\//, "").replace(/\/.*$/, "");
+  return host ? `https://${host}` : publicOrigin(request);
+}

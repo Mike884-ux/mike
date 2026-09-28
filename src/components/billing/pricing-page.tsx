@@ -23,6 +23,7 @@ import { joinWaitlist, startCheckout } from "@/lib/billing";
 import { useT, type MessageKey } from "@/lib/i18n";
 import {
   AI_KINDS,
+  ALERT_LIMITS,
   MONTHLY_CREDITS,
   TRIAL_CREDITS,
   PLANS,
@@ -235,6 +236,8 @@ function PlanCard({
               : t(`${KIND_KEY[kind]}.none` as MessageKey)}
           </Feature>
         ))}
+        <Feature ok strong={paid}>{t(plan === "free" ? "pricing.f.alertsFree" : "pricing.f.alerts", { n: ALERT_LIMITS[plan] })}</Feature>
+        <Feature ok>{t(plan === "free" ? "pricing.f.screenerFree" : "pricing.f.screener")}</Feature>
         <Feature ok>{t("pricing.f.portfolio")}</Feature>
         {plan === "max" ? <Feature ok>{t("pricing.f.deep")}</Feature> : null}
       </ul>
@@ -572,6 +575,10 @@ function CompareTable() {
         PLANS[p].limits[kind] > 0 ? String(PLANS[p].limits[kind]) : "—",
       ),
     })),
+    { label: t("compare.alerts"), values: (["free", "pro", "max"] as const).map((p) => String(ALERT_LIMITS[p])) },
+    { label: t("compare.alertsTech"), values: ["—", "✓", "✓"] },
+    { label: t("compare.screener"), values: ["100", "300", "300"] },
+    { label: t("compare.screenerPro"), values: ["—", "✓", "✓"] },
     { label: t("compare.portfolio"), values: ["✓", "✓", "✓"] },
     { label: t("compare.deep"), values: ["—", "—", "✓"] },
   ];

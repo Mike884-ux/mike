@@ -14,18 +14,22 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as SiteIndexRouteImport } from './routes/_site/index'
 import { Route as SiteAdminRouteImport } from './routes/_site/admin'
 import { Route as SiteAiRouteImport } from './routes/_site/ai'
+import { Route as SiteAlertsRouteImport } from './routes/_site/alerts'
 import { Route as SiteConverterRouteImport } from './routes/_site/converter'
 import { Route as SiteNewsRouteImport } from './routes/_site/news'
 import { Route as SitePortfolioRouteImport } from './routes/_site/portfolio'
 import { Route as SitePricingRouteImport } from './routes/_site/pricing'
+import { Route as SiteScreenerRouteImport } from './routes/_site/screener'
 import { Route as SiteSignalsRouteImport } from './routes/_site/signals'
 import { Route as SiteTrustRouteImport } from './routes/_site/trust'
 import { Route as ApiHealthRouteImport } from './routes/api/health'
+import { Route as ApiTelegramRouteImport } from './routes/api/telegram'
 import { Route as SiteCoinsIdRouteImport } from './routes/_site/coins/$id'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 import { Route as ApiBillingDodoRouteImport } from './routes/api/billing/dodo'
 import { Route as ApiBillingNowpaymentsRouteImport } from './routes/api/billing/nowpayments'
 import { Route as ApiBillingStripeRouteImport } from './routes/api/billing/stripe'
+import { Route as ApiCronAlertsRouteImport } from './routes/api/cron/alerts'
 import { Route as ApiMarketGlobalRouteImport } from './routes/api/market/global'
 import { Route as ApiMarketListingRouteImport } from './routes/api/market/listing'
 import { Route as ApiMarketSearchRouteImport } from './routes/api/market/search'
@@ -57,6 +61,11 @@ const SiteAiRoute = SiteAiRouteImport.update({
   path: '/ai',
   getParentRoute: () => SiteRoute,
 } as any)
+const SiteAlertsRoute = SiteAlertsRouteImport.update({
+  id: '/alerts',
+  path: '/alerts',
+  getParentRoute: () => SiteRoute,
+} as any)
 const SiteConverterRoute = SiteConverterRouteImport.update({
   id: '/converter',
   path: '/converter',
@@ -77,6 +86,11 @@ const SitePricingRoute = SitePricingRouteImport.update({
   path: '/pricing',
   getParentRoute: () => SiteRoute,
 } as any)
+const SiteScreenerRoute = SiteScreenerRouteImport.update({
+  id: '/screener',
+  path: '/screener',
+  getParentRoute: () => SiteRoute,
+} as any)
 const SiteSignalsRoute = SiteSignalsRouteImport.update({
   id: '/signals',
   path: '/signals',
@@ -90,6 +104,11 @@ const SiteTrustRoute = SiteTrustRouteImport.update({
 const ApiHealthRoute = ApiHealthRouteImport.update({
   id: '/api/health',
   path: '/api/health',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiTelegramRoute = ApiTelegramRouteImport.update({
+  id: '/api/telegram',
+  path: '/api/telegram',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SiteCoinsIdRoute = SiteCoinsIdRouteImport.update({
@@ -115,6 +134,11 @@ const ApiBillingNowpaymentsRoute = ApiBillingNowpaymentsRouteImport.update({
 const ApiBillingStripeRoute = ApiBillingStripeRouteImport.update({
   id: '/api/billing/stripe',
   path: '/api/billing/stripe',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiCronAlertsRoute = ApiCronAlertsRouteImport.update({
+  id: '/api/cron/alerts',
+  path: '/api/cron/alerts',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiMarketGlobalRoute = ApiMarketGlobalRouteImport.update({
@@ -153,18 +177,22 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/admin': typeof SiteAdminRoute
   '/ai': typeof SiteAiRoute
+  '/alerts': typeof SiteAlertsRoute
   '/converter': typeof SiteConverterRoute
   '/news': typeof SiteNewsRoute
   '/portfolio': typeof SitePortfolioRoute
   '/pricing': typeof SitePricingRoute
+  '/screener': typeof SiteScreenerRoute
   '/signals': typeof SiteSignalsRoute
   '/trust': typeof SiteTrustRoute
   '/api/health': typeof ApiHealthRoute
+  '/api/telegram': typeof ApiTelegramRoute
   '/coins/$id': typeof SiteCoinsIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/billing/dodo': typeof ApiBillingDodoRoute
   '/api/billing/nowpayments': typeof ApiBillingNowpaymentsRoute
   '/api/billing/stripe': typeof ApiBillingStripeRoute
+  '/api/cron/alerts': typeof ApiCronAlertsRoute
   '/api/market/global': typeof ApiMarketGlobalRoute
   '/api/market/listing': typeof ApiMarketListingRoute
   '/api/market/search': typeof ApiMarketSearchRoute
@@ -176,19 +204,23 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/admin': typeof SiteAdminRoute
   '/ai': typeof SiteAiRoute
+  '/alerts': typeof SiteAlertsRoute
   '/converter': typeof SiteConverterRoute
   '/news': typeof SiteNewsRoute
   '/portfolio': typeof SitePortfolioRoute
   '/pricing': typeof SitePricingRoute
+  '/screener': typeof SiteScreenerRoute
   '/signals': typeof SiteSignalsRoute
   '/trust': typeof SiteTrustRoute
   '/api/health': typeof ApiHealthRoute
+  '/api/telegram': typeof ApiTelegramRoute
   '/': typeof SiteIndexRoute
   '/coins/$id': typeof SiteCoinsIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/billing/dodo': typeof ApiBillingDodoRoute
   '/api/billing/nowpayments': typeof ApiBillingNowpaymentsRoute
   '/api/billing/stripe': typeof ApiBillingStripeRoute
+  '/api/cron/alerts': typeof ApiCronAlertsRoute
   '/api/market/global': typeof ApiMarketGlobalRoute
   '/api/market/listing': typeof ApiMarketListingRoute
   '/api/market/search': typeof ApiMarketSearchRoute
@@ -202,19 +234,23 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/_site/admin': typeof SiteAdminRoute
   '/_site/ai': typeof SiteAiRoute
+  '/_site/alerts': typeof SiteAlertsRoute
   '/_site/converter': typeof SiteConverterRoute
   '/_site/news': typeof SiteNewsRoute
   '/_site/portfolio': typeof SitePortfolioRoute
   '/_site/pricing': typeof SitePricingRoute
+  '/_site/screener': typeof SiteScreenerRoute
   '/_site/signals': typeof SiteSignalsRoute
   '/_site/trust': typeof SiteTrustRoute
   '/api/health': typeof ApiHealthRoute
+  '/api/telegram': typeof ApiTelegramRoute
   '/_site/': typeof SiteIndexRoute
   '/_site/coins/$id': typeof SiteCoinsIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/billing/dodo': typeof ApiBillingDodoRoute
   '/api/billing/nowpayments': typeof ApiBillingNowpaymentsRoute
   '/api/billing/stripe': typeof ApiBillingStripeRoute
+  '/api/cron/alerts': typeof ApiCronAlertsRoute
   '/api/market/global': typeof ApiMarketGlobalRoute
   '/api/market/listing': typeof ApiMarketListingRoute
   '/api/market/search': typeof ApiMarketSearchRoute
@@ -229,18 +265,22 @@ export interface FileRouteTypes {
     | '/login'
     | '/admin'
     | '/ai'
+    | '/alerts'
     | '/converter'
     | '/news'
     | '/portfolio'
     | '/pricing'
+    | '/screener'
     | '/signals'
     | '/trust'
     | '/api/health'
+    | '/api/telegram'
     | '/coins/$id'
     | '/api/auth/$'
     | '/api/billing/dodo'
     | '/api/billing/nowpayments'
     | '/api/billing/stripe'
+    | '/api/cron/alerts'
     | '/api/market/global'
     | '/api/market/listing'
     | '/api/market/search'
@@ -252,19 +292,23 @@ export interface FileRouteTypes {
     | '/login'
     | '/admin'
     | '/ai'
+    | '/alerts'
     | '/converter'
     | '/news'
     | '/portfolio'
     | '/pricing'
+    | '/screener'
     | '/signals'
     | '/trust'
     | '/api/health'
+    | '/api/telegram'
     | '/'
     | '/coins/$id'
     | '/api/auth/$'
     | '/api/billing/dodo'
     | '/api/billing/nowpayments'
     | '/api/billing/stripe'
+    | '/api/cron/alerts'
     | '/api/market/global'
     | '/api/market/listing'
     | '/api/market/search'
@@ -277,19 +321,23 @@ export interface FileRouteTypes {
     | '/login'
     | '/_site/admin'
     | '/_site/ai'
+    | '/_site/alerts'
     | '/_site/converter'
     | '/_site/news'
     | '/_site/portfolio'
     | '/_site/pricing'
+    | '/_site/screener'
     | '/_site/signals'
     | '/_site/trust'
     | '/api/health'
+    | '/api/telegram'
     | '/_site/'
     | '/_site/coins/$id'
     | '/api/auth/$'
     | '/api/billing/dodo'
     | '/api/billing/nowpayments'
     | '/api/billing/stripe'
+    | '/api/cron/alerts'
     | '/api/market/global'
     | '/api/market/listing'
     | '/api/market/search'
@@ -302,10 +350,12 @@ export interface RootRouteChildren {
   SiteRoute: typeof SiteRouteWithChildren
   LoginRoute: typeof LoginRoute
   ApiHealthRoute: typeof ApiHealthRoute
+  ApiTelegramRoute: typeof ApiTelegramRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
   ApiBillingDodoRoute: typeof ApiBillingDodoRoute
   ApiBillingNowpaymentsRoute: typeof ApiBillingNowpaymentsRoute
   ApiBillingStripeRoute: typeof ApiBillingStripeRoute
+  ApiCronAlertsRoute: typeof ApiCronAlertsRoute
   ApiMarketGlobalRoute: typeof ApiMarketGlobalRoute
   ApiMarketListingRoute: typeof ApiMarketListingRoute
   ApiMarketSearchRoute: typeof ApiMarketSearchRoute
@@ -351,6 +401,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SiteAiRouteImport
       parentRoute: typeof SiteRoute
     }
+    '/_site/alerts': {
+      id: '/_site/alerts'
+      path: '/alerts'
+      fullPath: '/alerts'
+      preLoaderRoute: typeof SiteAlertsRouteImport
+      parentRoute: typeof SiteRoute
+    }
     '/_site/converter': {
       id: '/_site/converter'
       path: '/converter'
@@ -379,6 +436,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SitePricingRouteImport
       parentRoute: typeof SiteRoute
     }
+    '/_site/screener': {
+      id: '/_site/screener'
+      path: '/screener'
+      fullPath: '/screener'
+      preLoaderRoute: typeof SiteScreenerRouteImport
+      parentRoute: typeof SiteRoute
+    }
     '/_site/signals': {
       id: '/_site/signals'
       path: '/signals'
@@ -398,6 +462,13 @@ declare module '@tanstack/react-router' {
       path: '/api/health'
       fullPath: '/api/health'
       preLoaderRoute: typeof ApiHealthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/telegram': {
+      id: '/api/telegram'
+      path: '/api/telegram'
+      fullPath: '/api/telegram'
+      preLoaderRoute: typeof ApiTelegramRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_site/coins/$id': {
@@ -433,6 +504,13 @@ declare module '@tanstack/react-router' {
       path: '/api/billing/stripe'
       fullPath: '/api/billing/stripe'
       preLoaderRoute: typeof ApiBillingStripeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/cron/alerts': {
+      id: '/api/cron/alerts'
+      path: '/api/cron/alerts'
+      fullPath: '/api/cron/alerts'
+      preLoaderRoute: typeof ApiCronAlertsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/market/global': {
@@ -483,10 +561,12 @@ declare module '@tanstack/react-router' {
 interface SiteRouteChildren {
   SiteAdminRoute: typeof SiteAdminRoute
   SiteAiRoute: typeof SiteAiRoute
+  SiteAlertsRoute: typeof SiteAlertsRoute
   SiteConverterRoute: typeof SiteConverterRoute
   SiteNewsRoute: typeof SiteNewsRoute
   SitePortfolioRoute: typeof SitePortfolioRoute
   SitePricingRoute: typeof SitePricingRoute
+  SiteScreenerRoute: typeof SiteScreenerRoute
   SiteSignalsRoute: typeof SiteSignalsRoute
   SiteTrustRoute: typeof SiteTrustRoute
   SiteIndexRoute: typeof SiteIndexRoute
@@ -496,10 +576,12 @@ interface SiteRouteChildren {
 const SiteRouteChildren: SiteRouteChildren = {
   SiteAdminRoute: SiteAdminRoute,
   SiteAiRoute: SiteAiRoute,
+  SiteAlertsRoute: SiteAlertsRoute,
   SiteConverterRoute: SiteConverterRoute,
   SiteNewsRoute: SiteNewsRoute,
   SitePortfolioRoute: SitePortfolioRoute,
   SitePricingRoute: SitePricingRoute,
+  SiteScreenerRoute: SiteScreenerRoute,
   SiteSignalsRoute: SiteSignalsRoute,
   SiteTrustRoute: SiteTrustRoute,
   SiteIndexRoute: SiteIndexRoute,
@@ -512,10 +594,12 @@ const rootRouteChildren: RootRouteChildren = {
   SiteRoute: SiteRouteWithChildren,
   LoginRoute: LoginRoute,
   ApiHealthRoute: ApiHealthRoute,
+  ApiTelegramRoute: ApiTelegramRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
   ApiBillingDodoRoute: ApiBillingDodoRoute,
   ApiBillingNowpaymentsRoute: ApiBillingNowpaymentsRoute,
   ApiBillingStripeRoute: ApiBillingStripeRoute,
+  ApiCronAlertsRoute: ApiCronAlertsRoute,
   ApiMarketGlobalRoute: ApiMarketGlobalRoute,
   ApiMarketListingRoute: ApiMarketListingRoute,
   ApiMarketSearchRoute: ApiMarketSearchRoute,

@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { ArrowLeftRight, Check, ChevronRight, FileText, Github, Globe, Info, Link2, MessageCircle, Plus, Search, Share2, Star, Wallet } from "lucide-react";
+import { ArrowLeftRight, Bell, Check, ChevronRight, FileText, Github, Globe, Info, Link2, MessageCircle, Plus, Search, Share2, Star, Wallet } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { getAccount } from "@/lib/account";
 import { getPrices } from "@/lib/wallet";
@@ -16,6 +16,7 @@ import { ChangePill, CoinLogo, Meter } from "@/components/market/bits";
 import { Container } from "@/components/site/shell";
 import { AboutSection, ChartSection, NewsSection, PerformanceRow, RecordsSection, SignalsSection } from "@/components/coin/coin-sections";
 import { TradeDialog } from "@/components/coin/trade-dialog";
+import { AlertDialog } from "@/components/alerts/alert-dialog";
 import { TradeButtons } from "@/components/trade-buttons";
 import { isTradable } from "@/lib/exchanges";
 
@@ -380,8 +381,10 @@ export function CoinPage({ id }: { id: string }) {
   const query = useCoinInfo(id, lang);
   const coin = query.data;
   const [trading, setTrading] = useState(false);
+  const [alerting, setAlerting] = useState(false);
   const holding = useHolding(coin ?? { symbol: "", price: 0 } as CoinInfo, signedIn && Boolean(coin));
   const openTrade = () => (signedIn ? setTrading(true) : void navigate({ to: "/login", search: { mode: "signup", redirect: `/coins/${id}` } }));
+  const openAlert = () => (signedIn ? setAlerting(true) : void navigate({ to: "/login", search: { mode: "signup", redirect: `/coins/${id}` } }));
 
   useEffect(() => {
     if (coin) document.title = `${coin.name} (${coin.symbol}) ${usdPrice(coin.price)} — ${t("app.name")}`;
@@ -407,6 +410,14 @@ export function CoinPage({ id }: { id: string }) {
             <div className="mt-4">
               <RangeBar low={coin.low24h} high={coin.high24h} price={coin.price} />
             </div>
+            <button
+              type="button"
+              onClick={openAlert}
+              className="mt-4 flex h-10 w-full items-center justify-center gap-2 rounded-xl bg-surface text-sm font-semibold text-fg shadow-[var(--shadow-border)] hover:bg-surface-2"
+            >
+              <Bell className="size-4 text-primary" />
+              {t("alerts.button")}
+            </button>
           </div>
           <HoldingCard coin={coin} onTrade={openTrade} />
           {isTradable(coin.symbol) ? (
@@ -430,6 +441,9 @@ export function CoinPage({ id }: { id: string }) {
         </div>
       </div>
       {trading ? <TradeDialog coin={coin} held={holding?.qty ?? 0} onClose={() => setTrading(false)} /> : null}
+      {alerting ? (
+        <AlertDialog target={{ symbol: coin.symbol, coinId: coin.id, name: coin.name, price: coin.price }} onClose={() => setAlerting(false)} />
+      ) : null}
     </Container>
   );
 }

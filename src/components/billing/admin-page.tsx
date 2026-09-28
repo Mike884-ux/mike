@@ -9,6 +9,7 @@ import {
   Loader2,
   ListChecks,
   Megaphone,
+  Send,
   Search,
   ShieldAlert,
   Sparkles,
@@ -19,12 +20,14 @@ import {
 } from "lucide-react";
 import {
   adminConnectDodo,
+  adminConnectTelegram,
   adminFindMember,
   adminGrantWaitlist,
   adminSetPlan,
   generateMarketing,
   getAdminOverview,
   getDodoStatus,
+  getTelegramStatus,
   getWaitlist,
   MARKETING_CHANNELS,
   MARKETING_GOALS,
@@ -289,6 +292,79 @@ function Marketer() {
   );
 }
 
+/** The Telegram bot for alerts: one click points it at this site; the cron address is shown for cron-job.org. */
+function TelegramConnect() {
+  const t = useT();
+  const client = useQueryClient();
+  const status = useQuery({ queryKey: ["admin-telegram"], queryFn: () => getTelegramStatus(), staleTime: 30_000 });
+  const connect = useMutation({
+    mutationFn: () => adminConnectTelegram(),
+    onSuccess: (res) => {
+      if (res.ok) client.setQueryData(["admin-telegram"], res.status);
+    },
+  });
+  const [copied, setCopied] = useState(false);
+  const data = status.data;
+  const connected = Boolean(data?.bot && data.webhookUrl);
+  const failure = connect.data && !connect.data.ok ? connect.data : null;
+  return (
+    <section className="rounded-3xl bg-surface p-5 shadow-[var(--shadow-border)]">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <h2 className="flex items-center gap-2 font-display text-lg font-bold text-fg">
+            <Send className="size-5 text-primary" />
+            {t("admin.tg.title")}
+          </h2>
+          <p className="mt-1 text-sm text-muted">
+            {!data ? "…" : !data.hasToken ? t("admin.tg.noKey") : connected ? t("admin.tg.connected", { bot: data.bot ?? "" }) : t("admin.tg.ready")}
+          </p>
+        </div>
+        {data?.hasToken ? (
+          <button
+            type="button"
+            disabled={connect.isPending}
+            onClick={() => connect.mutate()}
+            className={cn("flex h-10 items-center gap-2 rounded-xl px-4 text-sm font-semibold disabled:opacity-50", connected ? "bg-surface-2 text-fg" : "bg-brand text-white")}
+          >
+            {connect.isPending ? <Loader2 className="size-4 animate-spin" /> : connected ? <CheckCircle2 className="size-4 text-long" /> : <Zap className="size-4" />}
+            {t(connected ? "admin.tg.reconnect" : "admin.tg.connect")}
+          </button>
+        ) : null}
+      </div>
+      {connected && data?.cronUrl ? (
+        <div className="mt-4 rounded-2xl bg-surface-2 p-4">
+          <p className="text-sm font-semibold text-fg">{t("admin.tg.cronTitle")}</p>
+          <p className="mt-1 text-xs leading-relaxed text-muted">{t("admin.tg.cronText")}</p>
+          <div className="mt-2 flex items-center gap-2">
+            <code className="min-w-0 flex-1 truncate rounded-lg bg-surface px-3 py-2 font-mono text-xs text-fg">{data.cronUrl}</code>
+            <button
+              type="button"
+              onClick={() => {
+                void navigator.clipboard?.writeText(data.cronUrl ?? "").then(() => {
+                  setCopied(true);
+                  setTimeout(() => setCopied(false), 2000);
+                });
+              }}
+              className="flex h-9 shrink-0 items-center gap-1.5 rounded-lg bg-surface px-3 text-xs font-semibold text-fg shadow-[var(--shadow-border)]"
+            >
+              {copied ? <Check className="size-3.5 text-long" /> : <Copy className="size-3.5" />}
+              {t(copied ? "admin.tg.copied" : "admin.tg.copy")}
+            </button>
+          </div>
+        </div>
+      ) : null}
+      {connect.data?.ok ? <p role="status" className="mt-3 text-sm text-long">{t("admin.tg.done")}</p> : null}
+      {failure ? (
+        <p role="alert" className="mt-3 rounded-lg bg-short/10 px-3 py-2 text-sm text-short">
+          {t(failure.error === "no_key" ? "admin.tg.noKey" : failure.error === "rejected" ? "admin.tg.err.rejected" : "admin.tg.err.failed")}
+          {failure.detail ? <span className="mt-1 block font-mono text-xs break-all opacity-80">{failure.detail}</span> : null}
+        </p>
+      ) : null}
+      {connect.isError ? <p className="mt-3 text-sm text-short">{t("admin.tg.err.failed")}</p> : null}
+    </section>
+  );
+}
+
 /** Card payments through Dodo Payments: with DODO_API_KEY set, one click creates the product and webhook. */
 function DodoConnect() {
   const t = useT();
@@ -493,6 +569,8 @@ export function AdminPage() {
         </ul>
         <p className="mt-3 text-xs text-faint">{t("admin.setupHint")}</p>
       </section>
+
+      <TelegramConnect />
 
       <DodoConnect />
 

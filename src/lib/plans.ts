@@ -16,6 +16,10 @@ export const MONTHLY_CREDITS: Record<PlanId, number> = { free: 30, pro: 600, max
 export const TRIAL_CREDITS = 40;
 export type CreditBalance = { used: number; limit: number; resetsAt: string };
 
+/** Alerts a member can keep switched on at once, and which kinds a plan allows. */
+export const ALERT_LIMITS: Record<PlanId, number> = { free: 2, pro: 25, max: 100 };
+export const SAVED_SCREEN_LIMITS: Record<PlanId, number> = { free: 0, pro: 10, max: 30 };
+
 export type PlanSpec = {
   id: PlanId;
   /** Monthly price; the yearly price is 12 months with the yearly discount. */

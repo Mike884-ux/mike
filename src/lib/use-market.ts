@@ -29,12 +29,13 @@ export function useGlobalStats() {
   });
 }
 
-export function useListing(page: number, category?: CategoryId) {
+export function useListing(page: number, category?: CategoryId, enabled = true) {
   const params = new URLSearchParams({ page: String(page) });
   if (category) params.set("category", category);
   return useQuery({
     queryKey: ["market", "listing", page, category ?? "all"],
     queryFn: () => marketGet<ListingResponse>(`/api/market/listing?${params}`),
+    enabled,
     staleTime: 45_000,
     refetchInterval: 60_000,
     placeholderData: keepPreviousData,

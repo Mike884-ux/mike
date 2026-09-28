@@ -62,6 +62,7 @@ export const getAdminOverview = createServerFn({ method: "GET" })
       { key: "STRIPE_SECRET_KEY", ok: has("STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET") },
       { key: "DODO_API_KEY", ok: pay.cardProvider(await pay.storedDodo()) === "dodo" },
       { key: "PAY_CONTACT", ok: has("PAY_CONTACT") },
+      { key: "TELEGRAM_BOT_TOKEN", ok: has("TELEGRAM_BOT_TOKEN") },
     ];
     return { stats, payments, setup };
   });
@@ -322,5 +323,79 @@ export const adminConnectDodo = createServerFn({ method: "POST" })
       // The owner sees Dodo's own answer, so a refused field or network trouble is visible without logs.
       const detail = (err instanceof Error ? err.message : String(err)).replace(/Bearer\s+\S+/g, "Bearer …").slice(0, 300);
       return { ok: false, error: status === 401 || status === 403 ? "rejected" : "failed", detail };
+    }
+  });
+
+export type TelegramStatus = {
+  hasToken: boolean;
+  bot: string | null;
+  webhookUrl: string | null;
+  /** The address for cron-job.org, with its key — shown to the owner only. */
+  cronUrl: string | null;
+  ownCronSecret: boolean;
+};
+
+async function telegramStatus(): Promise<TelegramStatus> {
+  const [tg, { getSql }, store, { getRequest }, { siteOrigin }] = await Promise.all([
+    import("./telegram.server"),
+    import("./db"),
+    import("./billing-store.server"),
+    import("@tanstack/react-start/server"),
+    import("./http.server"),
+  ]);
+  const saved = await store.getSettings(await getSql(), ["telegram:bot_username", "telegram:webhook_url"]);
+  const request = getRequest();
+  const secret = tg.cronSecret();
+  return {
+    hasToken: Boolean(tg.botToken()),
+    bot: saved["telegram:bot_username"] ?? null,
+    webhookUrl: saved["telegram:webhook_url"] ?? null,
+    cronUrl: request && secret ? `${siteOrigin(request)}/api/cron/alerts?key=${encodeURIComponent(secret)}` : null,
+    ownCronSecret: Boolean(process.env.CRON_SECRET?.trim()),
+  };
+}
+
+export const getTelegramStatus = createServerFn({ method: "GET" })
+  .middleware([authMiddleware])
+  .handler(async ({ context }) => {
+    await requireAdmin(context.email);
+    return telegramStatus();
+  });
+
+/**
+ * One click in /admin: points the bot's webhook at this site (with a secret
+ * header), sets its command menu and remembers its @username.
+ */
+export const adminConnectTelegram = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .handler(async ({ context }): Promise<{ ok: true; status: TelegramStatus } | { ok: false; error: "no_key" | "rejected" | "failed"; detail?: string }> => {
+    await requireAdmin(context.email);
+    const [tg, { getSql }, store, { getRequest }, { publicOrigin }] = await Promise.all([
+      import("./telegram.server"),
+      import("./db"),
+      import("./billing-store.server"),
+      import("@tanstack/react-start/server"),
+      import("./http.server"),
+    ]);
+    if (!tg.botToken()) return { ok: false, error: "no_key" };
+    const request = getRequest();
+    const webhookUrl = `${request ? publicOrigin(request) : ""}/api/telegram`;
+    try {
+      const me = await tg.tg<{ username?: string }>("getMe");
+      await tg.tg("setWebhook", {
+        url: webhookUrl,
+        secret_token: tg.webhookSecret(),
+        allowed_updates: ["message"],
+        drop_pending_updates: true,
+      });
+      await tg.tg("setMyCommands", { commands: tg.BOT_COMMANDS });
+      await store.setSettings(await getSql(), { "telegram:bot_username": me.username ?? "", "telegram:webhook_url": webhookUrl });
+      console.log(`[admin] ${context.email} connected Telegram bot @${me.username} → ${webhookUrl}`);
+      return { ok: true, status: await telegramStatus() };
+    } catch (err) {
+      console.error("[admin] Telegram connect failed:", err);
+      const status = err instanceof tg.TelegramError ? err.status : 0;
+      const detail = (err instanceof Error ? err.message : String(err)).replace(/bot\d+:[\w-]+/g, "bot…").slice(0, 300);
+      return { ok: false, error: status === 401 || status === 404 ? "rejected" : "failed", detail };
     }
   });
