@@ -4425,6 +4425,25 @@
     },
   };
 
+  // Если сайт открыт внутри рамки (например, в предпросмотре), звонок и карта
+  // открываются в новом окне — рамка сама их не пропускает.
+  const IN_FRAME = (() => {
+    try {
+      return window.self !== window.top;
+    } catch {
+      return true;
+    }
+  })();
+  document.addEventListener("click", (e) => {
+    if (!IN_FRAME) return;
+    const a = e.target.closest(
+      'a[href^="tel:"], a[href^="geo:"], a[href^="https://maps.apple.com"]',
+    );
+    if (!a || a.target) return;
+    e.preventDefault();
+    window.open(a.href, "_blank", "noopener");
+  });
+
   document.addEventListener("click", (e) => {
     if (!e.target.closest(".lang")) closeLangMenu();
     const el = e.target.closest("[data-act]");
