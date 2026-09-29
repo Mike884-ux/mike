@@ -5,6 +5,7 @@ import { ExchangeLogo, CountrySelect, DEPOSIT_KEY } from "@/components/exchange-
 import { availability, EXCHANGE_INFO, EXCHANGES, rankExchanges, tradeUrl, type Availability, type Exchange } from "@/lib/exchanges";
 import { translate, useT, type MessageKey } from "@/lib/i18n";
 import { COUNTRIES } from "@/lib/lang";
+import { reportExchangeClick } from "@/lib/exchange-clicks";
 import { getSiteOrigin } from "@/lib/seo";
 import { useSettings } from "@/lib/settings-store";
 import { useSiteStatus } from "@/lib/use-billing";
@@ -128,6 +129,7 @@ function ExchangesPage() {
                           href={link(id)}
                           target="_blank"
                           rel="noopener noreferrer sponsored"
+                          onClick={() => reportExchangeClick(id, country)}
                           className="inline-flex h-9 items-center rounded-xl px-4 text-xs font-bold whitespace-nowrap"
                           style={{ background: info.bg, color: info.fg }}
                         >

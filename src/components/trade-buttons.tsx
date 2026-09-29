@@ -8,7 +8,8 @@ import { cn } from "@/lib/utils";
 /**
  * One "Trade" button: opens the exchange picker for the coin, which suggests
  * where it can actually be bought from the visitor's country. `compact` fits a
- * table row; `full` is a wide button for coin windows.
+ * table row; `icon` is a round icon-only button for narrow phone rows; `full`
+ * is a wide button for coin windows.
  */
 export function TradeButton({
   symbol,
@@ -18,7 +19,7 @@ export function TradeButton({
 }: {
   symbol: string;
   name?: string;
-  variant?: "compact" | "full";
+  variant?: "compact" | "full" | "icon";
   className?: string;
 }) {
   const t = useT();
@@ -34,16 +35,20 @@ export function TradeButton({
         openFor(symbol, name);
       }}
       onKeyDown={stop}
+      aria-label={variant === "icon" ? t("ex.button") : undefined}
+      title={variant === "icon" ? t("ex.button") : undefined}
       className={cn(
         "inline-flex items-center justify-center gap-1.5 font-bold whitespace-nowrap outline-none transition focus-visible:ring-2 focus-visible:ring-primary/50",
         variant === "compact"
           ? "h-7 rounded-lg bg-primary/12 px-2.5 text-[11px] text-primary hover:bg-primary/20"
-          : "bg-brand h-11 rounded-xl px-4 text-sm text-white shadow-[var(--shadow-glow)] hover:opacity-95",
+          : variant === "icon"
+            ? "size-7 shrink-0 rounded-full bg-primary/12 text-primary hover:bg-primary/20"
+            : "bg-brand h-11 rounded-xl px-4 text-sm text-white shadow-[var(--shadow-glow)] hover:opacity-95",
         className,
       )}
     >
-      <ArrowLeftRight className={variant === "compact" ? "size-3" : "size-4"} />
-      {variant === "compact" ? t("ex.button") : t("ex.buttonFull", { symbol: symbol.toUpperCase() })}
+      <ArrowLeftRight className={variant === "full" ? "size-4" : "size-3"} />
+      {variant === "icon" ? null : variant === "compact" ? t("ex.button") : t("ex.buttonFull", { symbol: symbol.toUpperCase() })}
     </button>
   );
 }

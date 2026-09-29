@@ -3,7 +3,7 @@
  * **server-only**. Prices come from the market listing, signal and RSI from
  * the shared scan.
  */
-import { evaluate, FREE_KINDS, type Quote, type Tech } from "./alert-rules.ts";
+import { evaluate, FREE_KINDS, RETIRED_KINDS, type Quote, type Tech } from "./alert-rules.ts";
 import type { MarketCoin } from "./coins";
 import { ALERT_LIMITS, type PlanId } from "./plans.ts";
 import type { CoinRow } from "./scan";
@@ -75,6 +75,7 @@ async function checkAlerts(origin: string, now: number): Promise<RunResult> {
   const perUser = new Map<string, number>();
   const runnable = all
     .filter((alert) => {
+      if (RETIRED_KINDS.includes(alert.kind)) return false;
       const plan = plans.get(alert.userId) ?? "free";
       if (plan === "free" && !FREE_KINDS.includes(alert.kind)) return false;
       const n = (perUser.get(alert.userId) ?? 0) + 1;

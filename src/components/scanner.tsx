@@ -203,7 +203,7 @@ function CoinRowViewInner({ row, rank, interval, favorite, verdict, onOpen, onTo
       <td className="hidden px-3 py-2.5 xl:table-cell">
         <span className="flex items-center justify-end gap-1.5">
           {row.kind === "crypto" ? <TradeButton symbol={row.base} /> : null}
-          <ShareSignalButton row={row} interval={interval} compact />
+          <ShareSignalButton row={row} interval={interval} verdict={verdict} compact />
         </span>
       </td>
     </tr>
@@ -278,7 +278,7 @@ const SignalCard = memo(function SignalCard({
       </div>
       <div className="mt-3 flex items-center gap-2">
         {row.kind === "crypto" ? <TradeButton symbol={row.base} /> : null}
-        <ShareSignalButton row={row} interval={interval} compact className="ml-auto" />
+        <ShareSignalButton row={row} interval={interval} verdict={verdict} compact className="ml-auto" />
       </div>
     </li>
   );

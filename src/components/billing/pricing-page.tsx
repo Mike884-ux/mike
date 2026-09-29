@@ -44,6 +44,7 @@ import {
 import { BILLING_KEY, daysLeft, useBilling, useSiteStatus } from "@/lib/use-billing";
 import { cn } from "@/lib/utils";
 import { useHydrated } from "@/lib/use-hydrated";
+import { LegalConsent } from "@/components/site/legal-page";
 
 const KIND_KEY: Record<AiKind, MessageKey> = {
   analysis: "pricing.f.analysis",
@@ -388,6 +389,7 @@ function PayDialog({
             </div>
           ) : null}
           {!options ? <div className="skeleton h-12 w-full" /> : null}
+          {user && payable ? <LegalConsent kind="pay" className="px-1" /> : null}
         </div>
         {failed ? (
           <p role="alert" className="mt-3 rounded-lg bg-short/10 px-3 py-2 text-sm text-short">

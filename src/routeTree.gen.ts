@@ -22,8 +22,11 @@ import { Route as SiteExchangesRouteImport } from './routes/_site/exchanges'
 import { Route as SiteNewsRouteImport } from './routes/_site/news'
 import { Route as SitePortfolioRouteImport } from './routes/_site/portfolio'
 import { Route as SitePricingRouteImport } from './routes/_site/pricing'
+import { Route as SitePrivacyRouteImport } from './routes/_site/privacy'
+import { Route as SiteRefundRouteImport } from './routes/_site/refund'
 import { Route as SiteScreenerRouteImport } from './routes/_site/screener'
 import { Route as SiteSignalsRouteImport } from './routes/_site/signals'
+import { Route as SiteTermsRouteImport } from './routes/_site/terms'
 import { Route as SiteTrustRouteImport } from './routes/_site/trust'
 import { Route as ApiHealthRouteImport } from './routes/api/health'
 import { Route as ApiTelegramRouteImport } from './routes/api/telegram'
@@ -104,6 +107,16 @@ const SitePricingRoute = SitePricingRouteImport.update({
   path: '/pricing',
   getParentRoute: () => SiteRoute,
 } as any)
+const SitePrivacyRoute = SitePrivacyRouteImport.update({
+  id: '/privacy',
+  path: '/privacy',
+  getParentRoute: () => SiteRoute,
+} as any)
+const SiteRefundRoute = SiteRefundRouteImport.update({
+  id: '/refund',
+  path: '/refund',
+  getParentRoute: () => SiteRoute,
+} as any)
 const SiteScreenerRoute = SiteScreenerRouteImport.update({
   id: '/screener',
   path: '/screener',
@@ -112,6 +125,11 @@ const SiteScreenerRoute = SiteScreenerRouteImport.update({
 const SiteSignalsRoute = SiteSignalsRouteImport.update({
   id: '/signals',
   path: '/signals',
+  getParentRoute: () => SiteRoute,
+} as any)
+const SiteTermsRoute = SiteTermsRouteImport.update({
+  id: '/terms',
+  path: '/terms',
   getParentRoute: () => SiteRoute,
 } as any)
 const SiteTrustRoute = SiteTrustRouteImport.update({
@@ -203,8 +221,11 @@ export interface FileRoutesByFullPath {
   '/news': typeof SiteNewsRoute
   '/portfolio': typeof SitePortfolioRoute
   '/pricing': typeof SitePricingRoute
+  '/privacy': typeof SitePrivacyRoute
+  '/refund': typeof SiteRefundRoute
   '/screener': typeof SiteScreenerRoute
   '/signals': typeof SiteSignalsRoute
+  '/terms': typeof SiteTermsRoute
   '/trust': typeof SiteTrustRoute
   '/api/health': typeof ApiHealthRoute
   '/api/telegram': typeof ApiTelegramRoute
@@ -233,8 +254,11 @@ export interface FileRoutesByTo {
   '/news': typeof SiteNewsRoute
   '/portfolio': typeof SitePortfolioRoute
   '/pricing': typeof SitePricingRoute
+  '/privacy': typeof SitePrivacyRoute
+  '/refund': typeof SiteRefundRoute
   '/screener': typeof SiteScreenerRoute
   '/signals': typeof SiteSignalsRoute
+  '/terms': typeof SiteTermsRoute
   '/trust': typeof SiteTrustRoute
   '/api/health': typeof ApiHealthRoute
   '/api/telegram': typeof ApiTelegramRoute
@@ -266,8 +290,11 @@ export interface FileRoutesById {
   '/_site/news': typeof SiteNewsRoute
   '/_site/portfolio': typeof SitePortfolioRoute
   '/_site/pricing': typeof SitePricingRoute
+  '/_site/privacy': typeof SitePrivacyRoute
+  '/_site/refund': typeof SiteRefundRoute
   '/_site/screener': typeof SiteScreenerRoute
   '/_site/signals': typeof SiteSignalsRoute
+  '/_site/terms': typeof SiteTermsRoute
   '/_site/trust': typeof SiteTrustRoute
   '/api/health': typeof ApiHealthRoute
   '/api/telegram': typeof ApiTelegramRoute
@@ -300,8 +327,11 @@ export interface FileRouteTypes {
     | '/news'
     | '/portfolio'
     | '/pricing'
+    | '/privacy'
+    | '/refund'
     | '/screener'
     | '/signals'
+    | '/terms'
     | '/trust'
     | '/api/health'
     | '/api/telegram'
@@ -330,8 +360,11 @@ export interface FileRouteTypes {
     | '/news'
     | '/portfolio'
     | '/pricing'
+    | '/privacy'
+    | '/refund'
     | '/screener'
     | '/signals'
+    | '/terms'
     | '/trust'
     | '/api/health'
     | '/api/telegram'
@@ -362,8 +395,11 @@ export interface FileRouteTypes {
     | '/_site/news'
     | '/_site/portfolio'
     | '/_site/pricing'
+    | '/_site/privacy'
+    | '/_site/refund'
     | '/_site/screener'
     | '/_site/signals'
+    | '/_site/terms'
     | '/_site/trust'
     | '/api/health'
     | '/api/telegram'
@@ -495,6 +531,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SitePricingRouteImport
       parentRoute: typeof SiteRoute
     }
+    '/_site/privacy': {
+      id: '/_site/privacy'
+      path: '/privacy'
+      fullPath: '/privacy'
+      preLoaderRoute: typeof SitePrivacyRouteImport
+      parentRoute: typeof SiteRoute
+    }
+    '/_site/refund': {
+      id: '/_site/refund'
+      path: '/refund'
+      fullPath: '/refund'
+      preLoaderRoute: typeof SiteRefundRouteImport
+      parentRoute: typeof SiteRoute
+    }
     '/_site/screener': {
       id: '/_site/screener'
       path: '/screener'
@@ -507,6 +557,13 @@ declare module '@tanstack/react-router' {
       path: '/signals'
       fullPath: '/signals'
       preLoaderRoute: typeof SiteSignalsRouteImport
+      parentRoute: typeof SiteRoute
+    }
+    '/_site/terms': {
+      id: '/_site/terms'
+      path: '/terms'
+      fullPath: '/terms'
+      preLoaderRoute: typeof SiteTermsRouteImport
       parentRoute: typeof SiteRoute
     }
     '/_site/trust': {
@@ -626,8 +683,11 @@ interface SiteRouteChildren {
   SiteNewsRoute: typeof SiteNewsRoute
   SitePortfolioRoute: typeof SitePortfolioRoute
   SitePricingRoute: typeof SitePricingRoute
+  SitePrivacyRoute: typeof SitePrivacyRoute
+  SiteRefundRoute: typeof SiteRefundRoute
   SiteScreenerRoute: typeof SiteScreenerRoute
   SiteSignalsRoute: typeof SiteSignalsRoute
+  SiteTermsRoute: typeof SiteTermsRoute
   SiteTrustRoute: typeof SiteTrustRoute
   SiteIndexRoute: typeof SiteIndexRoute
   SiteCoinsIdRoute: typeof SiteCoinsIdRoute
@@ -642,8 +702,11 @@ const SiteRouteChildren: SiteRouteChildren = {
   SiteNewsRoute: SiteNewsRoute,
   SitePortfolioRoute: SitePortfolioRoute,
   SitePricingRoute: SitePricingRoute,
+  SitePrivacyRoute: SitePrivacyRoute,
+  SiteRefundRoute: SiteRefundRoute,
   SiteScreenerRoute: SiteScreenerRoute,
   SiteSignalsRoute: SiteSignalsRoute,
+  SiteTermsRoute: SiteTermsRoute,
   SiteTrustRoute: SiteTrustRoute,
   SiteIndexRoute: SiteIndexRoute,
   SiteCoinsIdRoute: SiteCoinsIdRoute,

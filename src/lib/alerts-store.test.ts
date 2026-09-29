@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync, readdirSync } from "node:fs";
 import { PGlite } from "@electric-sql/pglite";
-import { evaluate, kindAllowed } from "./alert-rules.ts";
+import { asAlertKind, evaluate, kindAllowed } from "./alert-rules.ts";
 import {
   activeAlerts,
   claimLinkCode,
@@ -78,6 +78,8 @@ test("RSI and big-move alerts don't flap around the threshold", () => {
 test("free members get price alerts only, up to the plan limit", async () => {
   const sql = await db();
   assert.equal(kindAllowed("free", "signal"), false);
+  assert.equal(asAlertKind("signal"), null, "signal-change alerts are retired");
+  assert.equal(asAlertKind("rsi_below"), "rsi_below");
   assert.deepEqual(await createAlert(sql, "u1", "free", { symbol: "btc", coinId: "bitcoin", kind: "signal", value: null }), { ok: false, error: "pro" });
   for (let i = 0; i < ALERT_LIMITS.free; i += 1) {
     const r = await createAlert(sql, "u1", "free", { symbol: "BTC", coinId: "bitcoin", kind: "price_above", value: 100_000 + i });

@@ -36,6 +36,11 @@ export function SiteFooter() {
         <div className="mx-auto flex max-w-[1440px] flex-col gap-1 px-4 py-5 text-[11px] leading-relaxed text-faint sm:px-6">
           <p>{t("footer.sources")}</p>
           <p>{t("common.disclaimer")}</p>
+          <p className="flex flex-wrap gap-x-4 gap-y-1">
+            <Link to="/terms" className="hover:text-fg">{t("legal.terms")}</Link>
+            <Link to="/privacy" className="hover:text-fg">{t("legal.privacy")}</Link>
+            <Link to="/refund" className="hover:text-fg">{t("legal.refund")}</Link>
+          </p>
           <p>
             © {new Date().getFullYear()} {t("app.name")}. {t("footer.rights")}
           </p>

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { Check, Copy, Download, Loader2, Send, Share2, X } from "lucide-react";
 import { useT, type MessageKey } from "@/lib/i18n";
+import type { AiVerdict } from "@/lib/coin-detail";
 import type { CoinRow } from "@/lib/scan";
 import { drawShareCard } from "@/lib/share-card";
 import { INTERVALS, type IntervalId } from "@/lib/types";
@@ -14,37 +15,40 @@ function useShareLink(): string {
   return `${window.location.origin}/${refCode ? `?ref=${refCode}` : ""}`;
 }
 
-function ShareDialog({ row, interval, onClose }: { row: CoinRow; interval: IntervalId; onClose: () => void }) {
+function ShareDialog({ row, interval, verdict, onClose }: { row: CoinRow; interval: IntervalId; verdict?: AiVerdict; onClose: () => void }) {
   const t = useT();
   const link = useShareLink();
   const [image, setImage] = useState<{ url: string; file: File } | null>(null);
   const [failed, setFailed] = useState(false);
   const [copied, setCopied] = useState(false);
   const label = INTERVALS.find((i) => i.id === interval)?.label ?? interval;
-  const signalLabel = t(`signal.${row.signal}` as MessageKey);
-  const text = t("share.text", { base: row.base, signal: signalLabel, interval: label, link });
+  // The AI's call when it has been asked; otherwise an invitation to the AI analysis — never the raw indicators.
+  const callLabel = verdict ? t("share.aiCall", { call: t(`action.${verdict.direction}` as MessageKey) }) : t("share.aiNone");
+  const text = verdict
+    ? t("share.text", { base: row.base, call: t(`action.${verdict.direction}` as MessageKey), n: verdict.confidence, link })
+    : t("share.textNoAi", { base: row.base, link });
 
   const input = useMemo(
     () => ({
       base: row.base,
       price: `$${formatPrice(row.price)}`,
       change24h: row.change24h,
-      signal: row.signal,
-      signalLabel,
-      score: row.score,
+      tone: verdict?.direction ?? ("NONE" as const),
+      callLabel,
+      confidence: verdict ? verdict.confidence : null,
+      confidenceText: verdict ? t("share.confidence", { n: verdict.confidence }) : t("share.askAi"),
       interval: label,
       facts: [
         `RSI ${Math.round(row.rsi)}`,
         `${t("scan.col.trend")}: ${t(`trend.${row.trend}` as MessageKey)}`,
         `${t("scan.col.volume")} ${row.volumeRatio.toFixed(1)}×`,
-        `ADX ${Math.round(row.adx)}`,
       ],
       appName: t("app.name"),
       tagline: t("share.tagline"),
       link: link.replace(/^https?:\/\//, ""),
       footnote: t("share.nfa"),
     }),
-    [row, label, signalLabel, link, t],
+    [row, label, verdict, callLabel, link, t],
   );
 
   useEffect(() => {
@@ -54,7 +58,7 @@ function ShareDialog({ row, interval, onClose }: { row: CoinRow; interval: Inter
       .then((blob) => {
         if (!alive) return;
         url = URL.createObjectURL(blob);
-        setImage({ url, file: new File([blob], `skan-${row.base.toLowerCase()}-signal.png`, { type: "image/png" }) });
+        setImage({ url, file: new File([blob], `skan-${row.base.toLowerCase()}.png`, { type: "image/png" }) });
       })
       .catch(() => alive && setFailed(true));
     return () => {
@@ -147,8 +151,8 @@ function ShareDialog({ row, interval, onClose }: { row: CoinRow; interval: Inter
   );
 }
 
-/** "Share to Telegram" for a signal: a branded picture card plus the member's invite link. */
-export function ShareSignalButton({ row, interval, compact, className }: { row: CoinRow; interval: IntervalId; compact?: boolean; className?: string }) {
+/** "Share to Telegram" for a coin: a branded picture card with the AI's call, plus the member's invite link. */
+export function ShareSignalButton({ row, interval, verdict, compact, className }: { row: CoinRow; interval: IntervalId; verdict?: AiVerdict; compact?: boolean; className?: string }) {
   const t = useT();
   const [open, setOpen] = useState(false);
   return (
@@ -172,7 +176,7 @@ export function ShareSignalButton({ row, interval, compact, className }: { row: 
         <Share2 className={compact ? "size-3.5" : "size-4"} />
         {compact ? null : t("share.button")}
       </button>
-      {open ? <ShareDialog row={row} interval={interval} onClose={() => setOpen(false)} /> : null}
+      {open ? <ShareDialog row={row} interval={interval} verdict={verdict} onClose={() => setOpen(false)} /> : null}
     </>
   );
 }

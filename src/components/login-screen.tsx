@@ -7,6 +7,7 @@ import { authClient } from "@/lib/auth/client";
 import { getAuthProviders, type AuthProviders } from "@/lib/auth/providers";
 import { useT, type MessageKey } from "@/lib/i18n";
 import { Mark } from "@/components/mark";
+import { LegalConsent } from "@/components/site/legal-page";
 import { LangSwitcher } from "@/components/ui-bits";
 
 function authErrorKey(error: unknown): MessageKey {
@@ -387,6 +388,7 @@ export function LoginScreen({ initialMode = "signup", redirect = "/", providers:
                       ? t(mode === "signup" ? "login.creating" : "login.entering")
                       : t(mode === "signup" ? "login.create" : "login.enter")}
                 </button>
+                {mode === "signup" && !verifying ? <LegalConsent kind="signup" className="text-center" /> : null}
                 {mode === "code" && codeSent && !verifying ? (
                   <button type="button" disabled={busy} onClick={() => setCodeSent(false)} className="text-xs text-primary hover:opacity-80">
                     {t("login.resend")}

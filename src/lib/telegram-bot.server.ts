@@ -65,8 +65,14 @@ export async function handleUpdate(update: TgUpdate, site: string): Promise<void
     // A cold scan takes up to half a minute: answer with the price now, warm it for next time.
     if (!scan) void runScan("1h").catch(() => undefined);
     const tech = engine.techMap(scan).get(coin.symbol.toUpperCase()) ?? null;
+    // The AI's call from the shared cache, if someone asked in the last 15 minutes — no new AI request.
+    const { AI_CACHE_TTL, peekManyAi } = await import("./ai-cache.server");
+    const sym = coin.symbol.toUpperCase();
+    const keys = ["paid", "free"].map((tier) => `chart:${tier}:${sym}:1h:${lang}`);
+    const found = await peekManyAi<{ direction: "LONG" | "SHORT" | "WAIT"; confidence: number }>(keys, AI_CACHE_TTL);
+    const ai = keys.map((k) => found.get(k)).find(Boolean) ?? null;
     await reply(
-      coinMessage(lang, { symbol: coin.symbol, name: coin.name, quote: engine.quoteOf(coin), tech, url: `${site}/coins/${coin.id}` }),
+      coinMessage(lang, { symbol: coin.symbol, name: coin.name, quote: engine.quoteOf(coin), tech, ai, url: `${site}/coins/${coin.id}` }),
     );
   } catch (err) {
     console.error("[telegram] update failed:", err instanceof Error ? err.message : err);

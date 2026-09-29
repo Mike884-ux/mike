@@ -1,14 +1,17 @@
 /**
- * Draws a shareable signal card (1200×675 PNG) in the browser: brand, coin,
- * signal, key numbers and the site link. Client-only — uses <canvas>.
+ * Draws a shareable card (1200×675 PNG) in the browser: brand, coin, the AI's
+ * call when there is one, key numbers and the site link. Client-only — uses <canvas>.
  */
 export type ShareCardInput = {
   base: string;
   price: string;
   change24h: number;
-  signal: "LONG" | "SHORT" | "WAIT";
-  signalLabel: string;
-  score: number;
+  /** The AI's call, or NONE for a plain "AI analysis" badge. */
+  tone: "LONG" | "SHORT" | "WAIT" | "NONE";
+  callLabel: string;
+  /** 0–100 when the AI gave a call. */
+  confidence: number | null;
+  confidenceText: string;
   interval: string;
   facts: string[];
   appName: string;
@@ -19,7 +22,7 @@ export type ShareCardInput = {
 
 const W = 1200;
 const H = 675;
-const TONE = { LONG: "#22c55e", SHORT: "#ef4444", WAIT: "#f59e0b" } as const;
+const TONE = { LONG: "#22c55e", SHORT: "#ef4444", WAIT: "#f59e0b", NONE: "#818cf8" } as const;
 const FONT = '"Inter Variable", Inter, "Segoe UI", system-ui, sans-serif';
 
 function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
@@ -60,7 +63,7 @@ export async function drawShareCard(input: ShareCardInput): Promise<Blob> {
   ctx.fillRect(0, 0, W, H);
   glow(ctx, W - 120, 60, 420, "rgba(99,102,241,0.35)");
   glow(ctx, 80, H - 40, 380, "rgba(20,184,166,0.22)");
-  glow(ctx, W * 0.62, H * 0.55, 300, `${TONE[input.signal]}22`);
+  glow(ctx, W * 0.62, H * 0.55, 300, `${TONE[input.tone]}22`);
 
   // Brand
   const logo = ctx.createLinearGradient(56, 48, 128, 120);
@@ -115,10 +118,10 @@ export async function drawShareCard(input: ShareCardInput): Promise<Blob> {
   ctx.font = `700 32px ${FONT}`;
   ctx.fillText(`${up ? "▲" : "▼"} ${Math.abs(input.change24h).toFixed(2)}%  24h`, 56 + priceW + 24, 368);
 
-  // Signal pill
-  const tone = TONE[input.signal];
-  ctx.font = `800 56px ${FONT}`;
-  const label = input.signalLabel.toUpperCase();
+  // The AI's call
+  const tone = TONE[input.tone];
+  ctx.font = `800 ${input.callLabel.length > 14 ? 40 : 56}px ${FONT}`;
+  const label = input.callLabel.toUpperCase();
   const pillW = ctx.measureText(label).width + 88;
   const pillX = W - 56 - pillW;
   ctx.fillStyle = `${tone}26`;
@@ -132,22 +135,21 @@ export async function drawShareCard(input: ShareCardInput): Promise<Blob> {
   ctx.textBaseline = "middle";
   ctx.fillText(label, pillX + 44, 250);
 
-  // Score bar
+  // Confidence bar (only with a call)
   const barX = W - 56 - 420;
   const barY = 340;
-  ctx.fillStyle = "rgba(255,255,255,0.12)";
-  roundRect(ctx, barX, barY, 420, 16, 8);
-  ctx.fill();
-  const mid = barX + 210;
-  const len = (Math.min(100, Math.abs(input.score)) / 100) * 210;
-  ctx.fillStyle = input.score >= 0 ? "#22c55e" : "#ef4444";
-  roundRect(ctx, input.score >= 0 ? mid : mid - len, barY, Math.max(len, 6), 16, 8);
-  ctx.fill();
+  if (input.confidence !== null) {
+    ctx.fillStyle = "rgba(255,255,255,0.12)";
+    roundRect(ctx, barX, barY, 420, 16, 8);
+    ctx.fill();
+    ctx.fillStyle = tone;
+    roundRect(ctx, barX, barY, Math.max((Math.min(100, input.confidence) / 100) * 420, 8), 16, 8);
+    ctx.fill();
+  }
   ctx.fillStyle = "rgba(255,255,255,0.7)";
   ctx.font = `600 22px ${FONT}`;
   ctx.textBaseline = "alphabetic";
-  const scoreText = `${input.score > 0 ? "+" : ""}${Math.round(input.score)} / 100`;
-  ctx.fillText(scoreText, W - 56 - ctx.measureText(scoreText).width, barY + 52);
+  ctx.fillText(input.confidenceText, W - 56 - ctx.measureText(input.confidenceText).width, barY + 52);
 
   // Facts row
   ctx.font = `600 26px ${FONT}`;

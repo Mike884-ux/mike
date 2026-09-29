@@ -10,6 +10,13 @@ export type AlertKind = (typeof ALERT_KINDS)[number];
 
 /** Free members get price alerts; the rest is Pro. */
 export const FREE_KINDS: readonly AlertKind[] = ["price_above", "price_below"];
+/**
+ * Retired: indicator "signal change" alerts. Old rows still read, but none are
+ * created or checked any more — the site shows the AI's call instead.
+ */
+export const RETIRED_KINDS: readonly AlertKind[] = ["signal"];
+/** What a member can pick for a new alert. */
+export const SELECTABLE_KINDS: readonly AlertKind[] = ALERT_KINDS.filter((k) => !RETIRED_KINDS.includes(k));
 /** Kinds that need the technical scan, which covers the large coins only. */
 export const TECH_KINDS: readonly AlertKind[] = ["signal", "rsi_below", "rsi_above"];
 
@@ -34,8 +41,9 @@ export const RSI_REARM = 3;
 /** A big move re-arms once the day's change falls back under this share of the threshold. */
 export const CHANGE_REARM = 0.8;
 
+/** A kind for a new alert; retired kinds are refused. */
 export function asAlertKind(value: unknown): AlertKind | null {
-  return ALERT_KINDS.find((k) => k === value) ?? null;
+  return SELECTABLE_KINDS.find((k) => k === value) ?? null;
 }
 
 export function kindAllowed(plan: PlanId, kind: AlertKind): boolean {

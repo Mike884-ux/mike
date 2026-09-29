@@ -68,9 +68,9 @@ export function sendMessage(chatId: string | number, text: string): Promise<unkn
 export const escapeHtml = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
 export const BOT_COMMANDS = [
-  { command: "btc", description: "Bitcoin: цена и сигнал" },
-  { command: "eth", description: "Ethereum: цена и сигнал" },
-  { command: "sol", description: "Solana: цена и сигнал" },
+  { command: "btc", description: "Bitcoin: цена, RSI и вывод ИИ" },
+  { command: "eth", description: "Ethereum: цена, RSI и вывод ИИ" },
+  { command: "sol", description: "Solana: цена, RSI и вывод ИИ" },
   { command: "alerts", description: "Мои уведомления" },
   { command: "help", description: "Что умеет бот" },
   { command: "stop", description: "Отключить уведомления" },
@@ -83,7 +83,7 @@ export const botLang = (value: string | null | undefined): BotLang => (value?.to
 
 const T = {
   ru: {
-    welcome: "👋 Это бот сервиса <b>Скан</b>.\n\nНапишите тикер — например, <b>btc</b> или <b>/sol</b> — и я пришлю цену и технический сигнал.\n\nЧтобы получать уведомления о цене и сигналах, подключите аккаунт на сайте: {site}/alerts",
+    welcome: "👋 Это бот сервиса <b>Скан</b>.\n\nНапишите тикер — например, <b>btc</b> или <b>/sol</b> — и я пришлю цену, RSI и вывод ИИ, если он уже готов.\n\nЧтобы получать уведомления о цене и RSI, подключите аккаунт на сайте: {site}/alerts",
     linked: "✅ Аккаунт подключён. Уведомления будут приходить сюда.\n\nНастроить их можно на странице монеты или здесь: {site}/alerts",
     badCode: "Ссылка устарела. Откройте {site}/alerts и нажмите «Подключить Telegram» ещё раз.",
     stopped: "Уведомления отключены. Подключить снова: {site}/alerts",
@@ -91,9 +91,11 @@ const T = {
     noAlerts: "Уведомлений пока нет. Добавьте их на странице монеты — кнопка «🔔 Уведомить».",
     alerts: "🔔 Ваши уведомления:",
     unknown: "Не нашёл такую монету. Напишите тикер, например <b>btc</b>, <b>eth</b>, <b>sol</b>.",
-    help: "Что я умею:\n• тикер (<b>btc</b>, <b>/eth</b>) — цена, изменение за сутки и сигнал\n• /alerts — ваши уведомления\n• /stop — отключить уведомления\n\nСайт: {site}",
+    help: "Что я умею:\n• тикер (<b>btc</b>, <b>/eth</b>) — цена, изменение за сутки, RSI и вывод ИИ\n• /alerts — ваши уведомления\n• /stop — отключить уведомления\n\nСайт: {site}",
     change: "за 24ч",
     signal: "Сигнал (1ч)",
+    ai: "🤖 ИИ: <b>{call}</b> · уверенность {n}%",
+    aiCall: { LONG: "покупать", SHORT: "продавать", WAIT: "ждать" },
     rsi: "RSI",
     open: "Подробный разбор",
     disclaimer: "Не является инвестиционной рекомендацией.",
@@ -118,7 +120,7 @@ const T = {
     },
   },
   en: {
-    welcome: "👋 This is the <b>Scan</b> bot.\n\nSend a ticker — like <b>btc</b> or <b>/sol</b> — for the price and the technical signal.\n\nTo get price and signal alerts, connect your account on the site: {site}/alerts",
+    welcome: "👋 This is the <b>Scan</b> bot.\n\nSend a ticker — like <b>btc</b> or <b>/sol</b> — for the price, RSI and the AI's call when it's ready.\n\nTo get price and RSI alerts, connect your account on the site: {site}/alerts",
     linked: "✅ Account connected. Alerts will arrive here.\n\nSet them up on a coin page or here: {site}/alerts",
     badCode: "This link has expired. Open {site}/alerts and tap “Connect Telegram” again.",
     stopped: "Alerts are off. Connect again: {site}/alerts",
@@ -126,9 +128,11 @@ const T = {
     noAlerts: "No alerts yet. Add them on a coin page — the “🔔 Alert me” button.",
     alerts: "🔔 Your alerts:",
     unknown: "I don't know that coin. Send a ticker like <b>btc</b>, <b>eth</b>, <b>sol</b>.",
-    help: "What I can do:\n• a ticker (<b>btc</b>, <b>/eth</b>) — price, 24h change and signal\n• /alerts — your alerts\n• /stop — turn alerts off\n\nSite: {site}",
+    help: "What I can do:\n• a ticker (<b>btc</b>, <b>/eth</b>) — price, 24h change, RSI and the AI's call\n• /alerts — your alerts\n• /stop — turn alerts off\n\nSite: {site}",
     change: "24h",
     signal: "Signal (1h)",
+    ai: "🤖 AI: <b>{call}</b> · confidence {n}%",
+    aiCall: { LONG: "buy", SHORT: "sell", WAIT: "wait" },
     rsi: "RSI",
     open: "Full breakdown",
     disclaimer: "Not investment advice.",
@@ -156,7 +160,7 @@ const T = {
 
 const fill = (text: string, vars: Record<string, string | number>) => text.replace(/\{(\w+)\}/g, (_, k: string) => String(vars[k] ?? ""));
 
-export function botText(lang: BotLang, key: Exclude<keyof (typeof T)["ru"], "kind">, vars: Record<string, string | number> = {}): string {
+export function botText(lang: BotLang, key: Exclude<keyof (typeof T)["ru"], "kind" | "aiCall">, vars: Record<string, string | number> = {}): string {
   return fill(T[lang][key], vars);
 }
 
@@ -165,14 +169,16 @@ export function alertLabel(lang: BotLang, alert: Pick<Alert, "kind" | "value">):
   return fill(T[lang].kind[alert.kind], { v });
 }
 
-export type CoinLine = { symbol: string; name: string; quote: Quote | null; tech: Tech | null; url: string | null };
+export type AiCall = { direction: "LONG" | "SHORT" | "WAIT"; confidence: number };
+export type CoinLine = { symbol: string; name: string; quote: Quote | null; tech: Tech | null; ai?: AiCall | null; url: string | null };
 
-/** "/btc": price, the day's move, the signal, and a link to the full page. */
+/** "/btc": price, the day's move, RSI, the AI's call when one is ready, and a link to the full page. */
 export function coinMessage(lang: BotLang, coin: CoinLine): string {
   const t = T[lang];
   const lines = [`<b>${escapeHtml(coin.name)} (${escapeHtml(coin.symbol)})</b>`];
   if (coin.quote) lines.push(`${usdPrice(coin.quote.price)}  ${pctSigned(coin.quote.change24h)} ${t.change}`);
-  if (coin.tech) lines.push(`${t.signal}: <b>${t[coin.tech.signal]}</b> · ${t.rsi} ${Math.round(coin.tech.rsi)}`);
+  if (coin.tech) lines.push(`${t.rsi} (1h): ${Math.round(coin.tech.rsi)}`);
+  if (coin.ai) lines.push(fill(t.ai, { call: t.aiCall[coin.ai.direction], n: Math.round(coin.ai.confidence) }));
   if (coin.url) lines.push("", `<a href="${escapeHtml(coin.url)}">${t.open} →</a>`);
   lines.push("", `<i>${t.disclaimer}</i>`);
   return lines.join("\n");

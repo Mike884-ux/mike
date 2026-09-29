@@ -41,6 +41,9 @@ import { useSettings } from "@/lib/settings-store";
 import { daysLeft } from "@/lib/use-billing";
 import { cn, stripMd } from "@/lib/utils";
 import { AiFailure } from "@/components/billing/upsell";
+import { COUNTRIES } from "@/lib/lang";
+import { EXCHANGE_INFO } from "@/lib/exchanges";
+import type { ClickStats } from "@/lib/exchange-clicks.server";
 
 function Tile({
   icon,
@@ -521,7 +524,7 @@ export function AdminPage() {
       </div>
     );
   }
-  const { stats, payments, setup, ai } = overview.data;
+  const { stats, payments, setup, ai, clicks } = overview.data;
   return (
     <div className="flex flex-col gap-6">
       <h1 className="font-display text-2xl font-bold text-fg sm:text-3xl">{t("admin.title")}</h1>
@@ -574,6 +577,8 @@ export function AdminPage() {
         <p className="mt-1 text-xs text-faint">{t("admin.aiLimitHint", { n: ai.limit })}</p>
         <p className="mt-3 text-xs text-faint">{t("admin.setupHint")}</p>
       </section>
+
+      <ExchangeClicks clicks={clicks} />
 
       <TelegramConnect />
 
@@ -637,5 +642,50 @@ export function AdminPage() {
         )}
       </section>
     </div>
+  );
+}
+
+function ExchangeClicks({ clicks }: { clicks: ClickStats }) {
+  const t = useT();
+  const lang = useSettings((s) => s.lang);
+  const total = clicks.rows.reduce((sum, r) => sum + r.month, 0);
+  return (
+    <section className="rounded-3xl bg-surface p-5 shadow-[var(--shadow-border)]">
+      <h2 className="font-display text-lg font-bold text-fg">{t("admin.clicks")}</h2>
+      <p className="mt-1 text-xs text-muted">{t("admin.clicksHint")}</p>
+      <div className="mt-3 overflow-x-auto">
+        <table className="w-full min-w-[420px] text-sm">
+          <thead className="text-left text-xs text-faint">
+            <tr>
+              <th className="py-2 font-medium">{t("ex.page.colExchange")}</th>
+              <th className="py-2 text-right font-medium">{t("admin.clicksToday")}</th>
+              <th className="py-2 text-right font-medium">{t("admin.clicks7")}</th>
+              <th className="py-2 text-right font-medium">{t("admin.clicks30")}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {clicks.rows.map((r) => (
+              <tr key={r.exchange} className="border-t border-border">
+                <td className="py-2 font-semibold text-fg">{EXCHANGE_INFO[r.exchange].name}</td>
+                <td className="py-2 text-right tabular-nums">{r.today}</td>
+                <td className="py-2 text-right tabular-nums">{r.week}</td>
+                <td className="py-2 text-right font-semibold tabular-nums">{r.month}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {total ? (
+        <p className="mt-3 text-xs text-muted">
+          {t("admin.clicksCountries")}{" "}
+          {clicks.countries
+            .map((c) => {
+              const known = COUNTRIES.find((x) => x.id === c.country);
+              return `${known ? `${known.flag} ${known[lang]}` : c.country} — ${c.count}`;
+            })
+            .join(" · ")}
+        </p>
+      ) : null}
+    </section>
   );
 }

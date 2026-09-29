@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Bell, Crown, Loader2, Lock, Send, X } from "lucide-react";
-import { ALERT_KINDS, FREE_KINDS, TECH_KINDS, type AlertKind } from "@/lib/alert-rules";
+import { FREE_KINDS, SELECTABLE_KINDS, TECH_KINDS, type AlertKind } from "@/lib/alert-rules";
 import { addAlert } from "@/lib/alerts";
 import { usdPrice } from "@/lib/format";
 import { useT, type MessageKey } from "@/lib/i18n";
@@ -39,7 +39,7 @@ export function AlertDialog({ target, onClose }: { target: AlertTarget; onClose:
   const connect = useConnectTelegram();
   const pro = overview ? overview.plan !== "free" : false;
   const techOk = (TAPE_CRYPTOS as readonly string[]).includes(target.symbol);
-  const kinds = ALERT_KINDS.filter((k) => techOk || !TECH_KINDS.includes(k));
+  const kinds = SELECTABLE_KINDS.filter((k) => techOk || !TECH_KINDS.includes(k));
   const [kind, setKind] = useState<AlertKind>("price_above");
   const [value, setValue] = useState(() => defaultValue("price_above", target.price));
   const [error, setError] = useState<MessageKey | null>(null);

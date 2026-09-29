@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { authMiddleware } from "@/lib/auth/middleware";
 import type { AiFailureReason } from "./coin-detail";
 import type { AdminStats, PaymentRow } from "./billing-store.server";
+import type { ClickStats } from "./exchange-clicks.server";
 import { asLang } from "./lang";
 import { findDatabaseUrl } from "../../scripts/database-url.mjs";
 import {
@@ -31,24 +32,26 @@ export type SetupItem = { key: string; ok: boolean };
 /** Real AI requests today against the site's ceiling, and the model each tier gets. */
 export type AiLoad = { today: number; limit: number; freeModel: string; paidModel: string };
 
-export type AdminOverview = { stats: AdminStats; payments: PaymentRow[]; setup: SetupItem[]; ai: AiLoad };
+export type AdminOverview = { stats: AdminStats; payments: PaymentRow[]; setup: SetupItem[]; ai: AiLoad; clicks: ClickStats };
 
 /** Numbers for the owner: sign-ups, paying members, revenue, AI load, and which keys are set. */
 export const getAdminOverview = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
   .handler(async ({ context }): Promise<AdminOverview> => {
     await requireAdmin(context.email);
-    const [{ getSql }, store, pay, claude] = await Promise.all([
+    const [{ getSql }, store, pay, claude, clickStore] = await Promise.all([
       import("./db"),
       import("./billing-store.server"),
       import("./payments.server"),
       import("./claude.server"),
+      import("./exchange-clicks.server"),
     ]);
     const sql = await getSql();
-    const [stats, payments, aiToday] = await Promise.all([
+    const [stats, payments, aiToday, clicks] = await Promise.all([
       store.adminStats(sql),
       store.recentPayments(sql, 30),
       store.siteAiToday(sql),
+      clickStore.clickStats(sql),
     ]);
     const ai: AiLoad = { today: aiToday, limit: store.siteAiLimit(), freeModel: claude.modelFor("free"), paidModel: claude.modelFor("paid") };
     const has = (...names: string[]) => names.every((n) => Boolean(process.env[n]?.trim()));
@@ -71,7 +74,7 @@ export const getAdminOverview = createServerFn({ method: "GET" })
       { key: "TELEGRAM_BOT_TOKEN", ok: has("TELEGRAM_BOT_TOKEN") },
       ...["BINANCE_REF", "BYBIT_REF", "OKX_REF", "BITGET_REF", "KUCOIN_REF", "MEXC_REF"].map((key) => ({ key, ok: has(key) })),
     ];
-    return { stats, payments, setup, ai };
+    return { stats, payments, setup, ai, clicks };
   });
 
 export type MemberInfo = {

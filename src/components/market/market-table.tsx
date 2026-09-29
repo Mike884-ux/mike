@@ -103,10 +103,13 @@ function RowInner({ coin, favorite, signal, showSignals, showChart, onToggleFavo
         >
           <CoinLogo src={coin.image} symbol={coin.symbol} />
           <span className="flex min-w-0 flex-col sm:flex-row sm:items-baseline sm:gap-1.5">
-            <span className="max-w-[6.5rem] truncate text-sm font-semibold text-fg sm:max-w-[10rem] xl:max-w-[12rem]">{coin.name}</span>
+            <span className="max-w-[5.25rem] truncate text-sm font-semibold text-fg sm:max-w-[10rem] xl:max-w-[12rem]">{coin.name}</span>
             <span className="text-xs font-medium text-faint">{coin.symbol}</span>
           </span>
         </Link>
+      </td>
+      <td className="py-3 pr-0 pl-0.5 xl:hidden">
+        <TradeButton symbol={coin.symbol} name={coin.name} variant="icon" />
       </td>
       <td
         key={flashKey}
@@ -259,6 +262,7 @@ export function MarketTable({
             <th scope="col" className="sticky left-0 z-[1] w-8 bg-surface sm:static sm:w-10" aria-label={t("table.watchlist")} />
             <Th label="#" sortKey="rank" sort={sort} onSort={onSort} align="left" className="hidden w-10 lg:table-cell" />
             <Th label={t("table.name")} sort={sort} onSort={onSort} align="left" className="sticky left-8 z-[1] bg-surface sm:static" />
+            <th scope="col" className="w-7 xl:hidden" aria-label={t("ex.button")} />
             {header.map((h) => (
               <Th
                 key={h.label}

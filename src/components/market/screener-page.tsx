@@ -240,6 +240,7 @@ export function ScreenerPage({ preset: initialPreset }: { preset?: PresetId }) {
             <tr>
               <SortHeader label="#" k="rank" sort={sort} dir={dir} onSort={onSort} className="hidden w-12 text-left lg:table-cell" />
               <th scope="col" className="px-3 py-3 text-left text-xs font-semibold text-fg">{t("table.name")}</th>
+              <th scope="col" className="w-7 xl:hidden" aria-label={t("ex.button")} />
               <th scope="col" className="px-3 py-3 text-right text-xs font-semibold text-fg">{t("table.price")}</th>
               <SortHeader label={t("table.24h")} k="change24h" sort={sort} dir={dir} onSort={onSort} />
               <SortHeader label={t("table.7d")} k="change7d" sort={sort} dir={dir} onSort={onSort} className="hidden md:table-cell" />
@@ -258,10 +259,13 @@ export function ScreenerPage({ preset: initialPreset }: { preset?: PresetId }) {
                   <Link to="/coins/$id" params={{ id: row.id }} className="flex min-w-0 items-center gap-2.5 outline-none focus-visible:underline">
                     <CoinLogo src={row.image} symbol={row.symbol} />
                     <span className="flex min-w-0 flex-col">
-                      <span className="max-w-[7rem] truncate text-sm font-semibold text-fg sm:max-w-[12rem]">{row.name}</span>
+                      <span className="max-w-[5rem] truncate text-sm font-semibold text-fg sm:max-w-[12rem]">{row.name}</span>
                       <span className="text-xs text-faint">{row.symbol}</span>
                     </span>
                   </Link>
+                </td>
+                <td className="py-3 pr-0 pl-0.5 xl:hidden">
+                  <TradeButton symbol={row.symbol} name={row.name} variant="icon" />
                 </td>
                 <td className="px-3 py-3 text-right text-sm font-semibold text-fg tabular-nums">{usdPrice(row.price)}</td>
                 <td className="px-3 py-3 text-right text-sm"><Change value={row.change24h} /></td>

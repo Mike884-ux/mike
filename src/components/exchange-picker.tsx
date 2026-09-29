@@ -4,6 +4,7 @@ import { ArrowUpRight, BadgeCheck, ChevronDown, Handshake, Search, ShieldAlert, 
 import { EXCHANGE_INFO, tradeUrl, type Exchange, type ExchangeRefs, type RankedExchange } from "@/lib/exchanges";
 import { useT, type MessageKey } from "@/lib/i18n";
 import { COUNTRIES, type CountryId } from "@/lib/lang";
+import { reportExchangeClick } from "@/lib/exchange-clicks";
 import { useSettings } from "@/lib/settings-store";
 import { useExchangeRanking, useTradePicker } from "@/lib/use-exchanges";
 import { cn } from "@/lib/utils";
@@ -74,6 +75,7 @@ function MineButton({ id }: { id: Exchange }) {
 function GoLink({ r, symbol, refs, big }: { r: RankedExchange; symbol: string; refs: ExchangeRefs | null; big?: boolean }) {
   const t = useT();
   const setExchange = useSettings((s) => s.setExchange);
+  const country = useSettings((s) => s.country);
   const info = EXCHANGE_INFO[r.id];
   return (
     <a
@@ -81,7 +83,10 @@ function GoLink({ r, symbol, refs, big }: { r: RankedExchange; symbol: string; r
       target="_blank"
       rel="noopener noreferrer sponsored"
       // The exchange someone actually goes to is the one to show first next time.
-      onClick={() => setExchange(r.id)}
+      onClick={() => {
+        setExchange(r.id);
+        reportExchangeClick(r.id, country);
+      }}
       className={cn(
         "inline-flex items-center justify-center gap-1.5 rounded-xl font-bold whitespace-nowrap outline-none transition hover:brightness-105 focus-visible:ring-2 focus-visible:ring-primary/50",
         big ? "h-11 w-full px-4 text-sm shadow-[0_10px_24px_-10px_rgba(0,0,0,0.6)]" : "h-9 px-3 text-xs",
