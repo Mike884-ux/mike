@@ -34,7 +34,7 @@ function intervalMs(): number {
 const safely = (label: string, job: () => Promise<void>) =>
   job().catch((err) => console.error(`[scheduler] ${label} failed:`, err instanceof Error ? err.message : err));
 
-/** After a deploy or a new token: point the bot at this site unless it already is. */
+/** After a deploy, a new token or a new bot setup: point the bot at this site unless it already is. */
 let connecting: Promise<void> | null = null;
 
 function connectIfNeeded(origin: string): Promise<void> {
@@ -45,7 +45,9 @@ function connectIfNeeded(origin: string): Promise<void> {
 async function connectOnce(origin: string): Promise<void> {
   const tg = await import("./telegram.server");
   if (!tg.botToken()) return;
-  if ((await tg.savedWebhook()) === `${origin}/api/telegram`) return;
+  const saved = await tg.savedSetup();
+  // A replaced token (another bot) or a newer setup connects again even when the address is the same.
+  if (saved.webhookUrl === `${origin}/api/telegram` && saved.botId === tg.botId() && saved.setup === tg.BOT_SETUP_VERSION) return;
   const { username } = await tg.connectBot(origin);
   console.log(`[scheduler] Telegram bot @${username} connected → ${origin}/api/telegram`);
 }

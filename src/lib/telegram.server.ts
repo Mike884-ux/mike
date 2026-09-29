@@ -83,7 +83,7 @@ export const botLang = (value: string | null | undefined): BotLang => (value?.to
 
 const T = {
   ru: {
-    welcome: "👋 Это бот сервиса <b>Скан</b>.\n\nНапишите тикер — например, <b>btc</b> или <b>/sol</b> — и я пришлю цену, RSI и вывод ИИ, если он уже готов.\n\nЧтобы получать уведомления о цене и RSI, подключите аккаунт на сайте: {site}/alerts",
+    welcome: "👋 Это бот сервиса <b>Скан</b>. Кнопка «Открыть Скан» внизу открывает сайт прямо в Telegram.\n\nНапишите тикер — например, <b>btc</b> или <b>/sol</b> — и я пришлю цену, RSI и вывод ИИ, если он уже готов.\n\nЧтобы получать уведомления о цене и RSI, подключите аккаунт на сайте: {site}/alerts",
     linked: "✅ Аккаунт подключён. Уведомления будут приходить сюда.\n\nНастроить их можно на странице монеты или здесь: {site}/alerts",
     badCode: "Ссылка устарела. Откройте {site}/alerts и нажмите «Подключить Telegram» ещё раз.",
     stopped: "Уведомления отключены. Подключить снова: {site}/alerts",
@@ -120,7 +120,7 @@ const T = {
     },
   },
   en: {
-    welcome: "👋 This is the <b>Scan</b> bot.\n\nSend a ticker — like <b>btc</b> or <b>/sol</b> — for the price, RSI and the AI's call when it's ready.\n\nTo get price and RSI alerts, connect your account on the site: {site}/alerts",
+    welcome: "👋 This is the <b>Scan</b> bot. The “Открыть Скан” button below opens the site right inside Telegram.\n\nSend a ticker — like <b>btc</b> or <b>/sol</b> — for the price, RSI and the AI's call when it's ready.\n\nTo get price and RSI alerts, connect your account on the site: {site}/alerts",
     linked: "✅ Account connected. Alerts will arrive here.\n\nSet them up on a coin page or here: {site}/alerts",
     badCode: "This link has expired. Open {site}/alerts and tap “Connect Telegram” again.",
     stopped: "Alerts are off. Connect again: {site}/alerts",
@@ -219,9 +219,18 @@ export function alertMessage(
   return lines.join("\n");
 }
 
+/** Bump when connectBot sets up something new, so running bots get it once. */
+export const BOT_SETUP_VERSION = "2";
+
+/** The bot's number — the public part of the token before the colon (not a secret). */
+export function botId(): string {
+  return botToken().split(":")[0] ?? "";
+}
+
 /**
  * Points the bot at this site: webhook with the secret header, the command
- * menu, and its @username saved for the "Connect Telegram" links.
+ * menu, the "Open" button that opens the site inside Telegram, and its
+ * @username saved for the "Connect Telegram" links.
  */
 export async function connectBot(origin: string): Promise<{ username: string; webhookUrl: string }> {
   const [{ getSql }, store] = await Promise.all([import("./db"), import("./billing-store.server")]);
@@ -229,14 +238,23 @@ export async function connectBot(origin: string): Promise<{ username: string; we
   const me = await tg<{ username?: string }>("getMe");
   await tg("setWebhook", { url: webhookUrl, secret_token: webhookSecret(), allowed_updates: ["message"], drop_pending_updates: true });
   await tg("setMyCommands", { commands: BOT_COMMANDS });
+  // Telegram only opens https pages as a Mini App.
+  if (origin.startsWith("https://")) {
+    await tg("setChatMenuButton", { menu_button: { type: "web_app", text: "Открыть Скан", web_app: { url: origin } } });
+  }
   const username = me.username ?? "";
-  await store.setSettings(await getSql(), { "telegram:bot_username": username, "telegram:webhook_url": webhookUrl });
+  await store.setSettings(await getSql(), {
+    "telegram:bot_username": username,
+    "telegram:webhook_url": webhookUrl,
+    "telegram:bot_id": botId(),
+    "telegram:setup": BOT_SETUP_VERSION,
+  });
   return { username, webhookUrl };
 }
 
-/** The bot's webhook as last saved, to tell whether it still points here. */
-export async function savedWebhook(): Promise<string | null> {
+/** How the bot was last connected, to tell whether it needs connecting again. */
+export async function savedSetup(): Promise<{ webhookUrl: string | null; botId: string | null; setup: string | null }> {
   const [{ getSql }, store] = await Promise.all([import("./db"), import("./billing-store.server")]);
-  const saved = await store.getSettings(await getSql(), ["telegram:webhook_url"]);
-  return saved["telegram:webhook_url"] ?? null;
+  const saved = await store.getSettings(await getSql(), ["telegram:webhook_url", "telegram:bot_id", "telegram:setup"]);
+  return { webhookUrl: saved["telegram:webhook_url"] ?? null, botId: saved["telegram:bot_id"] ?? null, setup: saved["telegram:setup"] ?? null };
 }
