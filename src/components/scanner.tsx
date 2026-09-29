@@ -9,6 +9,7 @@ import {
   RefreshCw,
   Search,
   Star,
+  Target,
   TrendingDown,
   TrendingUp,
 } from "lucide-react";
@@ -68,6 +69,8 @@ function FearGreedGauge({ value }: { value: number }) {
 }
 
 type SortKey = "price" | "change24h" | "rsi" | "score" | "volumeRatio";
+
+type SmartFilter = "all" | "whale" | "momentum" | "oversold" | "squeeze";
 
 type RowProps = {
   row: CoinRow;
@@ -362,6 +365,7 @@ function ScanTab({
   const [sort, setSort] = useState<{ key: SortKey; dir: "asc" | "desc" } | null>(null);
   const [favoritesOnly, setFavoritesOnly] = useState(false);
   const [moverTab, setMoverTab] = useState<"up" | "down">("up");
+  const [smartFilter, setSmartFilter] = useState<SmartFilter>("all");
 
   const scan = useQuery({
     queryKey: ["scan", interval],
@@ -387,6 +391,10 @@ function ScanTab({
 
   const rows = useMemo(() => {
     let list = scan.data ?? [];
+    if (smartFilter === "whale") list = list.filter((row) => row.volumeRatio >= 2.5);
+    if (smartFilter === "momentum") list = list.filter((row) => row.change24h >= 4 && row.volumeRatio >= 1.4 && row.trend === "up");
+    if (smartFilter === "oversold") list = list.filter((row) => row.rsi <= 30 && row.change24h < 0);
+    if (smartFilter === "squeeze") list = list.filter((row) => Math.abs(row.change24h) >= 8 && row.volumeRatio >= 2);
     if (category !== "all") list = list.filter((row) => row.kind === category);
     if (favoritesOnly) list = list.filter((row) => favorites.includes(row.base));
     const needle = query.trim().toUpperCase();
@@ -401,7 +409,7 @@ function ScanTab({
       );
     }
     return list;
-  }, [scan.data, query, category, favoritesOnly, favorites, sort]);
+  }, [scan.data, query, category, favoritesOnly, favorites, sort, smartFilter]);
 
   const byChange = useMemo(
     () => [...(scan.data ?? [])].sort((a, b) => b.change24h - a.change24h),
@@ -611,6 +619,25 @@ function ScanTab({
           </div>
         </div>
       </Card>
+
+      <div className="mt-3 flex flex-wrap items-center gap-2" role="group" aria-label={t("scan.smartFilters")}>
+        <span className="flex items-center gap-1.5 px-1 text-xs font-semibold text-fg">
+          <Target className="size-3.5 text-primary" />
+          {t("scan.smartFilters")}
+        </span>
+        {(["all", "whale", "momentum", "oversold", "squeeze"] as const).map((filter) => (
+          <button
+            key={filter}
+            type="button"
+            onClick={() => setSmartFilter(filter)}
+            aria-pressed={smartFilter === filter}
+            className={`rounded-full border px-3 py-1.5 text-[11px] transition-colors ${smartFilter === filter ? "border-primary bg-primary/10 text-primary" : "border-border text-muted hover:border-primary/50 hover:text-fg"}`}
+          >
+            {t(`scan.filter.${filter}` as MessageKey)}
+          </button>
+        ))}
+        {smartFilter !== "all" ? <span className="text-[11px] text-faint">{t("scan.filterHint")}</span> : null}
+      </div>
 
       {scan.isLoading ? (
         <div className="mt-4 flex flex-col gap-2">

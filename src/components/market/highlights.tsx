@@ -50,7 +50,7 @@ function LinesSkeleton() {
   );
 }
 
-export function MarketCapCard({ stats, firstPage }: { stats: GlobalStats | undefined; firstPage: MarketCoin[] | undefined }) {
+export function MarketCapCard({ stats, firstPage, loading }: { stats: GlobalStats | undefined; firstPage: MarketCoin[] | undefined; loading: boolean }) {
   const t = useT();
   const series = useMemo(() => (firstPage ? capSeries(firstPage) : []), [firstPage]);
   return (
@@ -76,8 +76,10 @@ export function MarketCapCard({ stats, firstPage }: { stats: GlobalStats | undef
             </div>
           )}
         </>
-      ) : (
+      ) : loading ? (
         <LinesSkeleton />
+      ) : (
+        <p className="text-sm text-muted">{t("stats.unavailable")}</p>
       )}
     </HighlightCard>
   );
@@ -124,7 +126,7 @@ function FearGreedDial({ value }: { value: number }) {
   );
 }
 
-export function FearGreedCard({ stats }: { stats: GlobalStats | undefined }) {
+export function FearGreedCard({ stats, loading }: { stats: GlobalStats | undefined; loading: boolean }) {
   const t = useT();
   const fng = stats?.fearGreed;
   return (
@@ -142,8 +144,10 @@ export function FearGreedCard({ stats }: { stats: GlobalStats | undefined }) {
         </div>
       ) : stats ? (
         <p className="text-sm text-muted">{t("stats.unavailable")}</p>
-      ) : (
+      ) : loading ? (
         <LinesSkeleton />
+      ) : (
+        <p className="text-sm text-muted">{t("stats.unavailable")}</p>
       )}
     </HighlightCard>
   );
@@ -193,7 +197,7 @@ export function useMovers(firstPage: MarketCoin[] | undefined) {
   }, [firstPage]);
 }
 
-export function MoversCard({ firstPage }: { firstPage: MarketCoin[] | undefined }) {
+export function MoversCard({ firstPage, loading }: { firstPage: MarketCoin[] | undefined; loading: boolean }) {
   const t = useT();
   const [side, setSide] = useState<"up" | "down">("up");
   const { gainers, losers } = useMovers(firstPage);
@@ -241,8 +245,10 @@ export function MoversCard({ firstPage }: { firstPage: MarketCoin[] | undefined 
         ) : (
           <p className="text-sm text-muted">{t("hl.noMovers")}</p>
         )
-      ) : (
+      ) : loading ? (
         <LinesSkeleton />
+      ) : (
+        <p className="text-sm text-muted">{t("stats.unavailable")}</p>
       )}
     </HighlightCard>
   );

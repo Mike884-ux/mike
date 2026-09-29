@@ -313,9 +313,9 @@ export function HomePage({ page, tab }: { page: number; tab: HomeTab }) {
       {highlights ? (
         <div className="no-scrollbar -mx-4 mt-5 flex snap-x snap-mandatory scroll-px-4 gap-3 overflow-x-auto px-4 sm:mx-0 sm:grid sm:grid-cols-2 sm:gap-4 sm:overflow-visible sm:px-0 xl:grid-cols-4 [&>*]:w-[85%] [&>*]:shrink-0 [&>*]:snap-start sm:[&>*]:w-auto">
           <TrendingCard coins={trending.data} marketCoins={firstPage.data?.coins} loading={trending.isLoading} />
-          <MoversCard firstPage={firstPage.data?.coins} />
-          <MarketCapCard stats={s} firstPage={firstPage.data?.source === "coingecko" ? firstPage.data.coins : undefined} />
-          <FearGreedCard stats={s} />
+          <MoversCard firstPage={firstPage.data?.coins} loading={firstPage.isLoading} />
+          <MarketCapCard stats={s} firstPage={firstPage.data?.source === "coingecko" ? firstPage.data.coins : undefined} loading={stats.isLoading} />
+          <FearGreedCard stats={s} loading={stats.isLoading} />
         </div>
       ) : null}
 

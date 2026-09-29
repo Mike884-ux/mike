@@ -228,6 +228,13 @@ export const en: Record<MessageKey, string> = {
   "scan.emptyFav": "No favorites yet — tap the star next to an asset.",
   "scan.down": "The market isn't responding. Reload the page.",
   "scan.volumeTimes": "{x}× average",
+  "scan.smartFilters": "Smart filters",
+  "scan.filter.all": "All",
+  "scan.filter.whale": "Whale activity",
+  "scan.filter.momentum": "Strong momentum",
+  "scan.filter.oversold": "Oversold",
+  "scan.filter.squeeze": "Sharp move",
+  "scan.filterHint": "volume, momentum and RSI",
 
   "detail.dialog": "{base}: chart and analysis",
   "detail.day": "24h",

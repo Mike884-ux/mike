@@ -227,6 +227,13 @@ export const ru = {
   "scan.emptyFav": "В избранном пусто — нажмите звёздочку у актива.",
   "scan.down": "Рынок сейчас не отвечает. Обновите страницу.",
   "scan.volumeTimes": "{x}× к среднему",
+  "scan.smartFilters": "Умные фильтры",
+  "scan.filter.all": "Все",
+  "scan.filter.whale": "Активность китов",
+  "scan.filter.momentum": "Сильный импульс",
+  "scan.filter.oversold": "Перепроданность",
+  "scan.filter.squeeze": "Резкое движение",
+  "scan.filterHint": "объём, импульс и RSI",
 
   "detail.dialog": "{base}: график и анализ",
   "detail.day": "сутки",
