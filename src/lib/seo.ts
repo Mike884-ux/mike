@@ -96,3 +96,10 @@ export const getCoinSeo = createServerFn({ method: "GET" })
       },
     };
   });
+
+/** The site's public address, for canonical links of static pages. */
+export const getSiteOrigin = createServerFn({ method: "GET" }).handler(async (): Promise<string> => {
+  const [{ getRequest }, http] = await Promise.all([import("@tanstack/react-start/server"), import("./http.server")]);
+  const request = getRequest();
+  return request ? http.siteOrigin(request) : "";
+});

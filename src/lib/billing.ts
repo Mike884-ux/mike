@@ -41,7 +41,14 @@ export const getSiteStatus = createServerFn({ method: "GET" }).handler(async ():
   return {
     payments: pay.paymentOptions(await pay.storedDodo()),
     dbTemporary: Boolean(process.env.VERCEL || process.env.RENDER) && dbSource === "pglite",
-    exchanges: { binance: ref("BINANCE_REF"), bybit: ref("BYBIT_REF") },
+    exchanges: {
+      binance: ref("BINANCE_REF"),
+      bybit: ref("BYBIT_REF"),
+      okx: ref("OKX_REF"),
+      bitget: ref("BITGET_REF"),
+      kucoin: ref("KUCOIN_REF"),
+      mexc: ref("MEXC_REF"),
+    },
   };
 });
 

@@ -69,6 +69,7 @@ export const getAdminOverview = createServerFn({ method: "GET" })
       { key: "DODO_API_KEY", ok: pay.cardProvider(await pay.storedDodo()) === "dodo" },
       { key: "PAY_CONTACT", ok: has("PAY_CONTACT") },
       { key: "TELEGRAM_BOT_TOKEN", ok: has("TELEGRAM_BOT_TOKEN") },
+      ...["BINANCE_REF", "BYBIT_REF", "OKX_REF", "BITGET_REF", "KUCOIN_REF", "MEXC_REF"].map((key) => ({ key, ok: has(key) })),
     ];
     return { stats, payments, setup, ai };
   });

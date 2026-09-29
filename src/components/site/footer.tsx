@@ -22,9 +22,14 @@ export function SiteFooter() {
               </li>
             ))}
           </ul>
-          <Link to="/trust" className="mt-5 inline-flex text-sm font-semibold text-primary hover:opacity-80">
-            {t("trust.link")}
-          </Link>
+          <div className="mt-5 flex flex-wrap gap-x-5 gap-y-2">
+            <Link to="/exchanges" className="inline-flex text-sm font-semibold text-primary hover:opacity-80">
+              {t("ex.footer")}
+            </Link>
+            <Link to="/trust" className="inline-flex text-sm font-semibold text-primary hover:opacity-80">
+              {t("trust.link")}
+            </Link>
+          </div>
         </div>
       </div>
       <div className="border-t border-border">

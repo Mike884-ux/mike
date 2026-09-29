@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-const PAGES = ["/", "/screener", "/signals", "/converter", "/pricing", "/news", "/trust"];
+const PAGES = ["/", "/screener", "/signals", "/converter", "/exchanges", "/pricing", "/news", "/trust"];
 
 const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 

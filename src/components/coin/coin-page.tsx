@@ -18,7 +18,7 @@ import { AboutSection, ChartSection, NewsSection, PerformanceRow, RecordsSection
 import { TradeDialog } from "@/components/coin/trade-dialog";
 import { coinIntro, type CoinSeo } from "@/lib/seo";
 import { AlertDialog } from "@/components/alerts/alert-dialog";
-import { TradeButtons } from "@/components/trade-buttons";
+import { WhereToBuy } from "@/components/coin/where-to-buy";
 import { isTradable } from "@/lib/exchanges";
 import { useAssistantFocus } from "@/lib/assistant-store";
 
@@ -434,12 +434,7 @@ export function CoinPage({ id, seo = null }: { id: string; seo?: CoinSeo | null 
             </button>
           </div>
           <HoldingCard coin={coin} onTrade={openTrade} />
-          {isTradable(coin.symbol) ? (
-            <div className="rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)]">
-              <p className="mb-3 text-sm font-semibold text-fg">{t("trade.where", { symbol: coin.symbol })}</p>
-              <TradeButtons symbol={coin.symbol} short />
-            </div>
-          ) : null}
+          {isTradable(coin.symbol) ? <WhereToBuy symbol={coin.symbol.toUpperCase()} name={coin.name} /> : null}
           <Stats coin={coin} />
           <Links coin={coin} />
           <Converter coin={coin} />

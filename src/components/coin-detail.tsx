@@ -13,7 +13,7 @@ import { useAssistantFocus } from "@/lib/assistant-store";
 import { ScoreBar, SignalBadge } from "@/components/ui-bits";
 import { AiFailure } from "@/components/billing/upsell";
 import { ShareSignalButton } from "@/components/share-signal";
-import { TradeButtons } from "@/components/trade-buttons";
+import { TradeButton } from "@/components/trade-buttons";
 import type { CoinRow } from "@/lib/scan";
 import { INTERVALS, type IntervalId, type Signal } from "@/lib/types";
 import { formatPct, formatPrice, formatUsd, stripMd } from "@/lib/utils";
@@ -485,7 +485,7 @@ export function CoinDetail({ row, interval, onClose }: { row: CoinRow; interval:
           </div>
 
           <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
-            {row.kind === "crypto" ? <TradeButtons symbol={row.base} short className="flex-1" /> : null}
+            {row.kind === "crypto" ? <TradeButton symbol={row.base} variant="full" className="flex-1" /> : null}
             <ShareSignalButton row={row} interval={interval} className="h-11 justify-center" />
           </div>
 

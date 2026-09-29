@@ -27,7 +27,7 @@ import { getAiVerdicts, type AiVerdict } from "@/lib/coin-detail";
 import { useSettings } from "@/lib/settings-store";
 import { CoinDetail } from "@/components/coin-detail";
 import { ShareSignalButton } from "@/components/share-signal";
-import { TradeButtons } from "@/components/trade-buttons";
+import { TradeButton } from "@/components/trade-buttons";
 
 function fngTone(value: number) {
   if (value <= 25) return "text-short";
@@ -202,7 +202,7 @@ function CoinRowViewInner({ row, rank, interval, favorite, verdict, onOpen, onTo
       </td>
       <td className="hidden px-3 py-2.5 xl:table-cell">
         <span className="flex items-center justify-end gap-1.5">
-          {row.kind === "crypto" ? <TradeButtons symbol={row.base} variant="compact" /> : null}
+          {row.kind === "crypto" ? <TradeButton symbol={row.base} /> : null}
           <ShareSignalButton row={row} interval={interval} compact />
         </span>
       </td>
@@ -277,7 +277,7 @@ const SignalCard = memo(function SignalCard({
         </span>
       </div>
       <div className="mt-3 flex items-center gap-2">
-        {row.kind === "crypto" ? <TradeButtons symbol={row.base} variant="compact" /> : null}
+        {row.kind === "crypto" ? <TradeButton symbol={row.base} /> : null}
         <ShareSignalButton row={row} interval={interval} compact className="ml-auto" />
       </div>
     </li>

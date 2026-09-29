@@ -30,7 +30,7 @@ import { AiCell } from "@/components/ai-cell";
 import { getAiVerdicts, type AiVerdict } from "@/lib/coin-detail";
 import { assetOf } from "@/lib/markets";
 import { useSettings } from "@/lib/settings-store";
-import { TradeButtons } from "@/components/trade-buttons";
+import { TradeButton } from "@/components/trade-buttons";
 
 const FREE_ROWS = 100;
 const MILLION = 1_000_000;
@@ -279,7 +279,7 @@ export function ScreenerPage({ preset: initialPreset }: { preset?: PresetId }) {
                   )}
                 </td>
                 <td className="hidden py-2 pr-3 pl-2 text-right xl:table-cell">
-                  <TradeButtons symbol={row.symbol} variant="compact" stacked />
+                  <TradeButton symbol={row.symbol} name={row.name} />
                 </td>
               </tr>
             ))}

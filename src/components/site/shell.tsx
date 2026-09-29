@@ -15,6 +15,7 @@ import { ProfileDrawer } from "@/components/site/profile-drawer";
 import { TabBar } from "@/components/site/tab-bar";
 import { SiteHeader } from "@/components/site/header";
 import { AiAssistant } from "@/components/site/ai-assistant";
+import { ExchangePicker } from "@/components/exchange-picker";
 import { StatsBar } from "@/components/site/stats-bar";
 import { useApplyPrefs } from "@/components/site/prefs";
 
@@ -164,6 +165,7 @@ export function SiteShell({ children }: { children: ReactNode }) {
       <TabBar />
       {user ? <ProfileDrawer /> : null}
       <AiAssistant />
+      <ExchangePicker />
     </div>
   );
 }

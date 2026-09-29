@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { asExchange, type Exchange } from "./exchanges";
 import { asLang, type CountryId, type Lang } from "./lang";
 
 export type Theme = "light" | "dark" | "system";
@@ -13,11 +14,14 @@ type SettingsState = {
   currency: Currency;
   /** Home page highlight cards shown above the table. */
   highlights: boolean;
+  /** The exchange this visitor uses — shown first next time. */
+  exchange: Exchange | null;
   setLang: (lang: Lang) => void;
   setCountry: (country: CountryId) => void;
   setTheme: (theme: Theme) => void;
   setCurrency: (currency: Currency) => void;
   setHighlights: (on: boolean) => void;
+  setExchange: (exchange: Exchange | null) => void;
 };
 
 export const SETTINGS_KEY = "scan-settings";
@@ -35,11 +39,13 @@ export const useSettings = create<SettingsState>()(
       theme: "dark",
       currency: "USD",
       highlights: true,
+      exchange: null,
       setLang: (lang) => set({ lang }),
       setCountry: (country) => set({ country }),
       setTheme: (theme) => set({ theme }),
       setCurrency: (currency) => set({ currency }),
       setHighlights: (highlights) => set({ highlights }),
+      setExchange: (exchange) => set({ exchange }),
     }),
     {
       name: SETTINGS_KEY,
@@ -52,6 +58,7 @@ export const useSettings = create<SettingsState>()(
           lang: asLang(saved.lang ?? current.lang),
           theme: saved.theme === "light" || saved.theme === "system" ? saved.theme : "dark",
           currency: saved.currency === "BTC" ? "BTC" : "USD",
+          exchange: asExchange(saved.exchange),
         };
       },
     },

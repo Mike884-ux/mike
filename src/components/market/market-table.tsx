@@ -8,7 +8,7 @@ import type { Signal } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { Change, CoinLogo, Sparkline } from "@/components/market/bits";
 import { SignalBadge } from "@/components/ui-bits";
-import { TradeButtons } from "@/components/trade-buttons";
+import { TradeButton } from "@/components/trade-buttons";
 
 export type SortKey = "rank" | "price" | "change1h" | "change24h" | "change7d" | "marketCap" | "volume24h";
 type Sort = { key: SortKey; dir: "asc" | "desc" };
@@ -147,7 +147,7 @@ function RowInner({ coin, favorite, signal, showSignals, showChart, onToggleFavo
         </td>
       ) : null}
       <td className="hidden py-2 pr-3 pl-2 text-right xl:table-cell">
-        <TradeButtons symbol={coin.symbol} variant="compact" stacked />
+        <TradeButton symbol={coin.symbol} name={coin.name} />
       </td>
     </tr>
   );
