@@ -42,7 +42,7 @@ const RANGE_LABEL: Record<RangeId, MessageKey> = {
 export function ChartSection({ coin }: { coin: CoinInfo }) {
   const t = useT();
   const [range, setRange] = useState<RangeId>("7d");
-  const [mode, setMode] = useState<"line" | "candles">("line");
+  const [mode, setMode] = useState<"line" | "candles">("candles");
   const history = useHistory(coin.id, coin.symbol, range, coin.price);
   const data = history.data;
   const canCandles = data?.source === "binance";
@@ -107,7 +107,7 @@ export function ChartSection({ coin }: { coin: CoinInfo }) {
         <div className="skeleton h-[400px] w-full rounded-xl" />
       ) : data && data.points.length >= 2 ? (
         <div className={cn("transition-opacity", history.isFetching && "opacity-60")}>
-          <PriceChart points={data.points} mode={effectiveMode} range={range} />
+          <PriceChart points={data.points} mode={effectiveMode} range={range} symbol={coin.symbol} />
         </div>
       ) : (
         <div className="grid h-[400px] place-items-center rounded-xl bg-surface-2 p-6 text-center">
@@ -234,7 +234,7 @@ function MemberSignals({ base }: { base: string }) {
         </>
       )}
       <AiButton analysis={analysis} />
-      {aiOpen && levels && live && !analysis.ai.isFetching ? <CoinChart candles={live.candles} levels={levels} className="h-[360px]" /> : null}
+      {aiOpen && levels && live && !analysis.ai.isFetching ? <CoinChart candles={live.candles} levels={levels} symbol={base} className="h-[360px]" /> : null}
       <AiResult analysis={analysis} />
       <p className="text-[11px] leading-relaxed text-faint">{t("detail.levelsNote")}</p>
     </div>

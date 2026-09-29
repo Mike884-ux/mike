@@ -241,6 +241,11 @@ export const ru = {
   "scan.filter.squeeze": "Резкое движение",
   "scan.filterHint": "объём, импульс и RSI",
 
+  "chart.open": "Откр",
+  "chart.high": "Макс",
+  "chart.low": "Мин",
+  "chart.close": "Закр",
+  "chart.volume": "Объём",
   "detail.dialog": "{base}: график и анализ",
   "detail.technicalContext": "Технический фон",
   "detail.aiNotRun": "ИИ ещё не анализировал",

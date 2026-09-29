@@ -242,6 +242,11 @@ export const en: Record<MessageKey, string> = {
   "scan.filter.squeeze": "Sharp move",
   "scan.filterHint": "volume, momentum and RSI",
 
+  "chart.open": "O",
+  "chart.high": "H",
+  "chart.low": "L",
+  "chart.close": "C",
+  "chart.volume": "Vol",
   "detail.dialog": "{base}: chart and analysis",
   "detail.technicalContext": "Technical context",
   "detail.aiNotRun": "AI not run yet",

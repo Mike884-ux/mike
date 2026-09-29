@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   AreaSeries,
   CandlestickSeries,
@@ -14,6 +14,8 @@ import { useSettings } from "@/lib/settings-store";
 import { useResolvedTheme } from "@/components/site/prefs";
 import { chartPalette, withAlpha } from "@/lib/theme-colors";
 import { cn } from "@/lib/utils";
+import { addTickerWatermark, baseChartOptions, candleSeriesOptions, volumeColor } from "@/lib/candle-style";
+import { CandleLegend, type LegendCandle } from "@/components/candle-legend";
 
 /** Enough decimals to show movement: 2 for $64,000, 6 for $0.0123, 10 for $0.0000012. */
 function precisionFor(price: number): number {
@@ -29,28 +31,36 @@ type Mode = "line" | "candles";
  * the data has them) with volume bars underneath. Colours follow the theme and
  * whether the period closed higher.
  */
-export function PriceChart({ points, mode, range, className }: { points: HistoryPoint[]; mode: Mode; range: RangeId; className?: string }) {
+export function PriceChart({ points, mode, range, symbol, className }: { points: HistoryPoint[]; mode: Mode; range: RangeId; symbol?: string; className?: string }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const theme = useResolvedTheme();
   const lang = useSettings((s) => s.lang);
+  const [candleChart, setCandleChart] = useState<IChartApi | null>(null);
+  const [legendRows, setLegendRows] = useState<LegendCandle[]>([]);
 
   useEffect(() => {
     const container = containerRef.current;
     if (!container || points.length < 2) return;
     const p = chartPalette();
     const axisDigits = precisionFor(points.at(-1)?.c ?? 0);
+    const candleMode = mode === "candles";
     const chart = createChart(container, {
+      ...(candleMode ? baseChartOptions(p) : {}),
       localization: {
         locale: LOCALE[lang],
         priceFormatter: (value: number) =>
           value.toLocaleString("en-US", { minimumFractionDigits: Math.abs(value) >= 1000 ? 0 : Math.min(axisDigits, 2), maximumFractionDigits: Math.abs(value) >= 1000 ? 0 : axisDigits }),
       },
-      layout: { background: { color: "transparent" }, textColor: p.text, attributionLogo: false, fontFamily: "Inter Variable, Inter, system-ui, sans-serif" },
-      grid: { vertLines: { visible: false }, horzLines: { color: withAlpha(p.grid, 0.7) } },
-      rightPriceScale: { borderVisible: false, scaleMargins: { top: 0.08, bottom: 0.22 } },
-      timeScale: { borderColor: p.border, timeVisible: range === "1d" || range === "7d", secondsVisible: false, fixLeftEdge: true, fixRightEdge: true },
-      crosshair: { mode: CrosshairMode.Magnet },
+      ...(candleMode
+        ? { timeScale: { ...baseChartOptions(p).timeScale, timeVisible: range === "1d" || range === "7d", secondsVisible: false } }
+        : {
+            layout: { background: { color: "transparent" }, textColor: p.text, attributionLogo: false, fontFamily: "Inter Variable, Inter, system-ui, sans-serif" },
+            grid: { vertLines: { visible: false }, horzLines: { color: withAlpha(p.grid, 0.7) } },
+            rightPriceScale: { borderVisible: false, scaleMargins: { top: 0.08, bottom: 0.22 } },
+            timeScale: { borderColor: p.border, timeVisible: range === "1d" || range === "7d", secondsVisible: false, fixLeftEdge: true, fixRightEdge: true },
+            crosshair: { mode: CrosshairMode.Magnet },
+          }),
       handleScroll: { vertTouchDrag: false },
       width: container.clientWidth,
       height: container.clientHeight || 400,
@@ -68,14 +78,7 @@ export function PriceChart({ points, mode, range, className }: { points: History
     const priceFormat = { type: "price" as const, precision, minMove: 1 / 10 ** precision };
 
     if (mode === "candles") {
-      const candles = chart.addSeries(CandlestickSeries, {
-        upColor: p.up,
-        downColor: p.down,
-        borderVisible: false,
-        wickUpColor: p.up,
-        wickDownColor: p.down,
-        priceFormat,
-      });
+      const candles = chart.addSeries(CandlestickSeries, { ...candleSeriesOptions(), priceFormat });
       candles.setData(rows.map((r) => ({ time: r.time, open: r.o, high: r.h, low: r.l, close: r.c })));
     } else {
       const area = chart.addSeries(AreaSeries, {
@@ -97,11 +100,14 @@ export function PriceChart({ points, mode, range, className }: { points: History
         rows.map((r, i) => ({
           time: r.time,
           value: r.v,
-          color: withAlpha((mode === "candles" ? r.c >= r.o : i === 0 || r.c >= rows[i - 1]!.c) ? p.up : p.down, 0.35),
+          color: candleMode ? volumeColor(r.c >= r.o) : withAlpha(i === 0 || r.c >= rows[i - 1]!.c ? p.up : p.down, 0.35),
         })),
       );
     }
     chart.timeScale().fitContent();
+    const removeWatermark = candleMode ? addTickerWatermark(chart, symbol, p) : () => undefined;
+    setCandleChart(candleMode ? chart : null);
+    setLegendRows(candleMode ? rows.map((r) => ({ time: r.time, o: r.o, h: r.h, l: r.l, c: r.c, v: r.v })) : []);
 
     const observer = new ResizeObserver(() => {
       if (containerRef.current) chart.applyOptions({ width: containerRef.current.clientWidth, height: containerRef.current.clientHeight || 400 });
@@ -109,10 +115,17 @@ export function PriceChart({ points, mode, range, className }: { points: History
     observer.observe(container);
     return () => {
       observer.disconnect();
+      removeWatermark();
+      setCandleChart(null);
       chart.remove();
       chartRef.current = null;
     };
-  }, [points, mode, range, theme, lang]);
+  }, [points, mode, range, theme, lang, symbol]);
 
-  return <div ref={containerRef} className={cn("h-[400px] w-full", className)} />;
+  return (
+    <div className={cn("relative h-[400px] w-full", className)}>
+      <div ref={containerRef} className="absolute inset-0" />
+      {mode === "candles" ? <CandleLegend chart={candleChart} rows={legendRows} /> : null}
+    </div>
+  );
 }

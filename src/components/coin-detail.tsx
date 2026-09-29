@@ -502,7 +502,7 @@ export function CoinDetail({ row, interval, onClose }: { row: CoinRow; interval:
                 </button>
               </div>
             ) : (
-              <CoinChart candles={live.candles} levels={aiOpen && levels ? levels : null} />
+              <CoinChart candles={live.candles} levels={aiOpen && levels ? levels : null} symbol={row.base} />
             )}
           </div>
 

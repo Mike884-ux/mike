@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   CandlestickSeries,
   HistogramSeries,
@@ -13,10 +13,12 @@ import type { AiLevels, Candle } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { useT, type MessageKey } from "@/lib/i18n";
 import { useResolvedTheme } from "@/components/site/prefs";
-import { chartPalette, withAlpha } from "@/lib/theme-colors";
+import { chartPalette } from "@/lib/theme-colors";
+import { addTickerWatermark, baseChartOptions, CANDLE_DOWN, CANDLE_UP, candleSeriesOptions, volumeColor } from "@/lib/candle-style";
+import { CandleLegend, type LegendCandle } from "@/components/candle-legend";
 
-const UP = "#2fd08a";
-const DOWN = "#ff6b6b";
+const UP = CANDLE_UP;
+const DOWN = CANDLE_DOWN;
 
 const LEVEL_META: {
   key: "resistance" | "target" | "target2" | "entry" | "support" | "stopLoss";
@@ -35,10 +37,13 @@ const LEVEL_META: {
 export function CoinChart({
   candles,
   levels,
+  symbol,
   className,
 }: {
   candles: Candle[];
   levels?: AiLevels | null;
+  /** Shown as a faint watermark behind the candles. */
+  symbol?: string;
   className?: string;
 }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -48,38 +53,31 @@ export function CoinChart({
   const linesRef = useRef<IPriceLine[]>([]);
   const t = useT();
   const theme = useResolvedTheme();
+  const [chartApi, setChartApi] = useState<IChartApi | null>(null);
+  const [legendRows, setLegendRows] = useState<LegendCandle[]>([]);
 
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
 
     const chart = createChart(container, {
-      layout: { background: { color: "transparent" }, textColor: "#8f98b3", attributionLogo: false },
-      grid: {
-        vertLines: { color: "rgba(255,255,255,0.04)" },
-        horzLines: { color: "rgba(255,255,255,0.04)" },
-      },
-      rightPriceScale: { borderColor: "rgba(255,255,255,0.08)", scaleMargins: { top: 0.1, bottom: 0.25 } },
-      timeScale: { borderColor: "rgba(255,255,255,0.08)" },
+      ...baseChartOptions(chartPalette()),
       width: container.clientWidth,
       height: container.clientHeight || 440,
     });
-    const series = chart.addSeries(CandlestickSeries, {
-      upColor: UP,
-      downColor: DOWN,
-      borderVisible: false,
-      wickUpColor: UP,
-      wickDownColor: DOWN,
-    });
+    const series = chart.addSeries(CandlestickSeries, candleSeriesOptions());
     const volume = chart.addSeries(HistogramSeries, {
       priceFormat: { type: "volume" },
       priceScaleId: "",
       color: UP,
+      lastValueVisible: false,
+      priceLineVisible: false,
     });
     volume.priceScale().applyOptions({ scaleMargins: { top: 0.82, bottom: 0 } });
     chartRef.current = chart;
     seriesRef.current = series;
     volumeRef.current = volume;
+    setChartApi(chart);
 
     const resize = () => {
       if (!containerRef.current) return;
@@ -95,21 +93,20 @@ export function CoinChart({
       seriesRef.current = null;
       volumeRef.current = null;
       linesRef.current = [];
+      setChartApi(null);
     };
   }, []);
+
+  useEffect(() => {
+    if (!chartApi) return;
+    return addTickerWatermark(chartApi, symbol, chartPalette());
+  }, [chartApi, symbol, theme]);
 
   // Follow the light/dark switch without rebuilding the chart.
   useEffect(() => {
     const chart = chartRef.current;
     if (!chart) return;
-    const p = chartPalette();
-    chart.applyOptions({
-      layout: { textColor: p.text },
-      grid: { vertLines: { color: withAlpha(p.grid, 0.6) }, horzLines: { color: withAlpha(p.grid, 0.6) } },
-      rightPriceScale: { borderColor: p.border },
-      timeScale: { borderColor: p.border },
-    });
-    seriesRef.current?.applyOptions({ upColor: p.up, downColor: p.down, wickUpColor: p.up, wickDownColor: p.down });
+    chart.applyOptions(baseChartOptions(chartPalette()));
   }, [theme]);
 
   useEffect(() => {
@@ -130,9 +127,10 @@ export function CoinChart({
       rows.map((row) => ({
         time: row.time,
         value: row.v,
-        color: withAlpha(row.close >= row.open ? chartPalette().up : chartPalette().down, 0.4),
+        color: volumeColor(row.close >= row.open),
       })),
     );
+    setLegendRows(rows.map((r) => ({ time: r.time, o: r.open, h: r.high, l: r.low, c: r.close, v: r.v })));
     chartRef.current?.timeScale().fitContent();
   }, [candles]);
 
@@ -158,5 +156,10 @@ export function CoinChart({
     }
   }, [levels, t]);
 
-  return <div ref={containerRef} className={cn("h-[440px] w-full overflow-hidden rounded-xl bg-surface-2 shadow-[var(--shadow-border)]", className)} />;
+  return (
+    <div className={cn("relative h-[440px] w-full overflow-hidden rounded-xl bg-surface-2 shadow-[var(--shadow-border)]", className)}>
+      <div ref={containerRef} className="absolute inset-0" />
+      <CandleLegend chart={chartApi} rows={legendRows} />
+    </div>
+  );
 }
