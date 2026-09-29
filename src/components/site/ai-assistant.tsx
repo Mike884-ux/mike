@@ -5,7 +5,7 @@ import { useAssistant } from "@/lib/assistant-store";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import { useT, type MessageKey } from "@/lib/i18n";
 import { cn, stripMd } from "@/lib/utils";
-import { useChatSession } from "@/components/chat";
+import { useChatIdeas, useChatSession } from "@/components/chat";
 import { QuotaNote } from "@/components/billing/quota-note";
 import { AiFailure } from "@/components/billing/upsell";
 
@@ -35,12 +35,12 @@ export function RobotFace({ className }: { className?: string }) {
 }
 
 const COIN_QUESTIONS: MessageKey[] = ["assistant.q.full", "assistant.q.levels", "assistant.q.risks"];
-const GENERAL_QUESTIONS: MessageKey[] = ["chat.s1", "chat.s2", "chat.s3", "chat.s4"];
 
 function AssistantChat() {
   const t = useT();
   const focus = useAssistant((s) => s.focus);
   const chat = useChatSession(focus);
+  const general = useChatIdeas(3);
   const [input, setInput] = useState("");
   const bottomRef = useRef<HTMLDivElement | null>(null);
 
@@ -62,7 +62,7 @@ function AssistantChat() {
           </div>
           {chat.messages.length === 0 ? (
             <div className="flex flex-col gap-2">
-              {(focus ? COIN_QUESTIONS : GENERAL_QUESTIONS).map((key) => (
+              {(focus ? COIN_QUESTIONS : general.ideas).map((key) => (
                 <button
                   key={key}
                   type="button"
@@ -73,6 +73,11 @@ function AssistantChat() {
                   {t(key, vars)}
                 </button>
               ))}
+              {focus ? null : (
+                <button type="button" onClick={general.shuffle} className="self-start rounded-full px-2 py-1 text-xs font-semibold text-primary hover:bg-primary/10">
+                  {t("chat.more")}
+                </button>
+              )}
             </div>
           ) : (
             chat.messages.map((m, i) => (

@@ -2,14 +2,20 @@ import { useEffect, useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { BILLING_KEY } from "@/lib/use-billing";
 import { QuotaNote } from "@/components/billing/quota-note";
-import { Loader2, RotateCcw, Send, Sparkles } from "lucide-react";
+import { Loader2, RotateCcw, Send } from "lucide-react";
+import { CHAT_IDEAS, pickIdeas } from "@/lib/chat-ideas";
 import { chatWithAi, type ChatMessage } from "@/lib/chat";
 import { useT, type MessageKey } from "@/lib/i18n";
 import { useSettings } from "@/lib/settings-store";
 import { stripMd } from "@/lib/utils";
 import { AiFailure } from "@/components/billing/upsell";
 
-const SUGGESTIONS: MessageKey[] = ["chat.s1", "chat.s2", "chat.s3", "chat.s4"];
+/** A few ready-made questions: the first ones on the server, a random set once the page runs. */
+export function useChatIdeas(count: number) {
+  const [ideas, setIdeas] = useState<MessageKey[]>(() => CHAT_IDEAS.slice(0, count));
+  useEffect(() => setIdeas(pickIdeas(count)), [count]);
+  return { ideas, shuffle: () => setIdeas((current) => pickIdeas(count, current)) };
+}
 
 /** One conversation with the AI: messages, sending, errors. Shared by the /ai page and the floating assistant. */
 export function useChatSession(focus?: { base: string; name?: string } | null) {
@@ -51,6 +57,7 @@ export function Chat({ initialQuestion }: { initialQuestion?: string } = {}) {
   const t = useT();
   const chat = useChatSession();
   const { messages, error } = chat;
+  const { ideas, shuffle } = useChatIdeas(4);
   const [input, setInput] = useState("");
   const bottomRef = useRef<HTMLDivElement | null>(null);
 
@@ -92,19 +99,25 @@ export function Chat({ initialQuestion }: { initialQuestion?: string } = {}) {
 
       <div className="mt-4 flex-1 overflow-y-auto rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)]">
         {messages.length === 0 ? (
-          <div className="flex flex-col gap-2">
-            <p className="text-sm text-muted">{t("chat.examples")}</p>
-            {SUGGESTIONS.map((key) => (
-              <button
-                key={key}
-                type="button"
-                onClick={() => submit(t(key))}
-                className="flex items-center gap-2 rounded-xl bg-surface-2 px-3 py-2.5 text-left text-sm text-muted hover:text-fg focus-visible:ring-2 focus-visible:ring-primary/40"
-              >
-                <Sparkles className="size-3.5 shrink-0 text-primary" />
-                {t(key)}
+          <div>
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-sm font-semibold text-fg">{t("chat.examples")}</p>
+              <button type="button" onClick={shuffle} className="rounded-full px-3 py-1.5 text-xs font-semibold text-primary hover:bg-primary/10 focus-visible:ring-2 focus-visible:ring-primary/40">
+                {t("chat.more")}
               </button>
-            ))}
+            </div>
+            <div className="mt-3 grid gap-2 sm:grid-cols-2">
+              {ideas.map((key) => (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => submit(t(key))}
+                  className="fade-up rounded-2xl bg-surface-2 px-4 py-3.5 text-left text-sm leading-snug text-fg ring-1 ring-transparent transition hover:-translate-y-0.5 hover:ring-primary/40 focus-visible:ring-2 focus-visible:ring-primary/40"
+                >
+                  {t(key)}
+                </button>
+              ))}
+            </div>
           </div>
         ) : (
           <div className="flex flex-col gap-3">

@@ -249,6 +249,22 @@ export function detectBaseInText(text: string): string | undefined {
   return undefined;
 }
 
+/** Up to `max` different assets named in a question ("ETH или SOL?"), in the order found. */
+export function detectBasesInText(text: string, max = 2): string[] {
+  const upper = text.toUpperCase();
+  const found: { base: string; at: number }[] = [];
+  for (const asset of [...ASSETS].sort((a, b) => b.base.length - a.base.length)) {
+    const token = new RegExp(`(?:^|[^A-Z0-9])${asset.base}(?:[^A-Z0-9]|$)`).exec(upper);
+    let at = token ? token.index : -1;
+    for (const alias of asset.aliases) {
+      if (at >= 0) break;
+      if (alias.length >= 3) at = upper.indexOf(alias.toUpperCase());
+    }
+    if (at >= 0 && !found.some((f) => f.base === asset.base)) found.push({ base: asset.base, at });
+  }
+  return found.sort((a, b) => a.at - b.at).slice(0, max).map((f) => f.base);
+}
+
 export function quoteOf(asset: Asset): string {
   if (asset.kind === "stock" && asset.base === "SBER") return "RUB";
   if (asset.kind === "crypto") return "USDT";

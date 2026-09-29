@@ -3,7 +3,7 @@ import { authMiddleware } from "@/lib/auth/middleware";
 import type { AiFailureReason } from "./coin-detail";
 import { factorTextRu } from "./indicators";
 import { asLang } from "./lang";
-import { assetOf, detectBaseInText } from "./markets";
+import { assetOf, detectBasesInText } from "./markets";
 import { allow } from "./rate-limit";
 
 export type ChatMessage = { role: "user" | "assistant"; text: string };
@@ -38,16 +38,16 @@ export const chatWithAi = createServerFn({ method: "POST" })
     if (!allow(context.userId, "ai-chat", 20, 180_000)) return { ok: false, reason: "too_often" };
     const { withAiQuota } = await import("./quota.server");
     return withAiQuota(context, "chat", async (plan, tier) => {
-      // Attach live numbers when the question names an asset ("что с солана?").
-      const named = detectBaseInText(messages.at(-1)!.text);
-      const base = named ?? (data.focus && assetOf(data.focus) ? data.focus : null);
-      let live = "";
-      if (base) {
-        const { loadCoinContext } = await import("./coin-context.server");
-        const ctx = await loadCoinContext(base, "4h").catch(() => null);
-        if (ctx) {
-          const t = ctx.technicals;
-          live = [
+      // Attach live numbers for the assets the question names ("ETH или SOL?"), else the coin on screen.
+      const named = detectBasesInText(messages.at(-1)!.text, 2);
+      const bases = named.length ? named : data.focus && assetOf(data.focus) ? [data.focus] : [];
+      const { loadCoinContext } = await import("./coin-context.server");
+      const reads = await Promise.all(bases.map((b) => loadCoinContext(b, "4h").catch(() => null)));
+      const liveParts = reads.flatMap((ctx) => {
+        if (!ctx) return [];
+        const t = ctx.technicals;
+        return [
+          [
             `Live data for ${ctx.base} (4h candles): price ${ctx.price}, 24h ${ctx.change24h.toFixed(2)}%.`,
             `Trend ${t.trend}, RSI ${t.rsi}, ADX ${t.adx}, MACD ${t.macd > t.macdSignal ? "above" : "below"} signal, volume ${t.volumeRatio}x average, ATR ${t.atrPct}%.`,
             `Indicator score ${ctx.score} → ${ctx.signal}; ${ctx.factors.slice(0, 4).map(factorTextRu).join("; ")}.`,
@@ -55,9 +55,12 @@ export const chatWithAi = createServerFn({ method: "POST" })
             ctx.backtest.trades ? `Indicator signals on this asset worked ${ctx.backtest.hitRate}% of the time (${ctx.backtest.trades} signals).` : "",
           ]
             .filter(Boolean)
-            .join(" ");
-        }
-      }
+            .join(" "),
+        ];
+      });
+      // A market-wide question ("что растёт?", "страх или жадность?") gets today's market picture instead.
+      if (!bases.length) liveParts.push(await marketSnapshot());
+      const live = liveParts.filter(Boolean).join("\n");
 
       const { completeText } = await import("./ai.server");
       const focusNote = data.focus
@@ -75,3 +78,26 @@ export const chatWithAi = createServerFn({ method: "POST" })
       return result.ok ? { ok: true, text: result.text } : { ok: false, reason: result.reason };
     });
   });
+
+/** Fear & Greed, BTC dominance and the day's biggest movers among the top 100 — for market-wide questions. */
+async function marketSnapshot(): Promise<string> {
+  const coins = await import("./coins.server");
+  const [global, listing] = await Promise.all([coins.getGlobal().catch(() => null), coins.getListing(1).catch(() => null)]);
+  const top = (listing?.coins ?? []).filter((c) => typeof c.change24h === "number");
+  const byMove = [...top].sort((a, b) => (b.change24h ?? 0) - (a.change24h ?? 0));
+  const fmt = (c: (typeof top)[number]) => `${c.symbol} ${c.change24h! >= 0 ? "+" : ""}${c.change24h!.toFixed(1)}% (price ${c.price})`;
+  const btc = top.find((c) => c.symbol.toUpperCase() === "BTC");
+  const eth = top.find((c) => c.symbol.toUpperCase() === "ETH");
+  return [
+    "Market right now:",
+    global?.fearGreed ? `Fear & Greed ${global.fearGreed.value} (${global.fearGreed.label}).` : "",
+    global?.btcDominance ? `BTC dominance ${global.btcDominance.toFixed(1)}%.` : "",
+    global?.marketCapChange24h != null ? `Total market cap 24h ${global.marketCapChange24h.toFixed(2)}%.` : "",
+    btc ? `BTC ${fmt(btc)}.` : "",
+    eth ? `ETH ${fmt(eth)}.` : "",
+    byMove.length ? `Top gainers (top-100): ${byMove.slice(0, 5).map(fmt).join(", ")}.` : "",
+    byMove.length ? `Top losers (top-100): ${byMove.slice(-5).reverse().map(fmt).join(", ")}.` : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+}
