@@ -11,23 +11,52 @@ import { AiFailure } from "@/components/billing/upsell";
 
 const SUGGESTIONS: MessageKey[] = ["chat.s1", "chat.s2", "chat.s3", "chat.s4"];
 
-export function Chat({ initialQuestion }: { initialQuestion?: string } = {}) {
-  const t = useT();
+/** One conversation with the AI: messages, sending, errors. Shared by the /ai page and the floating assistant. */
+export function useChatSession(focus?: { base: string; name?: string } | null) {
   const lang = useSettings((s) => s.lang);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [input, setInput] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const bottomRef = useRef<HTMLDivElement | null>(null);
-
   const client = useQueryClient();
   const mutation = useMutation({
-    mutationFn: (next: ChatMessage[]) => chatWithAi({ data: { messages: next, lang } }),
+    mutationFn: (next: ChatMessage[]) =>
+      chatWithAi({ data: { messages: next, lang, focus: focus?.base, focusName: focus?.name } }),
     onSettled: () => void client.invalidateQueries({ queryKey: BILLING_KEY }),
   });
 
+  function submit(text: string) {
+    const clean = text.trim();
+    if (!clean || mutation.isPending) return false;
+    const next = [...messages, { role: "user" as const, text: clean }];
+    setMessages(next);
+    setError(null);
+    mutation.mutate(next, {
+      onSuccess: (res) => {
+        if (res.ok) setMessages((m) => [...m, { role: "assistant", text: res.text }]);
+        else setError(res.reason);
+      },
+      onError: () => setError("unavailable"),
+    });
+    return true;
+  }
+
+  function clear() {
+    setMessages([]);
+    setError(null);
+  }
+
+  return { messages, error, pending: mutation.isPending, submit, clear };
+}
+
+export function Chat({ initialQuestion }: { initialQuestion?: string } = {}) {
+  const t = useT();
+  const chat = useChatSession();
+  const { messages, error } = chat;
+  const [input, setInput] = useState("");
+  const bottomRef = useRef<HTMLDivElement | null>(null);
+
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-  }, [messages, mutation.isPending]);
+  }, [messages, chat.pending]);
 
   // A question handed over from a coin page ("ask the AI about Bitcoin") is sent once on arrival.
   const asked = useRef<string | null>(null);
@@ -39,19 +68,7 @@ export function Chat({ initialQuestion }: { initialQuestion?: string } = {}) {
   }, [initialQuestion]);
 
   function submit(text: string) {
-    const clean = text.trim();
-    if (!clean || mutation.isPending) return;
-    const next = [...messages, { role: "user" as const, text: clean }];
-    setMessages(next);
-    setInput("");
-    setError(null);
-    mutation.mutate(next, {
-      onSuccess: (res) => {
-        if (res.ok) setMessages((m) => [...m, { role: "assistant", text: res.text }]);
-        else setError(res.reason);
-      },
-      onError: () => setError("unavailable"),
-    });
+    if (chat.submit(text)) setInput("");
   }
 
   return (
@@ -64,10 +81,7 @@ export function Chat({ initialQuestion }: { initialQuestion?: string } = {}) {
         {messages.length ? (
           <button
             type="button"
-            onClick={() => {
-              setMessages([]);
-              setError(null);
-            }}
+            onClick={chat.clear}
             className="flex h-9 items-center gap-1.5 rounded-lg bg-surface-2 px-3 text-xs text-muted hover:text-fg"
           >
             <RotateCcw className="size-3.5" />
@@ -105,7 +119,7 @@ export function Chat({ initialQuestion }: { initialQuestion?: string } = {}) {
                 </div>
               </div>
             ))}
-            {mutation.isPending ? <p className="shimmer-text text-xs">{t("chat.typing")}</p> : null}
+            {chat.pending ? <p className="shimmer-text text-xs">{t("chat.typing")}</p> : null}
             {error ? <AiFailure reason={error} /> : null}
           </div>
         )}
@@ -128,11 +142,11 @@ export function Chat({ initialQuestion }: { initialQuestion?: string } = {}) {
         />
         <button
           type="submit"
-          disabled={!input.trim() || mutation.isPending}
+          disabled={!input.trim() || chat.pending}
           aria-label={t("chat.send")}
           className="bg-brand flex size-12 shrink-0 items-center justify-center rounded-full text-white shadow-[var(--shadow-glow)] disabled:opacity-50"
         >
-          {mutation.isPending ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
+          {chat.pending ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
         </button>
       </form>
       <QuotaNote kind="chat" className="px-5 pb-1" />

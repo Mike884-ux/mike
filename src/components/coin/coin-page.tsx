@@ -20,6 +20,7 @@ import { coinIntro, type CoinSeo } from "@/lib/seo";
 import { AlertDialog } from "@/components/alerts/alert-dialog";
 import { TradeButtons } from "@/components/trade-buttons";
 import { isTradable } from "@/lib/exchanges";
+import { useAssistantFocus } from "@/lib/assistant-store";
 
 function Crumbs({ name }: { name: string }) {
   const t = useT();
@@ -396,6 +397,8 @@ export function CoinPage({ id, seo = null }: { id: string; seo?: CoinSeo | null 
   const holding = useHolding(coin ?? { symbol: "", price: 0 } as CoinInfo, signedIn && Boolean(coin));
   const openTrade = () => (signedIn ? setTrading(true) : void navigate({ to: "/login", search: { mode: "signup", redirect: `/coins/${id}` } }));
   const openAlert = () => (signedIn ? setAlerting(true) : void navigate({ to: "/login", search: { mode: "signup", redirect: `/coins/${id}` } }));
+  // The floating AI assistant knows which coin is on screen.
+  useAssistantFocus(coin?.symbol ?? seo?.symbol, coin?.name ?? seo?.name);
 
   useEffect(() => {
     if (coin) document.title = `${coin.name} (${coin.symbol}) ${usdPrice(coin.price)} — ${t("app.name")}`;

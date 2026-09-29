@@ -238,6 +238,42 @@ export const analyzeChartAi = createServerFn({ method: "POST" })
     return answer.ok ? { ok: true, levels: answer.value } : answer;
   });
 
+export type AiVerdict = { direction: AiLevels["direction"]; confidence: number };
+
+/**
+ * The AI verdicts already worked out in the last 15 minutes for a list of
+ * assets — straight from the shared cache: no AI call, no allowance spent.
+ */
+export const getAiVerdicts = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator((input: { bases?: string[]; interval?: string; lang?: string }) => ({
+    bases: (Array.isArray(input.bases) ? input.bases : [])
+      .map((b) => String(b).toUpperCase())
+      .filter((b) => /^[A-Z0-9=.^-]{1,20}$/.test(b))
+      .slice(0, 120),
+    interval: asInterval(input.interval),
+    lang: asLang(input.lang),
+  }))
+  .handler(async ({ data, context }): Promise<Record<string, AiVerdict>> => {
+    const bases = data.bases.filter((b) => assetOf(b));
+    if (!bases.length) return {};
+    const [cache, quota] = await Promise.all([import("./ai-cache.server"), import("./quota.server")]);
+    // Same keys and the same rule as the analysis: a free member may see the stronger model's answer.
+    const tier = await quota.aiTierFor(context);
+    const tiers: AiTier[] = tier === "free" ? ["paid", "free"] : ["paid"];
+    const key = (t: AiTier, base: string) => `chart:${t}:${base}:${data.interval}:${data.lang}`;
+    const found = await cache.peekManyAi<AiLevels>(
+      bases.flatMap((b) => tiers.map((t) => key(t, b))),
+      cache.AI_CACHE_TTL,
+    );
+    const out: Record<string, AiVerdict> = {};
+    for (const base of bases) {
+      const levels = tiers.map((t) => found.get(key(t, base))).find(Boolean);
+      if (levels) out[base] = { direction: levels.direction, confidence: levels.confidence };
+    }
+    return out;
+  });
+
 /** Rephrases an already-generated AI verdict in plain, jargon-free language for a non-trader. */
 export const explainSimple = createServerFn({ method: "POST" })
   .middleware([authMiddleware])

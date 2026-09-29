@@ -64,6 +64,34 @@ export async function peekAi<T>(key: string, ttlMs: number, now = Date.now()): P
   }
 }
 
+/** Fresh stored answers for many keys at once: memory first, then one database query. */
+export async function peekManyAi<T>(keys: string[], ttlMs: number, now = Date.now()): Promise<Map<string, T>> {
+  const found = new Map<string, T>();
+  const missing: string[] = [];
+  for (const key of new Set(keys)) {
+    const hit = memory.get(key);
+    if (hit && now - hit.at < ttlMs) found.set(key, hit.value as T);
+    else missing.push(key);
+  }
+  if (!missing.length) return found;
+  try {
+    const sql = await getStore();
+    const byDbKey = new Map(missing.map((key) => [dbKey(key), key]));
+    const rows = await sql<{ key: string; value: T; created_at: Date | string }>`
+      select key, value, created_at from ai_cache
+      where key = any(${[...byDbKey.keys()]}) and created_at > ${new Date(now - ttlMs).toISOString()}::timestamptz`;
+    for (const row of rows) {
+      const key = byDbKey.get(row.key);
+      if (!key) continue;
+      remember(key, new Date(row.created_at).getTime(), row.value);
+      found.set(key, row.value);
+    }
+  } catch (err) {
+    console.error("[ai-cache] read failed:", err instanceof Error ? err.message : err);
+  }
+  return found;
+}
+
 async function store(key: string, value: unknown, now: number): Promise<void> {
   remember(key, now, value);
   try {

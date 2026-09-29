@@ -351,6 +351,38 @@
   }
 }
 
+/* The floating AI assistant: a gentle hover in place and a blink now and then. */
+.assistant-float {
+  animation: assistant-float 3.2s ease-in-out infinite;
+}
+
+@keyframes assistant-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-4px);
+  }
+}
+
+.assistant-eye {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: assistant-blink 4.5s ease-in-out infinite;
+}
+
+@keyframes assistant-blink {
+  0%,
+  92%,
+  100% {
+    transform: scaleY(1);
+  }
+  95% {
+    transform: scaleY(0.15);
+  }
+}
+
 /* Loading placeholders. */
 .skeleton {
   background: linear-gradient(90deg, var(--color-surface-2) 0%, var(--color-surface-3) 50%, var(--color-surface-2) 100%);
@@ -366,6 +398,8 @@
   .flash-up,
   .flash-down,
   .market-orb__sphere,
+  .assistant-float,
+  .assistant-eye,
   .skeleton {
     animation: none;
     stroke-dashoffset: 0;

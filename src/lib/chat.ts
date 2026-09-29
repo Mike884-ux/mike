@@ -3,7 +3,7 @@ import { authMiddleware } from "@/lib/auth/middleware";
 import type { AiFailureReason } from "./coin-detail";
 import { factorTextRu } from "./indicators";
 import { asLang } from "./lang";
-import { detectBaseInText } from "./markets";
+import { assetOf, detectBaseInText } from "./markets";
 import { allow } from "./rate-limit";
 
 export type ChatMessage = { role: "user" | "assistant"; text: string };
@@ -18,7 +18,7 @@ Never guarantee results or say something "will definitely" rise or fall — spea
 
 export const chatWithAi = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .validator((input: { messages?: ChatMessage[]; lang?: string }) => ({
+  .validator((input: { messages?: ChatMessage[]; lang?: string; focus?: string; focusName?: string }) => ({
     messages: Array.isArray(input.messages)
       ? input.messages.slice(-16).map((m) => ({
           role: (m?.role === "assistant" ? "assistant" : "user") as ChatMessage["role"],
@@ -26,6 +26,9 @@ export const chatWithAi = createServerFn({ method: "POST" })
         }))
       : [],
     lang: asLang(input.lang),
+    // The coin on screen when the question comes from the floating assistant.
+    focus: /^[A-Za-z0-9]{1,15}$/.test(String(input.focus ?? "")) ? String(input.focus).toUpperCase() : null,
+    focusName: String(input.focusName ?? "").replace(/[^\p{L}\p{N} .()-]/gu, "").slice(0, 60),
   }))
   .handler(async ({ data, context }): Promise<{ ok: true; text: string } | { ok: false; reason: AiFailureReason }> => {
     // The conversation must start with the user and end with a user question.
@@ -36,7 +39,8 @@ export const chatWithAi = createServerFn({ method: "POST" })
     const { withAiQuota } = await import("./quota.server");
     return withAiQuota(context, "chat", async (plan, tier) => {
       // Attach live numbers when the question names an asset ("что с солана?").
-      const base = detectBaseInText(messages.at(-1)!.text);
+      const named = detectBaseInText(messages.at(-1)!.text);
+      const base = named ?? (data.focus && assetOf(data.focus) ? data.focus : null);
       let live = "";
       if (base) {
         const { loadCoinContext } = await import("./coin-context.server");
@@ -56,8 +60,11 @@ export const chatWithAi = createServerFn({ method: "POST" })
       }
 
       const { completeText } = await import("./ai.server");
+      const focusNote = data.focus
+        ? `The user is looking at ${data.focusName ? `${data.focusName} (${data.focus})` : data.focus} on the site right now. Unless they name another asset, their question is about it. When they ask for advice, give the complete picture: a clear call (buy, hold, sell or wait), why, an entry zone, a stop, one or two targets, the main risks and the time horizon — with numbers from the live data.`
+        : "";
       const result = await completeText({
-        system: live ? `${SYSTEM}\n\n${live}` : SYSTEM,
+        system: [SYSTEM, focusNote, live].filter(Boolean).join("\n\n"),
         messages,
         // Whale (stored as "max") members get the deeper-thinking mode.
         effort: plan === "max" ? "high" : "medium",

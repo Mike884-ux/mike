@@ -1,5 +1,5 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowDown,
   ArrowUp,
@@ -21,7 +21,10 @@ import { assetOf } from "@/lib/markets";
 import { useFavorites } from "@/lib/use-account";
 import { AssetIcon } from "@/components/asset-icon";
 import { Spark } from "@/components/spark";
-import { Card, ScoreBar, SignalBadge } from "@/components/ui-bits";
+import { Card } from "@/components/ui-bits";
+import { AiCell } from "@/components/ai-cell";
+import { getAiVerdicts, type AiVerdict } from "@/lib/coin-detail";
+import { useSettings } from "@/lib/settings-store";
 import { CoinDetail } from "@/components/coin-detail";
 import { ShareSignalButton } from "@/components/share-signal";
 import { TradeButtons } from "@/components/trade-buttons";
@@ -68,7 +71,7 @@ function FearGreedGauge({ value }: { value: number }) {
   );
 }
 
-type SortKey = "price" | "change24h" | "rsi" | "score" | "volumeRatio";
+type SortKey = "price" | "change24h" | "rsi" | "volumeRatio";
 
 type SmartFilter = "all" | "whale" | "momentum" | "oversold" | "squeeze";
 
@@ -77,8 +80,10 @@ type RowProps = {
   rank: number;
   interval: IntervalId;
   favorite: boolean;
+  verdict: AiVerdict | undefined;
   onOpen: (row: CoinRow) => void;
   onToggleFavorite: (base: string) => void;
+  onAnswer: (base: string, verdict: AiVerdict) => void;
 };
 
 /**
@@ -95,19 +100,20 @@ const CoinRowView = memo(CoinRowViewInner, (a, b) => {
     a.favorite === b.favorite &&
     a.onOpen === b.onOpen &&
     a.onToggleFavorite === b.onToggleFavorite &&
+    a.onAnswer === b.onAnswer &&
+    a.verdict?.direction === b.verdict?.direction &&
+    a.verdict?.confidence === b.verdict?.confidence &&
     x.price === y.price &&
     x.change24h === y.change24h &&
     x.rsi === y.rsi &&
     x.trend === y.trend &&
-    x.signal === y.signal &&
-    x.score === y.score &&
     x.volumeRatio === y.volumeRatio &&
     x.spark.at(-1) === y.spark.at(-1) &&
     x.spark[0] === y.spark[0]
   );
 });
 
-function CoinRowViewInner({ row, rank, interval, favorite, onOpen, onToggleFavorite }: RowProps) {
+function CoinRowViewInner({ row, rank, interval, favorite, verdict, onOpen, onToggleFavorite, onAnswer }: RowProps) {
   const onOpenDetail = () => onOpen(row);
   const t = useT();
   const TrendIcon = row.trend === "up" ? ArrowUp : row.trend === "down" ? ArrowDown : Minus;
@@ -192,10 +198,7 @@ function CoinRowViewInner({ row, rank, interval, favorite, onOpen, onToggleFavor
         </span>
       </td>
       <td className="px-3 py-2.5">
-        <SignalBadge signal={row.signal} />
-      </td>
-      <td className="hidden px-3 py-2.5 lg:table-cell">
-        <ScoreBar score={row.score} />
+        <AiCell base={row.base} interval={interval} verdict={verdict} onAnswer={onAnswer} />
       </td>
       <td className="hidden px-3 py-2.5 xl:table-cell">
         <span className="flex items-center justify-end gap-1.5">
@@ -212,8 +215,10 @@ const SignalCard = memo(function SignalCard({
   row,
   interval,
   favorite,
+  verdict,
   onOpen,
   onToggleFavorite,
+  onAnswer,
 }: Omit<RowProps, "rank">) {
   const t = useT();
   const TrendIcon = row.trend === "up" ? ArrowUp : row.trend === "down" ? ArrowDown : Minus;
@@ -242,7 +247,6 @@ const SignalCard = memo(function SignalCard({
             </span>
           </p>
         </div>
-        <SignalBadge signal={row.signal} />
         <button
           type="button"
           onClick={(event) => {
@@ -257,7 +261,7 @@ const SignalCard = memo(function SignalCard({
           <Star className={`size-4 ${favorite ? "fill-wait text-wait" : ""}`} />
         </button>
       </div>
-      <ScoreBar score={row.score} className="mt-3" />
+      <AiCell base={row.base} interval={interval} verdict={verdict} onAnswer={onAnswer} className="mt-3" />
       <div className="mt-2.5 flex flex-wrap gap-1.5 text-[11px] font-medium text-muted">
         <span className="rounded-full bg-surface-2 px-2 py-0.5 tabular-nums">RSI {row.rsi}</span>
         <span
@@ -383,6 +387,27 @@ function ScanTab({
     refetchOnWindowFocus: false,
   });
 
+  // What the AI already said about these assets (shared cache: free, no AI call).
+  const lang = useSettings((s) => s.lang);
+  const client = useQueryClient();
+  const bases = useMemo(() => [...new Set((scan.data ?? []).map((row) => row.base))].sort(), [scan.data]);
+  const verdictsKey = useMemo(() => ["ai-verdicts", interval, lang, bases.join(",")], [interval, lang, bases]);
+  const verdicts = useQuery({
+    queryKey: verdictsKey,
+    queryFn: () => getAiVerdicts({ data: { bases, interval, lang } }),
+    enabled: bases.length > 0,
+    staleTime: 50_000,
+    refetchInterval: 60_000,
+    refetchOnWindowFocus: false,
+    placeholderData: keepPreviousData,
+  });
+  const verdictOf = verdicts.data ?? {};
+  const onAnswer = useCallback(
+    (base: string, verdict: AiVerdict) =>
+      client.setQueryData<Record<string, AiVerdict>>(verdictsKey, (prev) => ({ ...prev, [base]: verdict })),
+    [client, verdictsKey],
+  );
+
   const toggleSort = (key: SortKey) => {
     setSort((prev) =>
       prev?.key === key ? { key, dir: prev.dir === "asc" ? "desc" : "asc" } : { key, dir: "desc" },
@@ -433,15 +458,17 @@ function ScanTab({
   const closeDetail = useCallback(() => setSelected(null), []);
   const openRow = useCallback((row: CoinRow) => setSelected(row), []);
 
-  const longCount = rows.filter((r) => r.signal === "LONG").length;
-  const shortCount = rows.filter((r) => r.signal === "SHORT").length;
+  // The counters follow the AI's calls, not the raw indicators.
+  const longCount = rows.filter((r) => verdictOf[r.base]?.direction === "LONG").length;
+  const shortCount = rows.filter((r) => verdictOf[r.base]?.direction === "SHORT").length;
+  const waitCount = rows.filter((r) => verdictOf[r.base]?.direction === "WAIT").length;
   const stats = [
     { label: "scan.stats.assets", value: rows.length, tone: "text-fg", accent: "bg-primary" },
     { label: "scan.stats.long", value: longCount, tone: "text-long", accent: "bg-long" },
     { label: "scan.stats.short", value: shortCount, tone: "text-short", accent: "bg-short" },
     {
       label: "scan.stats.wait",
-      value: rows.length - longCount - shortCount,
+      value: waitCount,
       tone: "text-wait",
       accent: "bg-wait",
     },
@@ -536,7 +563,6 @@ function ScanTab({
                   <span className="flex items-center gap-1.5 text-xs">
                     <AssetIcon base={row.base} kind={row.kind} className="size-5" />
                     <span className="font-mono font-semibold text-fg">{row.base}</span>
-                    <SignalBadge signal={row.signal} className="px-1.5 py-0.5 text-[9px]" />
                   </span>
                   <span className="font-mono text-xs text-accent tabular-nums">
                     {t("scan.volumeTimes", { x: row.volumeRatio.toFixed(1) })}
@@ -654,8 +680,10 @@ function ScanTab({
                 row={row}
                 interval={interval}
                 favorite={favorites.includes(row.base)}
+                verdict={verdictOf[row.base]}
                 onOpen={openRow}
                 onToggleFavorite={onToggleFavorite}
+                onAnswer={onAnswer}
               />
             ))}
           </ul>
@@ -698,14 +726,7 @@ function ScanTab({
                     onSort={toggleSort}
                     className="hidden lg:table-cell"
                   />
-                  <th className="px-3 py-2.5 font-normal">{t("scan.col.signal")}</th>
-                  <SortTh
-                    label={t("scan.col.score")}
-                    sortKey="score"
-                    sort={sort}
-                    onSort={toggleSort}
-                    className="hidden lg:table-cell"
-                  />
+                  <th className="px-3 py-2.5 font-normal">{t("scan.col.ai")}</th>
                   <th className="hidden px-3 py-2.5 text-right font-normal xl:table-cell">{t("scan.col.actions")}</th>
                 </tr>
               </thead>
@@ -717,8 +738,10 @@ function ScanTab({
                     rank={i + 1}
                     interval={interval}
                     favorite={favorites.includes(row.base)}
+                    verdict={verdictOf[row.base]}
                     onOpen={openRow}
                     onToggleFavorite={onToggleFavorite}
+                    onAnswer={onAnswer}
                   />
                 ))}
               </tbody>

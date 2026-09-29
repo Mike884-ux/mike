@@ -14,6 +14,7 @@ import { SiteFooter } from "@/components/site/footer";
 import { ProfileDrawer } from "@/components/site/profile-drawer";
 import { TabBar } from "@/components/site/tab-bar";
 import { SiteHeader } from "@/components/site/header";
+import { AiAssistant } from "@/components/site/ai-assistant";
 import { StatsBar } from "@/components/site/stats-bar";
 import { useApplyPrefs } from "@/components/site/prefs";
 
@@ -162,6 +163,7 @@ export function SiteShell({ children }: { children: ReactNode }) {
       <div className="h-[calc(3.5rem+env(safe-area-inset-bottom))] lg:hidden" aria-hidden />
       <TabBar />
       {user ? <ProfileDrawer /> : null}
+      <AiAssistant />
     </div>
   );
 }

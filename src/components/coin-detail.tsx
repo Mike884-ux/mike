@@ -9,6 +9,7 @@ import { timeAgo, useT, type MessageKey } from "@/lib/i18n";
 import { useSettings } from "@/lib/settings-store";
 import { AssetIcon } from "@/components/asset-icon";
 import { CoinChart } from "@/components/coin-chart";
+import { useAssistantFocus } from "@/lib/assistant-store";
 import { ScoreBar, SignalBadge } from "@/components/ui-bits";
 import { AiFailure } from "@/components/billing/upsell";
 import { ShareSignalButton } from "@/components/share-signal";
@@ -423,6 +424,7 @@ export function CoinDetail({ row, interval, onClose }: { row: CoinRow; interval:
   const [chartInterval, setChartInterval] = useState<IntervalId>(interval);
   const analysis = useCoinAnalysis(row.base, chartInterval);
   const { chart, chartFailed, live, extras, aiOpen, levels, buyPct } = analysis;
+  useAssistantFocus(row.base);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {

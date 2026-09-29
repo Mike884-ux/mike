@@ -41,14 +41,14 @@ export const PLANS: Record<PlanId, PlanSpec> = {
   },
   pro: {
     id: "pro",
-    month: 9,
-    year: yearly(9),
+    month: 14.99,
+    year: yearly(14.99),
     limits: { analysis: 50, chat: 150, advice: 10, strategy: 5 },
   },
   max: {
     id: "max",
-    month: 29,
-    year: yearly(29),
+    month: 39.99,
+    year: yearly(39.99),
     limits: { analysis: 150, chat: 500, advice: 40, strategy: 20 },
   },
 };

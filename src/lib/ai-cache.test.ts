@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync, readdirSync } from "node:fs";
 import { PGlite } from "@electric-sql/pglite";
 import type { SqlLike } from "./account-store.server.ts";
-import { AI_CACHE_TTL, cachedAi, peekAi, resetAiCache } from "./ai-cache.server.ts";
+import { AI_CACHE_TTL, cachedAi, peekAi, peekManyAi, resetAiCache } from "./ai-cache.server.ts";
 import { siteAiLimit, siteAiToday, takeSiteAi } from "./billing-store.server.ts";
 
 async function db(): Promise<SqlLike> {
@@ -105,4 +105,16 @@ test("AI_DAILY_LIMIT overrides the default", () => {
   assert.equal(siteAiLimit(), 1500);
   if (saved === undefined) delete process.env.AI_DAILY_LIMIT;
   else process.env.AI_DAILY_LIMIT = saved;
+});
+
+test("many answers are read at once, fresh ones only", async () => {
+  const sql = await db();
+  resetAiCache(async () => sql);
+  const now = Date.UTC(2026, 8, 29, 12);
+  await cachedAi("chart:paid:BTC", AI_CACHE_TTL, answer("btc"), now);
+  await cachedAi("chart:paid:ETH", AI_CACHE_TTL, answer("eth"), now - AI_CACHE_TTL - 1000);
+  resetAiCache(); // from the database, not memory
+  await cachedAi("chart:free:SOL", AI_CACHE_TTL, answer("sol"), now); // and one from memory
+  const found = await peekManyAi<string>(["chart:paid:BTC", "chart:paid:ETH", "chart:free:SOL", "chart:paid:XRP"], AI_CACHE_TTL, now + 1000);
+  assert.deepEqual(Object.fromEntries(found), { "chart:free:SOL": "sol", "chart:paid:BTC": "btc" });
 });
