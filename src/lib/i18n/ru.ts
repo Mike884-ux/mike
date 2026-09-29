@@ -236,6 +236,8 @@ export const ru = {
   "scan.filterHint": "объём, импульс и RSI",
 
   "detail.dialog": "{base}: график и анализ",
+  "detail.technicalContext": "Технический фон",
+  "detail.aiNotRun": "ИИ ещё не анализировал",
   "detail.day": "сутки",
   "detail.high": "Макс. 24ч",
   "detail.low": "Мин. 24ч",

@@ -154,7 +154,7 @@ export function TechnicalPanel({ live }: { live: NonNullable<CoinAnalysis["live"
           <p className="text-[11px] text-faint">{t("detail.strength")}</p>
           <div className="mt-1 flex items-center justify-between gap-2">
             <ScoreBar score={live.score} />
-            <SignalBadge signal={live.signal} />
+            <span className="text-[11px] text-faint">{t("detail.technicalContext")}</span>
           </div>
         </div>
         <div className="grid grid-cols-2 gap-2">
@@ -439,8 +439,6 @@ export function CoinDetail({ row, interval, onClose }: { row: CoinRow; interval:
 
   const price = live?.price ?? row.price;
   const change = live?.change24h ?? row.change24h;
-  const signal = live?.signal ?? row.signal;
-
   return (
     <div
       className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/55 p-3 backdrop-blur-sm sm:items-center sm:p-4"
@@ -455,7 +453,7 @@ export function CoinDetail({ row, interval, onClose }: { row: CoinRow; interval:
             <div className="flex items-center gap-2">
               <AssetIcon base={row.base} kind={row.kind} className="size-7" />
               <p className="font-display text-xl font-bold text-fg">{row.base}</p>
-              {chartFailed ? null : <SignalBadge signal={signal} />}
+              {levels ? <SignalBadge signal={levels.direction} /> : <span className="rounded-full bg-surface-2 px-2.5 py-1 text-[11px] text-faint">{t("detail.aiNotRun")}</span>}
             </div>
             <p className="mt-1 font-mono text-2xl tabular-nums text-fg">{formatPrice(price)}</p>
             <p className={`font-mono text-xs tabular-nums ${change >= 0 ? "text-long" : "text-short"}`}>

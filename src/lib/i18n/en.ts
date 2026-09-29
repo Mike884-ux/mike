@@ -237,6 +237,8 @@ export const en: Record<MessageKey, string> = {
   "scan.filterHint": "volume, momentum and RSI",
 
   "detail.dialog": "{base}: chart and analysis",
+  "detail.technicalContext": "Technical context",
+  "detail.aiNotRun": "AI not run yet",
   "detail.day": "24h",
   "detail.high": "24h high",
   "detail.low": "24h low",

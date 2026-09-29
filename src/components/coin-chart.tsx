@@ -62,7 +62,7 @@ export function CoinChart({
       rightPriceScale: { borderColor: "rgba(255,255,255,0.08)", scaleMargins: { top: 0.1, bottom: 0.25 } },
       timeScale: { borderColor: "rgba(255,255,255,0.08)" },
       width: container.clientWidth,
-      height: container.clientHeight || 420,
+      height: container.clientHeight || 440,
     });
     const series = chart.addSeries(CandlestickSeries, {
       upColor: UP,
@@ -83,7 +83,7 @@ export function CoinChart({
 
     const resize = () => {
       if (!containerRef.current) return;
-      chart.applyOptions({ width: containerRef.current.clientWidth, height: containerRef.current.clientHeight || 420 });
+      chart.applyOptions({ width: containerRef.current.clientWidth, height: containerRef.current.clientHeight || 440 });
     };
     const observer = new ResizeObserver(resize);
     observer.observe(container);
@@ -158,5 +158,5 @@ export function CoinChart({
     }
   }, [levels, t]);
 
-  return <div ref={containerRef} className={cn("h-[420px] w-full overflow-hidden rounded-lg bg-surface-2", className)} />;
+  return <div ref={containerRef} className={cn("h-[440px] w-full overflow-hidden rounded-xl bg-surface-2 shadow-[var(--shadow-border)]", className)} />;
 }
