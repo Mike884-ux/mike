@@ -39,7 +39,7 @@ export const STRONG_SCORE = 50;
 export const HIGH_TURNOVER = 0.2;
 export const HIGH_VOLUME_RATIO = 1.5;
 
-export const PRESET_IDS = ["gainers", "losers", "smallCap", "highVolume", "strongSignal", "oversold", "overbought"] as const;
+export const PRESET_IDS = ["gainers", "losers", "smallCap", "highVolume", "oversold", "overbought"] as const;
 export type PresetId = (typeof PRESET_IDS)[number];
 
 export type SortKey = "rank" | "change24h" | "change7d" | "marketCap" | "volume24h" | "score" | "rsi";
@@ -49,7 +49,6 @@ export const PRESETS: Record<PresetId, { filters: ScreenFilters; sort: SortKey; 
   losers: { filters: { change24h: { max: -10 } }, sort: "change24h", dir: "asc" },
   smallCap: { filters: { marketCap: { max: 100_000_000 } }, sort: "marketCap", dir: "desc" },
   highVolume: { filters: { highVolume: true }, sort: "volume24h", dir: "desc" },
-  strongSignal: { filters: { signal: "strong" }, sort: "score", dir: "desc" },
   oversold: { filters: { rsi: { max: 30 } }, sort: "rsi", dir: "asc" },
   overbought: { filters: { rsi: { min: 70 } }, sort: "rsi", dir: "desc" },
 };

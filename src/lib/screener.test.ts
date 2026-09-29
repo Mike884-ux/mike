@@ -58,7 +58,7 @@ test("signal and RSI filters only match coins with technicals", () => {
     row("SHORT", { tech: tech("SHORT", -70, 25) }),
     row("NONE"),
   ];
-  assert.deepEqual(applyScreen(rows, PRESETS.strongSignal.filters, "score", "desc").map((r) => r.symbol), ["SHORT", "LONG"]);
+  assert.deepEqual(applyScreen(rows, { signal: "strong" }, "score", "desc").map((r) => r.symbol), ["SHORT", "LONG"]);
   assert.deepEqual(applyScreen(rows, { signal: "long" }).map((r) => r.symbol), ["LONG", "WEAK"]);
   assert.deepEqual(applyScreen(rows, PRESETS.oversold.filters).map((r) => r.symbol), ["SHORT"]);
   assert.equal(needsTech(PRESETS.oversold.filters), true);

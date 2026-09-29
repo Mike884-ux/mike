@@ -19,7 +19,6 @@ import {
   type ScreenFilters,
   type ScreenRow,
   type ScreenTech,
-  type SignalFilter,
   type SortKey,
 } from "@/lib/screener";
 import { useBilling } from "@/lib/use-billing";
@@ -27,7 +26,10 @@ import { useListing } from "@/lib/use-market";
 import { cn } from "@/lib/utils";
 import { Change, CoinLogo } from "@/components/market/bits";
 import { Container } from "@/components/site/shell";
-import { SignalBadge } from "@/components/ui-bits";
+import { AiCell } from "@/components/ai-cell";
+import { getAiVerdicts, type AiVerdict } from "@/lib/coin-detail";
+import { assetOf } from "@/lib/markets";
+import { useSettings } from "@/lib/settings-store";
 import { TradeButtons } from "@/components/trade-buttons";
 
 const FREE_ROWS = 100;
@@ -169,6 +171,25 @@ export function ScreenerPage({ preset: initialPreset }: { preset?: PresetId }) {
   const result = useMemo(() => (locked ? [] : applyScreen(data.rows, filters, sort, dir)), [data.rows, filters, sort, dir, locked]);
   const tech = needsTech(filters) || sort === "score" || sort === "rsi";
 
+  // The AI's calls already made in the last 15 minutes (shared cache: free, no AI request).
+  const lang = useSettings((s) => s.lang);
+  const client = useQueryClient();
+  const aiBases = useMemo(
+    () => [...new Set(result.slice(0, 300).map((row) => row.symbol.toUpperCase()).filter((b) => assetOf(b)))].slice(0, 120).sort(),
+    [result],
+  );
+  const verdictsKey = useMemo(() => ["ai-verdicts", "1h", lang, aiBases.join(",")], [lang, aiBases]);
+  const verdicts = useQuery({
+    queryKey: verdictsKey,
+    queryFn: () => getAiVerdicts({ data: { bases: aiBases, interval: "1h", lang } }),
+    enabled: signedIn && aiBases.length > 0,
+    staleTime: 50_000,
+    refetchInterval: 60_000,
+    refetchOnWindowFocus: false,
+  });
+  const onAnswer = (base: string, verdict: AiVerdict) =>
+    client.setQueryData<Record<string, AiVerdict>>(verdictsKey, (prev) => ({ ...prev, [base]: verdict }));
+
   const choose = (id: PresetId) => {
     if (preset === id) return reset();
     setPreset(id);
@@ -196,7 +217,6 @@ export function ScreenerPage({ preset: initialPreset }: { preset?: PresetId }) {
     }
   };
 
-  const signal = filters.signal ?? "any";
   let body: ReactNode;
   if (data.loading) body = <div className="skeleton h-96 w-full rounded-2xl" />;
   else if (data.failed) body = <Empty text={t("scr.failed")} />;
@@ -226,7 +246,7 @@ export function ScreenerPage({ preset: initialPreset }: { preset?: PresetId }) {
               <SortHeader label={t("table.marketCap")} k="marketCap" sort={sort} dir={dir} onSort={onSort} className="hidden md:table-cell" />
               <SortHeader label={t("table.volume")} k="volume24h" sort={sort} dir={dir} onSort={onSort} className="hidden lg:table-cell" />
               <SortHeader label="RSI" k="rsi" sort={sort} dir={dir} onSort={onSort} className="hidden sm:table-cell" />
-              <SortHeader label={t("table.signal")} k="score" sort={sort} dir={dir} onSort={onSort} className="hidden sm:table-cell" />
+              <th scope="col" className="hidden px-3 py-3 text-right text-xs font-semibold text-fg sm:table-cell">{t("scan.col.ai")}</th>
               <th scope="col" className="hidden px-3 py-3 xl:table-cell" />
             </tr>
           </thead>
@@ -252,7 +272,11 @@ export function ScreenerPage({ preset: initialPreset }: { preset?: PresetId }) {
                   {row.tech ? Math.round(row.tech.rsi) : <span className="text-faint">—</span>}
                 </td>
                 <td className="hidden px-3 py-3 text-right sm:table-cell">
-                  {row.tech ? <SignalBadge signal={row.tech.signal} className="px-2 py-0.5 text-[10px]" /> : <span className="text-xs text-faint">—</span>}
+                  {signedIn && assetOf(row.symbol.toUpperCase()) ? (
+                    <AiCell base={row.symbol.toUpperCase()} interval="1h" verdict={verdicts.data?.[row.symbol.toUpperCase()]} onAnswer={onAnswer} />
+                  ) : (
+                    <span className="text-xs text-faint">—</span>
+                  )}
                 </td>
                 <td className="hidden py-2 pr-3 pl-2 text-right xl:table-cell">
                   <TradeButtons symbol={row.symbol} variant="compact" stacked />
@@ -330,23 +354,6 @@ export function ScreenerPage({ preset: initialPreset }: { preset?: PresetId }) {
                 <span className="shrink-0 text-xs text-faint">{t("scr.mln")}</span>
               </div>
             </fieldset>
-            <div className="min-w-0">
-              <label htmlFor="scr-signal" className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-muted">
-                {t("scr.signal")}
-                {!pro ? <Lock className="size-3 text-wait" /> : null}
-              </label>
-              <select
-                id="scr-signal"
-                disabled={!pro}
-                value={signal}
-                onChange={(e) => edit({ ...filters, signal: e.target.value as SignalFilter })}
-                className="h-10 w-full rounded-lg bg-surface-2 px-3 text-sm text-fg ring-1 ring-border outline-none focus:ring-primary disabled:opacity-50"
-              >
-                {(["any", "long", "short", "strong"] as const).map((s) => (
-                  <option key={s} value={s}>{t(`scr.s.${s}` as MessageKey)}</option>
-                ))}
-              </select>
-            </div>
             <label className={cn("flex items-center gap-2.5 self-end pb-2 text-sm font-medium text-fg", !pro && "opacity-50")}>
               <input type="checkbox" disabled={!pro} checked={filters.highVolume === true} onChange={(e) => edit({ ...filters, highVolume: e.target.checked })} className="size-4 accent-[var(--color-primary)]" />
               {t("scr.f.highVolume")}

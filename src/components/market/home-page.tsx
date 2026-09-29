@@ -1,19 +1,16 @@
 import { useMemo, useState, type ReactNode } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
 import { ArrowRight, ChevronDown, ChevronLeft, ChevronRight, Eye, LayoutGrid, Rocket, Sparkles, Star, TrendingDown } from "lucide-react";
-import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import { CATEGORIES, MAX_PAGES, PAGE_SIZE, type CategoryId, type ListingResponse, type MarketCoin } from "@/lib/coins";
 import { usdCompact, usdPrice } from "@/lib/format";
 import { useT, type MessageKey } from "@/lib/i18n";
-import { scanMarket } from "@/lib/scan";
 import { useSettings } from "@/lib/settings-store";
 import { useFavorites } from "@/lib/use-account";
 import { useGlobalStats, useListing, useTrending, useWatchlist } from "@/lib/use-market";
 import { cn } from "@/lib/utils";
 import { Change, ChangePill } from "@/components/market/bits";
 import { FearGreedCard, MarketCapCard, MoversCard, TrendingCard, useMovers } from "@/components/market/highlights";
-import { MarketTable, TableSkeleton, type SignalInfo } from "@/components/market/market-table";
+import { MarketTable, TableSkeleton } from "@/components/market/market-table";
 import { Container } from "@/components/site/shell";
 
 export type HomeTab = "all" | "watchlist" | "gainers" | "losers" | CategoryId;
@@ -192,7 +189,6 @@ function LaunchPanel({ coins, favorites, onToggle }: { coins: MarketCoin[]; favo
 export function HomePage({ page, tab }: { page: number; tab: HomeTab }) {
   const t = useT();
   const navigate = useNavigate();
-  const { user } = useCurrentUserState();
   const highlights = useSettings((s) => s.highlights);
   const setHighlights = useSettings((s) => s.setHighlights);
   const { favorites, toggle, signedIn } = useFavorites();
@@ -204,20 +200,6 @@ export function HomePage({ page, tab }: { page: number; tab: HomeTab }) {
   const watchlist = useWatchlist(tab === "watchlist" ? favorites : []);
   const trending = useTrending();
   const movers = useMovers(firstPage.data?.coins);
-
-  // Indicator signals for members: the same scan the signals page runs.
-  const scan = useQuery({
-    queryKey: ["scan", "1h"],
-    queryFn: () => scanMarket({ data: { interval: "1h" } }),
-    enabled: Boolean(user),
-    staleTime: 25_000,
-    refetchInterval: 60_000,
-  });
-  const signals = useMemo(() => {
-    const map = new Map<string, SignalInfo>();
-    for (const row of scan.data ?? []) map.set(row.base, { signal: row.signal, score: row.score });
-    return map;
-  }, [scan.data]);
 
   const go = (next: { page?: number; tab?: HomeTab }) => {
     void navigate({ to: "/", search: { page: next.page && next.page > 1 ? next.page : undefined, tab: next.tab && next.tab !== "all" ? next.tab : undefined } });
@@ -266,7 +248,6 @@ export function HomePage({ page, tab }: { page: number; tab: HomeTab }) {
           coins={coins}
           favorites={favorites}
           onToggleFavorite={onToggleFavorite}
-          signals={signals}
           initialSort={initialSort}
         />
       );
