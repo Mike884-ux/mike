@@ -39,13 +39,21 @@ function XIcon() {
   );
 }
 
-/** Google / X buttons. Always visible; one without keys explains that it is not switched on yet. */
+function AppleIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="size-4" aria-hidden>
+      <path fill="currentColor" d="M16.4 12.6c0-2.6 2.1-3.8 2.2-3.9-1.2-1.8-3.1-2-3.8-2-1.6-.2-3.1.9-3.9.9-.8 0-2-.9-3.4-.9-1.7 0-3.3 1-4.2 2.6-1.8 3.1-.5 7.7 1.3 10.2.9 1.2 1.9 2.6 3.2 2.6 1.3-.1 1.8-.8 3.3-.8 1.6 0 2 .8 3.4.8 1.4 0 2.3-1.3 3.1-2.5 1-1.4 1.4-2.8 1.4-2.9 0 0-2.6-1-2.6-4.1zM13.9 5c.7-.9 1.2-2 1-3.2-1 .1-2.3.7-3 1.6-.7.8-1.2 2-1.1 3.1 1.2.1 2.3-.6 3.1-1.5z" />
+    </svg>
+  );
+}
+
+/** Google / X / Apple buttons. Always visible; one without keys explains that it is not switched on yet. */
 function SocialButtons({ redirect, busy, onError }: { redirect: string; busy: boolean; onError: (key: MessageKey) => void }) {
   const t = useT();
   const providers = useQuery({ queryKey: ["auth-providers"], queryFn: () => getAuthProviders(), staleTime: Infinity });
   const p = providers.data;
-  const go = async (provider: "google" | "twitter") => {
-    if (!p?.[provider]) return onError(provider === "google" ? "login.err.googleOff" : "login.err.xOff");
+  const go = async (provider: "google" | "twitter" | "apple") => {
+    if (!p?.[provider]) return onError(provider === "google" ? "login.err.googleOff" : provider === "apple" ? "login.err.appleOff" : "login.err.xOff");
     try {
       const { error } = await authClient.signIn.social({ provider, callbackURL: redirect, errorCallbackURL: "/login?error=social" });
       if (error) throw error;
@@ -64,6 +72,10 @@ function SocialButtons({ redirect, busy, onError }: { redirect: string; busy: bo
         </button>
         <button type="button" disabled={busy} onClick={() => void go("twitter")} className={cls}>
           <XIcon />X
+        </button>
+        <button type="button" disabled={busy} onClick={() => void go("apple")} className={cls}>
+          <AppleIcon />
+          Apple
         </button>
       </div>
       <p className="my-4 flex items-center gap-3 text-[11px] text-faint before:h-px before:flex-1 before:bg-border after:h-px after:flex-1 after:bg-border">

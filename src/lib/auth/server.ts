@@ -1,12 +1,13 @@
 /**
  * Self-hosted Better Auth for this app — email/password, a one-time code by
- * email (when RESEND_API_KEY is set) and Google / X sign-in (when their client
+ * email (when BREVO_API_KEY or RESEND_API_KEY is set) and Google / X / Apple sign-in (when their client
  * keys are set). Sessions live in Postgres (DATABASE_URL) or the embedded
  * PGLite fallback.
  */
 import { betterAuth } from "better-auth";
 import { bearer, emailOTP } from "better-auth/plugins";
 import { emailVerificationRequired, mailEnabled, sendMail } from "../mail.server";
+import { appleClientSecret } from "./apple.server";
 import { tanstackStartCookies } from "better-auth/tanstack-start";
 import { createHash, randomBytes } from "node:crypto";
 import { Pool } from "pg";
@@ -83,12 +84,16 @@ const trustedOrigins = [
   ...(explicitBaseURL ? [explicitBaseURL] : []),
   ...deployHosts.map((host) => `https://${host}`),
   ...LOCAL_DEV_ORIGINS,
+  // Apple posts its sign-in answer back to the site from this origin.
+  ...(process.env.APPLE_CLIENT_ID ? ["https://appleid.apple.com"] : []),
 ];
 
 const googleId = process.env.GOOGLE_CLIENT_ID?.trim();
 const googleSecret = process.env.GOOGLE_CLIENT_SECRET?.trim();
 const twitterId = process.env.TWITTER_CLIENT_ID?.trim();
 const twitterSecret = process.env.TWITTER_CLIENT_SECRET?.trim();
+const appleId = process.env.APPLE_CLIENT_ID?.trim();
+const appleSecret = appleClientSecret();
 
 const OTP_SUBJECT = "Код для входа";
 const VERIFY_SUBJECT = "Подтвердите почту — Скан";
@@ -117,6 +122,7 @@ export const auth = betterAuth({
   socialProviders: {
     ...(googleId && googleSecret ? { google: { clientId: googleId, clientSecret: googleSecret } } : {}),
     ...(twitterId && twitterSecret ? { twitter: { clientId: twitterId, clientSecret: twitterSecret } } : {}),
+    ...(appleId && appleSecret ? { apple: { clientId: appleId, clientSecret: appleSecret } } : {}),
   },
   /**
    * Per-IP limits, counted in the database so every serverless instance shares
