@@ -31,6 +31,7 @@ import { Route as SiteTrustRouteImport } from './routes/_site/trust'
 import { Route as ApiHealthRouteImport } from './routes/api/health'
 import { Route as ApiTelegramRouteImport } from './routes/api/telegram'
 import { Route as SiteCoinsIdRouteImport } from './routes/_site/coins/$id'
+import { Route as SiteGuideCandlesRouteImport } from './routes/_site/guide.candles'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 import { Route as ApiBillingDodoRouteImport } from './routes/api/billing/dodo'
 import { Route as ApiBillingNowpaymentsRouteImport } from './routes/api/billing/nowpayments'
@@ -152,6 +153,11 @@ const SiteCoinsIdRoute = SiteCoinsIdRouteImport.update({
   path: '/coins/$id',
   getParentRoute: () => SiteRoute,
 } as any)
+const SiteGuideCandlesRoute = SiteGuideCandlesRouteImport.update({
+  id: '/guide/candles',
+  path: '/guide/candles',
+  getParentRoute: () => SiteRoute,
+} as any)
 const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   id: '/api/auth/$',
   path: '/api/auth/$',
@@ -230,6 +236,7 @@ export interface FileRoutesByFullPath {
   '/api/health': typeof ApiHealthRoute
   '/api/telegram': typeof ApiTelegramRoute
   '/coins/$id': typeof SiteCoinsIdRoute
+  '/guide/candles': typeof SiteGuideCandlesRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/billing/dodo': typeof ApiBillingDodoRoute
   '/api/billing/nowpayments': typeof ApiBillingNowpaymentsRoute
@@ -264,6 +271,7 @@ export interface FileRoutesByTo {
   '/api/telegram': typeof ApiTelegramRoute
   '/': typeof SiteIndexRoute
   '/coins/$id': typeof SiteCoinsIdRoute
+  '/guide/candles': typeof SiteGuideCandlesRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/billing/dodo': typeof ApiBillingDodoRoute
   '/api/billing/nowpayments': typeof ApiBillingNowpaymentsRoute
@@ -300,6 +308,7 @@ export interface FileRoutesById {
   '/api/telegram': typeof ApiTelegramRoute
   '/_site/': typeof SiteIndexRoute
   '/_site/coins/$id': typeof SiteCoinsIdRoute
+  '/_site/guide/candles': typeof SiteGuideCandlesRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/billing/dodo': typeof ApiBillingDodoRoute
   '/api/billing/nowpayments': typeof ApiBillingNowpaymentsRoute
@@ -336,6 +345,7 @@ export interface FileRouteTypes {
     | '/api/health'
     | '/api/telegram'
     | '/coins/$id'
+    | '/guide/candles'
     | '/api/auth/$'
     | '/api/billing/dodo'
     | '/api/billing/nowpayments'
@@ -370,6 +380,7 @@ export interface FileRouteTypes {
     | '/api/telegram'
     | '/'
     | '/coins/$id'
+    | '/guide/candles'
     | '/api/auth/$'
     | '/api/billing/dodo'
     | '/api/billing/nowpayments'
@@ -405,6 +416,7 @@ export interface FileRouteTypes {
     | '/api/telegram'
     | '/_site/'
     | '/_site/coins/$id'
+    | '/_site/guide/candles'
     | '/api/auth/$'
     | '/api/billing/dodo'
     | '/api/billing/nowpayments'
@@ -594,6 +606,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SiteCoinsIdRouteImport
       parentRoute: typeof SiteRoute
     }
+    '/_site/guide/candles': {
+      id: '/_site/guide/candles'
+      path: '/guide/candles'
+      fullPath: '/guide/candles'
+      preLoaderRoute: typeof SiteGuideCandlesRouteImport
+      parentRoute: typeof SiteRoute
+    }
     '/api/auth/$': {
       id: '/api/auth/$'
       path: '/api/auth/$'
@@ -691,6 +710,7 @@ interface SiteRouteChildren {
   SiteTrustRoute: typeof SiteTrustRoute
   SiteIndexRoute: typeof SiteIndexRoute
   SiteCoinsIdRoute: typeof SiteCoinsIdRoute
+  SiteGuideCandlesRoute: typeof SiteGuideCandlesRoute
 }
 
 const SiteRouteChildren: SiteRouteChildren = {
@@ -710,6 +730,7 @@ const SiteRouteChildren: SiteRouteChildren = {
   SiteTrustRoute: SiteTrustRoute,
   SiteIndexRoute: SiteIndexRoute,
   SiteCoinsIdRoute: SiteCoinsIdRoute,
+  SiteGuideCandlesRoute: SiteGuideCandlesRoute,
 }
 
 const SiteRouteWithChildren = SiteRoute._addFileChildren(SiteRouteChildren)

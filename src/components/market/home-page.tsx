@@ -1,6 +1,6 @@
 import { useMemo, useState, type ReactNode } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { ArrowRight, ChevronDown, ChevronLeft, ChevronRight, Eye, LayoutGrid, Rocket, Sparkles, Star, TrendingDown } from "lucide-react";
+import { ArrowRight, Bot, BookOpen, CandlestickChart, ChevronDown, ChevronLeft, ChevronRight, Crosshair, Eye, LayoutGrid, Rocket, Sparkles, Star, TrendingDown, TrendingUp } from "lucide-react";
 import { CATEGORIES, MAX_PAGES, PAGE_SIZE, type CategoryId, type ListingResponse, type MarketCoin } from "@/lib/coins";
 import { usdCompact, usdPrice } from "@/lib/format";
 import { useT, type MessageKey } from "@/lib/i18n";
@@ -121,6 +121,43 @@ function SourceNote({ listing }: { listing: ListingResponse | undefined }) {
   );
 }
 
+const FEATURES: { icon: typeof Star; n: 1 | 2 | 3 | 4 }[] = [
+  { icon: CandlestickChart, n: 1 },
+  { icon: TrendingUp, n: 2 },
+  { icon: Crosshair, n: 3 },
+  { icon: Bot, n: 4 },
+];
+
+/** Why the charts help: four plain-language points and a link to the beginner's guide. */
+function ChartFeatures() {
+  const t = useT();
+  return (
+    <section className="mt-14">
+      <h2 className="font-display text-2xl font-bold text-fg sm:text-[28px]">{t("feat.title")}</h2>
+      <p className="mt-2 max-w-2xl text-sm text-muted">{t("feat.subtitle")}</p>
+      <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {FEATURES.map(({ icon: Icon, n }) => (
+          <div key={n} className="rounded-3xl bg-surface p-5 shadow-[var(--shadow-border)]">
+            <span className="grid size-10 place-items-center rounded-2xl bg-primary/12 text-primary">
+              <Icon className="size-5" />
+            </span>
+            <h3 className="mt-4 font-display text-lg font-bold text-fg">{t(`feat.${n}.title` as MessageKey)}</h3>
+            <p className="mt-2 text-sm leading-relaxed text-muted">{t(`feat.${n}.text` as MessageKey)}</p>
+          </div>
+        ))}
+      </div>
+      <div className="mt-5 flex flex-wrap gap-3">
+        <Link to="/coins/$id" params={{ id: "bitcoin" }} className="bg-brand inline-flex h-11 items-center gap-2 rounded-xl px-5 text-sm font-semibold text-white shadow-[var(--shadow-glow)] hover:opacity-95">
+          <CandlestickChart className="size-4" /> {t("feat.open")}
+        </Link>
+        <Link to="/guide/candles" className="inline-flex h-11 items-center gap-2 rounded-xl bg-surface px-5 text-sm font-semibold text-fg shadow-[var(--shadow-border)] hover:bg-surface-2">
+          <BookOpen className="size-4 text-primary" /> {t("feat.guide")}
+        </Link>
+      </div>
+    </section>
+  );
+}
+
 function MarketOrb() {
   return (
     <div className="market-orb" aria-hidden>
@@ -150,9 +187,14 @@ function LaunchPanel({ coins, favorites, onToggle }: { coins: MarketCoin[]; favo
           <p className="text-xs font-extrabold tracking-[.18em] text-accent">{t("launch.eyebrow")}</p>
           <h1 className="mt-3 max-w-xl font-display text-4xl font-extrabold leading-[1.02] text-white sm:text-6xl">{t("launch.title")}</h1>
           <p className="mt-4 max-w-xl text-base leading-relaxed text-slate-300 sm:text-lg">{t("launch.subtitle")}</p>
-          <a href="#market-snapshot" className="mt-6 inline-flex h-11 items-center gap-2 rounded-xl bg-white px-5 text-sm font-bold text-slate-950 transition hover:bg-cyan-50">
-            <Eye className="size-4" /> {t("launch.demo")} <ArrowRight className="size-4" />
-          </a>
+          <div className="mt-6 flex flex-wrap gap-3">
+            <Link to="/coins/$id" params={{ id: "bitcoin" }} className="inline-flex h-11 items-center gap-2 rounded-xl bg-white px-5 text-sm font-bold text-slate-950 transition hover:bg-cyan-50">
+              <CandlestickChart className="size-4" /> {t("launch.cta")} <ArrowRight className="size-4" />
+            </Link>
+            <a href="#market-snapshot" className="inline-flex h-11 items-center gap-2 rounded-xl border border-white/15 px-5 text-sm font-bold text-white transition hover:bg-white/5">
+              <Eye className="size-4" /> {t("launch.demo")}
+            </a>
+          </div>
         </div>
         <MarketOrb />
       </div>
@@ -352,6 +394,7 @@ export function HomePage({ page, tab }: { page: number; tab: HomeTab }) {
       ) : null}
       <SourceNote listing={tab === "all" || category ? current.data : firstPage.data} />
 
+      <ChartFeatures />
       <Faq />
     </Container>
   );

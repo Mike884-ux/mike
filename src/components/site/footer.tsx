@@ -26,6 +26,9 @@ export function SiteFooter() {
             <Link to="/exchanges" className="inline-flex text-sm font-semibold text-primary hover:opacity-80">
               {t("ex.footer")}
             </Link>
+            <Link to="/guide/candles" className="inline-flex text-sm font-semibold text-primary hover:opacity-80">
+              {t("guide.footer")}
+            </Link>
             <Link to="/trust" className="inline-flex text-sm font-semibold text-primary hover:opacity-80">
               {t("trust.link")}
             </Link>
