@@ -6,7 +6,7 @@ import { useSiteStatus } from "@/lib/use-billing";
 import { useT } from "@/lib/i18n";
 
 export const Route = createFileRoute("/_site/trust")({
-  head: () => ({ meta: [{ title: "Прозрачность и безопасность — Скан" }, { name: "description", content: "Откуда Скан берёт данные, как работают сигналы, какие риски у крипторынка и как связаться с поддержкой." }] }),
+  head: () => ({ meta: [{ title: "Прозрачность и безопасность — Скан" }, { name: "description", content: "Откуда Скан берёт данные, как работает разбор ИИ, какие риски у крипторынка и как связаться с поддержкой." }] }),
   component: TrustPage,
 });
 

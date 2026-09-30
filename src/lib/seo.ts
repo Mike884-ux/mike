@@ -30,14 +30,14 @@ export function clip(text: string, max: number): string {
 }
 
 export function coinTitle(c: CoinSeo): string {
-  return `${c.name} (${c.symbol}) — курс ${usdPrice(c.price)}, график и сигналы | ${SITE_NAME}`;
+  return `${c.name} (${c.symbol}) — курс ${usdPrice(c.price)}, график и разбор ИИ | ${SITE_NAME}`;
 }
 
 export function coinDescription(c: CoinSeo): string {
   const parts = [`Курс ${c.name} (${c.symbol}) сегодня: ${usdPrice(c.price)}`];
   if (c.change24h !== null) parts[0] += `, ${pctSigned(c.change24h)} за 24 часа`;
   if (c.marketCap) parts.push(`капитализация ${usdCompact(c.marketCap)}${c.rank ? `, №${c.rank} по капитализации` : ""}`);
-  parts.push("график, технический сигнал и новости");
+  parts.push("график, разбор ИИ и новости");
   const head = `${parts.join("; ")}.`;
   return clip(c.about ? `${head} ${c.about}` : head, 300);
 }
@@ -46,7 +46,7 @@ export function coinDescription(c: CoinSeo): string {
 export function coinIntro(c: CoinSeo): string {
   const move = c.change24h === null ? "" : ` За сутки цена изменилась на ${pctSigned(c.change24h)}.`;
   const cap = c.marketCap ? ` Рыночная капитализация — ${usdCompact(c.marketCap)}${c.rank ? ` (${c.rank}-е место)` : ""}.` : "";
-  return `Курс ${c.name} (${c.symbol}) сегодня — ${usdPrice(c.price)}.${move}${cap} Ниже — график, технический сигнал по индикаторам и последние новости.`;
+  return `Курс ${c.name} (${c.symbol}) сегодня — ${usdPrice(c.price)}.${move}${cap} Ниже — график, разбор ИИ и последние новости.`;
 }
 
 /** Breadcrumbs for search results: Home → Cryptocurrencies → coin. */

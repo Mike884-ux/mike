@@ -14,11 +14,11 @@ export const Route = createRootRoute({
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1, viewport-fit=cover" },
-      { title: `${APP_NAME} — цены криптовалют, капитализация и сигналы` },
+      { title: `${APP_NAME} — цены криптовалют, капитализация и разбор ИИ` },
       { name: "theme-color", content: "#ffffff" },
       {
         name: "description",
-        content: "Цены, рыночная капитализация и графики криптовалют в реальном времени, сигналы по индикаторам и разбор рынка от ИИ.",
+        content: "Цены, рыночная капитализация и графики криптовалют в реальном времени и разбор рынка от ИИ.",
       },
       ...(loaderData?.googleVerification ? [{ name: "google-site-verification", content: loaderData.googleVerification }] : []),
     ],

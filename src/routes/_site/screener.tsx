@@ -9,7 +9,7 @@ export const Route = createFileRoute("/_site/screener")({
     const preset = PRESET_IDS.find((id) => id === search.preset);
     return preset ? { preset } : {};
   },
-  head: () => ({ meta: [{ title: "Крипто-скринер — Скан" }, { name: "description", content: "Крипто-скринер: монеты, выросшие больше 10% за сутки, малая капитализация, высокий объём, RSI и сильные технические сигналы." }] }),
+  head: () => ({ meta: [{ title: "Крипто-скринер — Скан" }, { name: "description", content: "Крипто-скринер: монеты, выросшие больше 10% за сутки, малая капитализация, высокий объём и RSI." }] }),
   component: Page,
 });
 

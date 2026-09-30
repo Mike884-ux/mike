@@ -3,7 +3,7 @@ import { SignalsPage } from "@/components/scanner";
 import { Container, MembersOnly } from "@/components/site/shell";
 
 export const Route = createFileRoute("/_site/signals")({
-  head: () => ({ meta: [{ title: "Сигналы по криптовалютам — Скан" }, { name: "description", content: "Технические сигналы на покупку и продажу по 8 индикаторам для крупных криптовалют и акций: RSI, тренд, объём и проверка точности на истории." }] }),
+  head: () => ({ meta: [{ title: "ИИ-сканер криптовалют — Скан" }, { name: "description", content: "ИИ-сканер крупных криптовалют и акций: цена, RSI, тренд и объём, а ИИ разбирает график и говорит — покупать, продавать или подождать, с уровнями входа и стопа." }] }),
   component: Page,
 });
 
