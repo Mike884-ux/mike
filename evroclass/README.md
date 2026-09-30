@@ -157,12 +157,19 @@ videos: [
 
 ## Как выложить сайт в интернет
 
-Сайт — это все файлы этого репозитория. Сборка не нужна.
+Сайт — это все файлы этой папки. Сборка не нужна. Если папка лежит внутри большого репозитория (как `evroclass` в репозитории mike), хостингу нужно указать её имя — ниже написано, в каком поле.
+
+**Render** (бесплатно, сайт не засыпает):
+
+1. dashboard.render.com → **New → Static Site** → выберите репозиторий. Если его нет в списке, нажмите **Configure GitHub** и дайте Render доступ к нему.
+2. **Branch** — ветка с сайтом. **Root Directory** оставьте пустым. **Build Command** — `echo ok`. **Publish Directory** — `evroclass` (или `./`, если `index.html` лежит в корне репозитория).
+3. **Deploy Static Site**. Через минуту будет адрес вида `https://....onrender.com`.
+4. Свой домен подключается в Settings → Custom Domains.
 
 **Vercel** (бесплатно, вы уже им пользуетесь):
 
 1. vercel.com → **Add New… → Project** → выберите этот репозиторий.
-2. **Framework Preset** → `Other`. Root Directory и Build Command не трогайте.
+2. **Framework Preset** → `Other`. **Root Directory** — `evroclass` (или пусто, если `index.html` лежит в корне). Build Command не трогайте.
 3. **Deploy**. Через минуту будет адрес вида `https://....vercel.app`.
 4. Свой домен подключается в Project → Settings → Domains.
 
@@ -170,7 +177,7 @@ videos: [
 
 **Любой хостинг**: загрузите все файлы по FTP в корень сайта.
 
-После правки `js/data.js` на GitHub Vercel сам обновит сайт через минуту.
+После правки `js/data.js` на GitHub Render и Vercel сами обновят сайт через минуту.
 
 ## Как устроена заявка
 
