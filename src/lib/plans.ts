@@ -12,7 +12,7 @@ export type AiKind = (typeof AI_KINDS)[number];
 
 /** Shared calendar-month credits; daily limits remain an additional burst cap. */
 export const AI_CREDIT_COST: Record<AiKind, number> = { analysis: 5, chat: 1, advice: 5, strategy: 10 };
-export const MONTHLY_CREDITS: Record<PlanId, number> = { free: 30, pro: 600, max: 2400 };
+export const MONTHLY_CREDITS: Record<PlanId, number> = { free: 10, pro: 600, max: 1600 };
 export const TRIAL_CREDITS = 40;
 export type CreditBalance = { used: number; limit: number; resetsAt: string };
 
@@ -37,7 +37,8 @@ export const PLANS: Record<PlanId, PlanSpec> = {
     id: "free",
     month: 0,
     year: 0,
-    limits: { analysis: 3, chat: 10, advice: 1, strategy: 0 },
+    // 10 credits a month: two coin analyses, or ten chat messages.
+    limits: { analysis: 2, chat: 10, advice: 1, strategy: 0 },
   },
   pro: {
     id: "pro",
