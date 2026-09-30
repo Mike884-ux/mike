@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent, type ReactElement } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Gift, History, KeyRound, Loader2, Lock, Mail, ShieldCheck, Sparkles, Wallet } from "lucide-react";
 import { REFERRAL_BONUS_DAYS, REFERRAL_FRIENDS } from "@/lib/plans";
@@ -47,13 +47,21 @@ function AppleIcon() {
   );
 }
 
-/** Google / X / Apple buttons. Always visible; one without keys explains that it is not switched on yet. */
+type Social = "google" | "twitter" | "apple";
+const SOCIAL: { id: Social; label: string; icon: () => ReactElement }[] = [
+  { id: "google", label: "Google", icon: GoogleIcon },
+  { id: "twitter", label: "X", icon: XIcon },
+  { id: "apple", label: "Apple", icon: AppleIcon },
+];
+
+/** Google / X / Apple buttons — only the ones the site has keys for; nothing at all when none is set up. */
 function SocialButtons({ redirect, busy, onError }: { redirect: string; busy: boolean; onError: (key: MessageKey) => void }) {
   const t = useT();
   const providers = useQuery({ queryKey: ["auth-providers"], queryFn: () => getAuthProviders(), staleTime: Infinity });
   const p = providers.data;
-  const go = async (provider: "google" | "twitter" | "apple") => {
-    if (!p?.[provider]) return onError(provider === "google" ? "login.err.googleOff" : provider === "apple" ? "login.err.appleOff" : "login.err.xOff");
+  const enabled = SOCIAL.filter((s) => p?.[s.id]);
+  if (!enabled.length) return null;
+  const go = async (provider: Social) => {
     try {
       const { error } = await authClient.signIn.social({ provider, callbackURL: redirect, errorCallbackURL: "/login?error=social" });
       if (error) throw error;
@@ -66,19 +74,14 @@ function SocialButtons({ redirect, busy, onError }: { redirect: string; busy: bo
   return (
     <div className="mt-5">
       <div className="flex gap-2">
-        <button type="button" disabled={busy} onClick={() => void go("google")} className={cls}>
-          <GoogleIcon />
-          Google
-        </button>
-        <button type="button" disabled={busy} onClick={() => void go("twitter")} className={cls}>
-          <XIcon />X
-        </button>
-        <button type="button" disabled={busy} onClick={() => void go("apple")} className={cls}>
-          <AppleIcon />
-          Apple
-        </button>
+        {enabled.map(({ id, label, icon: Icon }) => (
+          <button key={id} type="button" disabled={busy} onClick={() => void go(id)} className={cls}>
+            <Icon />
+            {label}
+          </button>
+        ))}
       </div>
-      <p className="my-4 flex items-center gap-3 text-[11px] text-faint before:h-px before:flex-1 before:bg-border after:h-px after:flex-1 after:bg-border">
+      <p className="mt-4 flex items-center gap-3 text-[11px] text-faint before:h-px before:flex-1 before:bg-border after:h-px after:flex-1 after:bg-border">
         {t("login.or")}
       </p>
     </div>
@@ -322,7 +325,7 @@ export function LoginScreen({ initialMode = "signup", redirect = "/", providers:
               {mode === "signin" ? null : <SignupBonus />}
               <SocialButtons redirect={redirect} busy={busy} onError={setError} />
 
-              <form className="flex flex-col gap-3" onSubmit={submit}>
+              <form className="mt-4 flex flex-col gap-3" onSubmit={submit}>
                 <label className="flex flex-col gap-1.5">
                   <span className="text-xs text-muted">{t("login.email")}</span>
                   <span className="flex h-12 items-center gap-2.5 rounded-xl bg-surface-2 px-3.5 focus-within:ring-2 focus-within:ring-primary/40">
