@@ -5,6 +5,7 @@ import { REFERRAL_BONUS_DAYS, REFERRAL_FRIENDS } from "@/lib/plans";
 import { pendingReferral, rememberReferral } from "@/lib/referral";
 import { authClient } from "@/lib/auth/client";
 import { getAuthProviders, type AuthProviders } from "@/lib/auth/providers";
+import { inTelegram, signInWithTelegram } from "@/lib/telegram-webapp";
 import { useT, type MessageKey } from "@/lib/i18n";
 import { Mark } from "@/components/mark";
 import { LegalConsent } from "@/components/site/legal-page";
@@ -85,6 +86,47 @@ function SocialButtons({ redirect, busy, onError }: { redirect: string; busy: bo
         {t("login.or")}
       </p>
     </div>
+  );
+}
+
+/** Inside the Telegram app: one tap signs in (or signs up) with the Telegram account. */
+function TelegramButton({ redirect, busy, onError }: { redirect: string; busy: boolean; onError: (key: MessageKey) => void }) {
+  const t = useT();
+  const [shown, setShown] = useState(false);
+  const [pending, setPending] = useState(false);
+  useEffect(() => setShown(inTelegram()), []);
+  if (!shown) return null;
+  const go = async () => {
+    setPending(true);
+    if (await signInWithTelegram()) window.location.href = redirect;
+    else {
+      setPending(false);
+      onError("login.err.telegram");
+    }
+  };
+  return (
+    <div className="mt-5">
+      <button
+        type="button"
+        disabled={busy || pending}
+        onClick={() => void go()}
+        className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#229ED9] text-sm font-bold text-white hover:opacity-95 disabled:opacity-60"
+      >
+        {pending ? <Loader2 className="size-5 animate-spin" /> : <TelegramIcon />}
+        {t("login.telegram")}
+      </button>
+      <p className="mt-4 flex items-center gap-3 text-[11px] text-faint before:h-px before:flex-1 before:bg-border after:h-px after:flex-1 after:bg-border">
+        {t("login.or")}
+      </p>
+    </div>
+  );
+}
+
+function TelegramIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="size-5" aria-hidden>
+      <path fill="currentColor" d="M21.9 4.3 18.7 19.4c-.2 1.1-.9 1.3-1.8.8l-4.9-3.6-2.4 2.3c-.3.3-.5.5-1 .5l.4-5 9.1-8.2c.4-.4-.1-.6-.6-.2L6.3 13.1 1.5 11.6c-1-.3-1.1-1 .2-1.5L20.5 2.9c.9-.3 1.7.2 1.4 1.4z" />
+    </svg>
   );
 }
 
@@ -323,6 +365,7 @@ export function LoginScreen({ initialMode = "signup", redirect = "/", providers:
               </div>
 
               {mode === "signin" ? null : <SignupBonus />}
+              <TelegramButton redirect={redirect} busy={busy} onError={setError} />
               <SocialButtons redirect={redirect} busy={busy} onError={setError} />
 
               <form className="mt-4 flex flex-col gap-3" onSubmit={submit}>

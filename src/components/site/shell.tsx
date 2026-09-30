@@ -18,6 +18,7 @@ import { AiAssistant } from "@/components/site/ai-assistant";
 import { ExchangePicker } from "@/components/exchange-picker";
 import { StatsBar } from "@/components/site/stats-bar";
 import { useApplyPrefs } from "@/components/site/prefs";
+import { inTelegram, signInWithTelegram } from "@/lib/telegram-webapp";
 
 function useDismissed(key: string): [boolean, () => void] {
   const [hidden, setHidden] = useState(true);
@@ -147,6 +148,27 @@ function GuestOffer() {
   );
 }
 
+/**
+ * Opened from the bot inside Telegram and not signed in: sign in with that
+ * Telegram account right away — no email or password. Tried once per visit,
+ * so signing out inside Telegram sticks.
+ */
+function TelegramSignIn({ signedOut }: { signedOut: boolean }) {
+  useEffect(() => {
+    if (!signedOut || !inTelegram()) return;
+    try {
+      if (sessionStorage.getItem("scan-tg-signin")) return;
+      sessionStorage.setItem("scan-tg-signin", "1");
+    } catch {
+      return;
+    }
+    void signInWithTelegram().then((ok) => {
+      if (ok) window.location.reload();
+    });
+  }, [signedOut]);
+  return null;
+}
+
 /** First-login welcome and the one-time move of an old browser-only wallet. */
 function MemberEffects() {
   const t = useT();
@@ -174,6 +196,7 @@ export function SiteShell({ children }: { children: ReactNode }) {
       <StatsBar />
       <SiteHeader />
       {user ? <MemberEffects /> : isPending ? null : <GuestOffer />}
+      <TelegramSignIn signedOut={!isPending && !user} />
       <main className="flex-1">{children}</main>
       <SiteFooter />
       {/* Room for the phone tab bar so it never covers the footer. */}

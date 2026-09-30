@@ -22,12 +22,31 @@ declare global {
 }
 
 const SDK_URL = "https://telegram.org/js/telegram-web-app.js";
+const LAUNCH_KEY = "scan-tg-launch";
+
+// Telegram puts the launch data in the URL hash of the first page only: keep
+// it for the rest of the visit, before any navigation drops the hash.
+if (typeof window !== "undefined" && window.location.hash.includes("tgWebAppData")) {
+  try {
+    sessionStorage.setItem(LAUNCH_KEY, new URLSearchParams(window.location.hash.slice(1)).get("tgWebAppData") ?? "");
+  } catch {
+    /* storage blocked */
+  }
+}
+
+function savedLaunch(): string {
+  try {
+    return sessionStorage.getItem(LAUNCH_KEY) ?? "";
+  } catch {
+    return "";
+  }
+}
 
 /** True when the page was opened from the bot inside the Telegram app. */
 export function inTelegram(): boolean {
   if (typeof window === "undefined") return false;
   if (window.Telegram?.WebApp?.initData) return true;
-  if (window.location.hash.includes("tgWebAppData")) return true;
+  if (window.location.hash.includes("tgWebAppData") || savedLaunch()) return true;
   try {
     if (sessionStorage.getItem("__telegram__initParams")?.includes("tgWebAppData")) return true;
   } catch {
@@ -70,4 +89,24 @@ export async function openStarsInvoice(url: string): Promise<InvoiceStatus | "ex
   if (app?.openInvoice) return new Promise((resolve) => app.openInvoice(url, (status) => resolve(status)));
   window.open(url, "_blank", "noopener");
   return "external";
+}
+
+/** Telegram's signed launch data, from its SDK or straight from the launch URL. */
+async function launchData(): Promise<string> {
+  const app = await telegramApp();
+  if (app?.initData) return app.initData;
+  return new URLSearchParams(window.location.hash.slice(1)).get("tgWebAppData") || savedLaunch();
+}
+
+/** Signs in with the Telegram account the Mini App was opened from; true on success. */
+export async function signInWithTelegram(): Promise<boolean> {
+  const initData = await launchData();
+  if (!initData) return false;
+  const res = await fetch("/api/auth/sign-in/telegram", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "same-origin",
+    body: JSON.stringify({ initData }),
+  }).catch(() => null);
+  return Boolean(res?.ok);
 }

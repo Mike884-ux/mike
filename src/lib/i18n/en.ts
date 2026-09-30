@@ -450,7 +450,7 @@ export const en: Record<MessageKey, string> = {
   "account.signOut": "Sign out",
   "account.signingOut": "Signing out…",
   "welcome.title": "Welcome!",
-  "welcome.text": "Choose your country and language — the interface, news and AI answers will use it. You can change it in the account menu.",
+  "welcome.text": "Choose your language — the interface, news and AI answers will use it. You can change it in the account menu.",
 
   "factor.emaStackUp": "EMA 9>21>50 — uptrend",
   "factor.emaStackDown": "EMA 9<21<50 — downtrend",
@@ -682,6 +682,8 @@ export const en: Record<MessageKey, string> = {
   "wallet.other": "Other",
   "login.err.googleOff": "Google sign-in isn't switched on yet. Please use email for now — it takes a minute.",
   "login.err.xOff": "X sign-in isn't switched on yet. Please use email for now — it takes a minute.",
+  "login.telegram": "Sign in with Telegram",
+  "login.err.telegram": "Couldn't sign in with Telegram. Close the site and open it again with the bot's “Открыть Скан” button.",
   "login.err.appleOff": "Apple sign-in isn't switched on yet. Please use email for now — it takes a minute.",
   "nav.pricing": "Pricing",
   "nav.getPro": "Get Pro",

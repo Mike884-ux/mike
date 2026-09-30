@@ -18,7 +18,7 @@ function deviceName(ua: string | null | undefined): { label: string; mobile: boo
   return { label: [browser, os].filter(Boolean).join(" · ") || "—", mobile };
 }
 
-export function LanguageCountryFields({ onSaved }: { onSaved?: () => void }) {
+export function LanguageCountryFields({ onSaved, withCountry = true }: { onSaved?: () => void; withCountry?: boolean }) {
   const t = useT();
   const lang = useSettings((s) => s.lang);
   const country = useSettings((s) => s.country);
@@ -57,7 +57,7 @@ export function LanguageCountryFields({ onSaved }: { onSaved?: () => void }) {
           ))}
         </div>
       </div>
-      <label className="flex flex-col gap-1.5">
+      {withCountry ? <label className="flex flex-col gap-1.5">
         <span className="flex items-center gap-1.5 text-xs text-muted">
           <MapPin className="size-3.5" />
           {t("account.country")}
@@ -73,7 +73,7 @@ export function LanguageCountryFields({ onSaved }: { onSaved?: () => void }) {
             </option>
           ))}
         </select>
-      </label>
+      </label> : null}
     </div>
   );
 }
@@ -177,7 +177,7 @@ export function WelcomeModal({ onDone }: { onDone: () => void }) {
         <h2 className="text-gradient font-display text-2xl font-bold">{t("welcome.title")}</h2>
         <p className="mt-2 text-sm leading-relaxed text-muted">{t("welcome.text")}</p>
         <div className="mt-5">
-          <LanguageCountryFields />
+          <LanguageCountryFields withCountry={false} />
         </div>
         <button
           type="button"

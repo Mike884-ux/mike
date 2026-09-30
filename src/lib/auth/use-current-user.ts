@@ -1,4 +1,5 @@
 import { authClient } from "./client";
+import { isTelegramEmail } from "./telegram-email";
 
 export type AppUser = {
   id: string;
@@ -16,7 +17,7 @@ export function useCurrentUserState(): CurrentUserState {
   const user = data?.user;
   return {
     user: user
-      ? { id: user.id, displayName: user.name ?? null, primaryEmail: user.email ?? null }
+      ? { id: user.id, displayName: user.name ?? null, primaryEmail: isTelegramEmail(user.email) ? null : (user.email ?? null) }
       : null,
     isPending,
   };

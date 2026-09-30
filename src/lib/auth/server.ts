@@ -8,6 +8,7 @@ import { betterAuth } from "better-auth";
 import { bearer, emailOTP } from "better-auth/plugins";
 import { emailVerificationRequired, mailEnabled, sendMail } from "../mail.server";
 import { appleClientSecret } from "./apple.server";
+import { telegramMiniApp } from "./telegram-plugin.server";
 import { tanstackStartCookies } from "better-auth/tanstack-start";
 import { createHash, randomBytes } from "node:crypto";
 import { Pool } from "pg";
@@ -168,6 +169,8 @@ export const auth = betterAuth({
         else if (type === "email-verification") await sendMail(email, VERIFY_SUBJECT, verifyText(otp));
       },
     }),
+    // Inside Telegram the site signs in with Telegram's signed launch data.
+    telegramMiniApp(),
     tanstackStartCookies(),
   ],
 });
