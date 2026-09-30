@@ -21,6 +21,8 @@ import {
 import {
   adminConnectDodo,
   adminConnectTelegram,
+  adminPostChannelNow,
+  adminSetChannel,
   adminFindMember,
   adminGrantWaitlist,
   adminCheckPayment,
@@ -366,7 +368,74 @@ function TelegramConnect() {
         </p>
       ) : null}
       {connect.isError ? <p className="mt-3 text-sm text-short">{t("admin.tg.err.failed")}</p> : null}
+      {data?.hasToken ? <ChannelSettings channel={data.channel} last={data.channelLast} /> : null}
     </section>
+  );
+}
+
+/** The owner's Telegram channel: the bot posts a market review there every morning. */
+function ChannelSettings({ channel, last }: { channel: string | null; last: string | null }) {
+  const t = useT();
+  const client = useQueryClient();
+  const [value, setValue] = useState(channel ?? "");
+  const save = useMutation({
+    mutationFn: () => adminSetChannel({ data: { channel: value } }),
+    onSuccess: (res) => {
+      if (res.ok) client.setQueryData(["admin-telegram"], res.status);
+    },
+  });
+  const post = useMutation({
+    mutationFn: () => adminPostChannelNow(),
+    onSuccess: (res) => {
+      if (res.status) client.setQueryData(["admin-telegram"], res.status);
+    },
+  });
+  const saveError = save.data && !save.data.ok ? save.data : null;
+  return (
+    <div className="mt-4 rounded-2xl bg-surface-2 p-4">
+      <p className="text-sm font-semibold text-fg">{t("admin.ch.title")}</p>
+      <p className="mt-1 text-xs leading-relaxed text-muted">{t("admin.ch.text")}</p>
+      <form
+        className="mt-3 flex gap-2"
+        onSubmit={(e) => {
+          e.preventDefault();
+          save.mutate();
+        }}
+      >
+        <input
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          placeholder="@my_channel"
+          aria-label={t("admin.ch.title")}
+          className="h-10 min-w-0 flex-1 rounded-xl bg-surface px-3 text-sm text-fg outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+        />
+        <button type="submit" disabled={save.isPending} className="flex h-10 shrink-0 items-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-fg disabled:opacity-50">
+          {save.isPending ? <Loader2 className="size-4 animate-spin" /> : null}
+          {t("admin.ch.save")}
+        </button>
+      </form>
+      {channel ? (
+        <div className="mt-3 flex flex-wrap items-center gap-3">
+          <p className="text-xs text-long">{t("admin.ch.on", { channel, last: last ?? "—" })}</p>
+          <button type="button" disabled={post.isPending} onClick={() => post.mutate()} className="flex h-8 items-center gap-1.5 rounded-lg bg-surface px-3 text-xs font-semibold text-fg shadow-[var(--shadow-border)] disabled:opacity-50">
+            {post.isPending ? <Loader2 className="size-3.5 animate-spin" /> : <Send className="size-3.5" />}
+            {t("admin.ch.postNow")}
+          </button>
+        </div>
+      ) : null}
+      {save.data?.ok ? <p role="status" className="mt-2 text-xs text-long">{t(value.trim() ? "admin.ch.saved" : "admin.ch.off")}</p> : null}
+      {saveError ? (
+        <p role="alert" className="mt-2 text-xs text-short">
+          {t(saveError.error === "bad_name" ? "admin.ch.err.name" : saveError.error === "not_found" ? "admin.ch.err.notFound" : saveError.error === "not_admin" ? "admin.ch.err.notAdmin" : "admin.tg.noKey")}
+        </p>
+      ) : null}
+      {post.data ? (
+        <p role="status" className={cn("mt-2 text-xs", post.data.ok ? "text-long" : "text-short")}>
+          {t(post.data.ok ? "admin.ch.posted" : post.data.result === "no_data" ? "admin.ch.err.noData" : "admin.ch.err.post")}
+          {post.data.detail ? <span className="mt-1 block font-mono break-all opacity-80">{post.data.detail}</span> : null}
+        </p>
+      ) : null}
+    </div>
   );
 }
 

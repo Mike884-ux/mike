@@ -364,6 +364,9 @@ export type TelegramStatus = {
   ownCronSecret: boolean;
   /** The server checks alerts by itself (Render); the cron address is then only a backup. */
   autoChecks: boolean;
+  /** Where the daily market review goes, and the last day it went out. */
+  channel: string | null;
+  channelLast: string | null;
 };
 
 async function telegramStatus(): Promise<TelegramStatus> {
@@ -374,7 +377,7 @@ async function telegramStatus(): Promise<TelegramStatus> {
     import("@tanstack/react-start/server"),
     import("./http.server"),
   ]);
-  const saved = await store.getSettings(await getSql(), ["telegram:bot_username", "telegram:webhook_url"]);
+  const saved = await store.getSettings(await getSql(), ["telegram:bot_username", "telegram:webhook_url", "telegram:channel", "telegram:channel_last"]);
   const request = getRequest();
   const secret = tg.cronSecret();
   return {
@@ -384,8 +387,65 @@ async function telegramStatus(): Promise<TelegramStatus> {
     cronUrl: request && secret ? `${siteOrigin(request)}/api/cron/alerts?key=${encodeURIComponent(secret)}` : null,
     ownCronSecret: Boolean(process.env.CRON_SECRET?.trim()),
     autoChecks: (await import("./scheduler.server")).schedulerEnabled(),
+    channel: saved["telegram:channel"] ?? null,
+    channelLast: saved["telegram:channel_last"] ?? null,
   };
 }
+
+export type ChannelSaveResult = { ok: true; status: TelegramStatus } | { ok: false; error: "bad_name" | "not_found" | "not_admin" | "no_key"; detail?: string };
+
+/**
+ * Saves the channel for the daily review after checking it exists and the bot
+ * may post there. An empty value turns the posts off.
+ */
+export const adminSetChannel = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator((input: { channel?: string }) => ({ channel: String(input.channel ?? "").slice(0, 100) }))
+  .handler(async ({ data, context }): Promise<ChannelSaveResult> => {
+    await requireAdmin(context.email);
+    const [tg, { getSql }, store, { normalizeChannel }] = await Promise.all([
+      import("./telegram.server"),
+      import("./db"),
+      import("./billing-store.server"),
+      import("./channel-post"),
+    ]);
+    if (!tg.botToken()) return { ok: false, error: "no_key" };
+    const sql = await getSql();
+    if (!data.channel.trim()) {
+      await store.setSettings(sql, { "telegram:channel": "" });
+      return { ok: true, status: await telegramStatus() };
+    }
+    const channel = normalizeChannel(data.channel);
+    if (!channel) return { ok: false, error: "bad_name" };
+    try {
+      await tg.tg("getChat", { chat_id: channel });
+    } catch (err) {
+      return { ok: false, error: "not_found", detail: (err instanceof Error ? err.message : String(err)).slice(0, 200) };
+    }
+    try {
+      const member = await tg.tg<{ status?: string; can_post_messages?: boolean }>("getChatMember", { chat_id: channel, user_id: Number(tg.botId()) });
+      if (member.status !== "administrator" || member.can_post_messages === false) return { ok: false, error: "not_admin" };
+    } catch (err) {
+      return { ok: false, error: "not_admin", detail: (err instanceof Error ? err.message : String(err)).slice(0, 200) };
+    }
+    await store.setSettings(sql, { "telegram:channel": channel });
+    console.log(`[admin] ${context.email} set the review channel to ${channel}`);
+    return { ok: true, status: await telegramStatus() };
+  });
+
+/** Posts today's review right away (a test, or a missed morning). */
+export const adminPostChannelNow = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .handler(async ({ context }): Promise<{ ok: boolean; result: string; detail?: string; status?: TelegramStatus }> => {
+    await requireAdmin(context.email);
+    const { postDailyReview } = await import("./channel-post.server");
+    try {
+      const result = await postDailyReview({ force: true });
+      return { ok: result === "posted", result, status: await telegramStatus() };
+    } catch (err) {
+      return { ok: false, result: "failed", detail: (err instanceof Error ? err.message : String(err)).replace(/bot\d+:[\w-]+/g, "bot…").slice(0, 200) };
+    }
+  });
 
 export const getTelegramStatus = createServerFn({ method: "GET" })
   .middleware([authMiddleware])

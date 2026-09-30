@@ -1,6 +1,7 @@
 /**
  * Background work of a long-running server (Render) — **server-only**:
- * connects the Telegram bot by itself, checks alerts every few minutes, and
+ * connects the Telegram bot by itself, checks alerts every few minutes, posts
+ * the morning market review to the owner's channel, and
  * keeps a free Render instance awake. No outside cron needed.
  */
 
@@ -60,6 +61,10 @@ async function tick(origin: string): Promise<void> {
     const { runAlerts } = await import("./alerts-engine.server");
     const result = await runAlerts(origin);
     if (result.sent || result.failed) console.log(`[scheduler] alerts: ${JSON.stringify(result)}`);
+    // The morning market review in the owner's channel, once a day.
+    await safely("channel post", async () => {
+      await (await import("./channel-post.server")).postDailyReview();
+    });
   }
 }
 
