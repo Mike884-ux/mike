@@ -109,7 +109,9 @@ export const startCheckout = createServerFn({ method: "POST" })
     }
   });
 
-export type StarsCheckoutResult = { ok: true; url: string; stars: number } | { ok: false; error: "unavailable" | "failed" | "bad_input" };
+export type StarsCheckoutResult =
+  | { ok: true; url: string; stars: number }
+  | { ok: false; error: "unavailable" | "failed" | "bad_input"; reason?: string };
 
 /**
  * A Telegram Stars invoice for one month of a plan. Inside the Telegram app it
@@ -137,9 +139,11 @@ export const startStarsCheckout = createServerFn({ method: "POST" })
       });
       return { ok: true, url, stars };
     } catch (err) {
-      console.error("[billing] stars invoice failed:", err instanceof Error ? err.message : err);
+      // Telegram's own words ("createInvoiceLink: Bad Request: …") — never the bot token.
+      const reason = (err instanceof Error ? err.message : String(err)).slice(0, 200);
+      console.error("[billing] stars invoice failed:", reason);
       await store.markFailed(sql, payment.id);
-      return { ok: false, error: "failed" };
+      return { ok: false, error: "failed", reason };
     }
   });
 

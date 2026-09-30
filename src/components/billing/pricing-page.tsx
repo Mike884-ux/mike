@@ -428,10 +428,15 @@ function StarsButton({ plan, period, className, onDone }: { plan: PaidPlan; peri
   const client = useQueryClient();
   const navigate = useNavigate();
   const [note, setNote] = useState<MessageKey | null>(null);
+  const [reason, setReason] = useState<string | null>(null);
   const pay = useMutation({
     mutationFn: async () => {
+      setReason(null);
       const res = await startStarsCheckout({ data: { plan, lang } });
-      if (!res.ok) return res.error;
+      if (!res.ok) {
+        setReason(res.reason ?? null);
+        return res.error;
+      }
       return openStarsInvoice(res.url);
     },
     onSuccess: (status) => {
@@ -460,6 +465,7 @@ function StarsButton({ plan, period, className, onDone }: { plan: PaidPlan; peri
       </button>
       {period === "year" ? <p className="mt-1.5 px-1 text-xs text-muted">{t("pay.starsMonthly")}</p> : null}
       {note ? <p role="alert" className="mt-1.5 px-1 text-xs text-short">{t(note)}</p> : null}
+      {note && reason ? <p className="mt-1 px-1 font-mono text-[10px] break-words text-faint">{reason}</p> : null}
     </div>
   );
 }

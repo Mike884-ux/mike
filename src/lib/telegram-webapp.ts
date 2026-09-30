@@ -86,8 +86,20 @@ export function telegramApp(): Promise<TelegramWebApp | null> {
  */
 export async function openStarsInvoice(url: string): Promise<InvoiceStatus | "external"> {
   const app = await telegramApp();
-  if (app?.openInvoice) return new Promise((resolve) => app.openInvoice(url, (status) => resolve(status)));
-  window.open(url, "_blank", "noopener");
+  if (app?.openInvoice) {
+    try {
+      return await new Promise((resolve) => app.openInvoice(url, (status) => resolve(status)));
+    } catch (err) {
+      // An older Telegram app without in-app invoices: let Telegram open the link itself.
+      console.warn("[telegram] openInvoice failed:", err);
+      if (app.openTelegramLink) {
+        app.openTelegramLink(url);
+        return "external";
+      }
+    }
+  }
+  if (inTelegram()) window.location.href = url;
+  else window.open(url, "_blank", "noopener");
   return "external";
 }
 

@@ -286,6 +286,8 @@ export async function createStarsInvoice(input: { paymentId: string; title: stri
     title: input.title.slice(0, 32),
     description: input.description.slice(0, 255),
     payload: input.paymentId,
+    // Stars need no payment provider: Telegram asks for an empty token.
+    provider_token: "",
     currency: "XTR",
     prices: [{ label: input.title.slice(0, 32), amount: input.stars }],
   });
