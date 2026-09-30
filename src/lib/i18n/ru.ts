@@ -771,6 +771,8 @@ export const ru = {
   "pay.year": "1 год",
   "pay.crypto": "Оплатить криптой",
   "pay.card": "Оплатить картой",
+  "pay.stars": "Оплатить в Telegram",
+  "pay.starsMonthly": "Звёздами Telegram оплачивается месяц — 30 дней.",
   "pay.contact": "Оплатить переводом на карту",
   "pay.contactHint": "Напишите нам: ваш email {email}, тариф {plan}, сумма {price}. Пришлём номер карты для перевода и включим тариф сразу после оплаты.",
   "pay.err.unavailable": "Этот способ оплаты сейчас недоступен.",

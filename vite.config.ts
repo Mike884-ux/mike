@@ -15,18 +15,19 @@ import { isMigrationFile } from "./scripts/migration-plan.mjs";
  */
 const SECURITY_HEADERS: Record<string, string> = {
   "Strict-Transport-Security": "max-age=63072000; includeSubDomains",
-  "X-Frame-Options": "DENY",
   "X-Content-Type-Options": "nosniff",
   "Referrer-Policy": "strict-origin-when-cross-origin",
   "Permissions-Policy": "camera=(), microphone=(), geolocation=(), payment=()",
   "Content-Security-Policy": [
     "default-src 'self'",
-    "script-src 'self' 'unsafe-inline'",
+    // Telegram's Mini App SDK, loaded only when the site runs inside Telegram.
+    "script-src 'self' 'unsafe-inline' https://telegram.org",
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: blob: https://coin-images.coingecko.com https://assets.coingecko.com https://static.coinpaprika.com https://assets.coincap.io https://www.google.com https://*.gstatic.com",
     "font-src 'self' data:",
     "connect-src 'self'",
-    "frame-ancestors 'none'",
+    // Telegram Web shows Mini Apps in a frame; nobody else may frame the site.
+    "frame-ancestors 'self' https://web.telegram.org",
     "base-uri 'self'",
     "form-action 'self'",
     "object-src 'none'",

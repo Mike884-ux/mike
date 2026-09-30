@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Bitcoin,
@@ -12,6 +12,7 @@ import {
   Loader2,
   MessageCircle,
   Minus,
+  Send,
   ShieldCheck,
   Sparkles,
   Users,
@@ -19,7 +20,9 @@ import {
   Zap,
 } from "lucide-react";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
-import { confirmPayments, joinWaitlist, startCheckout } from "@/lib/billing";
+import { useSettings } from "@/lib/settings-store";
+import { confirmPayments, joinWaitlist, startCheckout, startStarsCheckout } from "@/lib/billing";
+import { openStarsInvoice } from "@/lib/telegram-webapp";
 import { useT, type MessageKey } from "@/lib/i18n";
 import {
   AI_KINDS,
@@ -32,6 +35,7 @@ import {
   REFERRAL_FRIENDS,
   YEAR_DISCOUNT_PCT,
   PLAN_LABEL,
+  STAR_PRICES,
   WAITLIST_GIFT_DAYS,
   priceOf,
   type AiKind,
@@ -281,7 +285,7 @@ function PayDialog({
   }, [onClose]);
   const price = priceOf(plan, period);
   // Online payment not connected yet: collect emails instead (the waiting list).
-  const online = Boolean(options?.crypto || options?.card);
+  const online = Boolean(options?.crypto || options?.card || options?.stars);
   // Plans are switched on for an account, so every way to pay starts with one.
   const payable = online || Boolean(options?.contact);
   // Cards through NOWPayments' on-ramp have a minimum set by its card partner.
@@ -332,6 +336,7 @@ function PayDialog({
               {t("pay.signupFirst")}
             </Link>
           ) : null}
+          {user && options?.stars ? <StarsButton plan={plan} period={period} className={method} onDone={onClose} /> : null}
           {user && options?.crypto ? (
             <button
               type="button"
@@ -412,6 +417,49 @@ function PayDialog({
           </li>
         </ul>
       </div>
+    </div>
+  );
+}
+
+/** Pay with Telegram Stars: a payment sheet inside Telegram, or the Telegram app from a browser. */
+function StarsButton({ plan, period, className, onDone }: { plan: PaidPlan; period: Period; className: string; onDone: () => void }) {
+  const t = useT();
+  const lang = useSettings((s) => s.lang);
+  const client = useQueryClient();
+  const navigate = useNavigate();
+  const [note, setNote] = useState<MessageKey | null>(null);
+  const pay = useMutation({
+    mutationFn: async () => {
+      const res = await startStarsCheckout({ data: { plan, lang } });
+      if (!res.ok) return res.error;
+      return openStarsInvoice(res.url);
+    },
+    onSuccess: (status) => {
+      if (status === "paid" || status === "external") {
+        // The bot switches the plan on as soon as Telegram confirms; the page keeps checking.
+        void client.invalidateQueries({ queryKey: BILLING_KEY });
+        onDone();
+        void navigate({ to: "/pricing", search: { paid: true } });
+      } else if (status === "unavailable") setNote("pay.err.unavailable");
+      else if (status === "failed" || status === "bad_input") setNote("pay.err.failed");
+      else setNote(null);
+    },
+    onError: () => setNote("pay.err.failed"),
+  });
+  return (
+    <div>
+      <button
+        type="button"
+        disabled={pay.isPending}
+        onClick={() => pay.mutate()}
+        className={cn(className, "bg-[#229ED9] text-white")}
+      >
+        {pay.isPending ? <Loader2 className="size-5 animate-spin" /> : <Send className="size-5" />}
+        <span className="flex-1">{t("pay.stars")}</span>
+        <span className="text-xs font-bold">{STAR_PRICES[plan].toLocaleString("ru-RU")} ⭐</span>
+      </button>
+      {period === "year" ? <p className="mt-1.5 px-1 text-xs text-muted">{t("pay.starsMonthly")}</p> : null}
+      {note ? <p role="alert" className="mt-1.5 px-1 text-xs text-short">{t(note)}</p> : null}
     </div>
   );
 }

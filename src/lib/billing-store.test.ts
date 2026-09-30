@@ -17,8 +17,10 @@ import {
   type SqlLike,
   getSettings,
   setSettings,
+  settleStars,
+  starsPaymentOk,
 } from "./billing-store.server.ts";
-import { PLANS } from "./plans.ts";
+import { PLANS, STAR_PRICES } from "./plans.ts";
 
 const DAY = 86_400_000;
 
@@ -179,4 +181,23 @@ test("site settings are saved, updated and read back by key", async () => {
     "dodo:test:product_id": "pdt_2",
     "dodo:test:webhook_secret": "whsec_a",
   });
+});
+
+test("Telegram Stars: only this site's pending invoice at its price goes through, and grants once", async () => {
+  const sql = await db();
+  const pay = await createPayment(sql, "u1", "pro", "month", "telegram");
+  const card = await createPayment(sql, "u2", "pro", "month", "dodo");
+  assert.equal(await starsPaymentOk(sql, pay.id, "XTR", STAR_PRICES.pro), true);
+  assert.equal(await starsPaymentOk(sql, pay.id, "XTR", STAR_PRICES.pro - 1), false, "wrong price");
+  assert.equal(await starsPaymentOk(sql, pay.id, "USD", STAR_PRICES.pro), false, "not Stars");
+  assert.equal(await starsPaymentOk(sql, card.id, "XTR", STAR_PRICES.pro), false, "not a Stars payment");
+  assert.equal(await starsPaymentOk(sql, "nope", "XTR", STAR_PRICES.pro), false);
+  const first = await settleStars(sql, pay.id, "charge-1", STAR_PRICES.pro);
+  assert.equal(first.outcome, "granted");
+  assert.equal((await settleStars(sql, pay.id, "charge-1", STAR_PRICES.pro)).outcome, "already");
+  const state = await loadPlan(sql, "u1");
+  assert.equal(state.plan, "pro");
+  assert.ok(Math.abs(state.until! - (Date.now() + 30 * DAY)) < 60_000);
+  assert.equal(await starsPaymentOk(sql, pay.id, "XTR", STAR_PRICES.pro), false, "a paid invoice can't be paid again");
+  assert.equal((await settleStars(sql, "nope", "c", 1)).outcome, "unknown");
 });

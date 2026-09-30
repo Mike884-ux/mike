@@ -14,6 +14,7 @@ import {
   REFERRAL_BONUS_CAP,
   REFERRAL_BONUS_DAYS,
   REFERRAL_FRIENDS,
+  STAR_PRICES,
   TRIAL_DAYS,
   priceOf,
   type AiKind,
@@ -388,6 +389,35 @@ export async function markPaid(
   if (!rows.length) return "already";
   await grantPlan(sql, payment.userId, payment.plan, PERIOD_DAYS[payment.period]);
   return "granted";
+}
+
+/**
+ * Telegram asks before charging Stars: only a pending Stars payment of this
+ * site, for exactly its price, may go through.
+ */
+export async function starsPaymentOk(sql: SqlLike, payload: string, currency: string, total: number): Promise<boolean> {
+  const payment = await getPayment(sql, payload).catch(() => null);
+  return Boolean(
+    payment &&
+      payment.provider === "telegram" &&
+      payment.status === "pending" &&
+      currency === "XTR" &&
+      total === STAR_PRICES[payment.plan],
+  );
+}
+
+/** Stars arrived: remember Telegram's charge id (needed for refunds) and grant the plan once. */
+export async function settleStars(
+  sql: SqlLike,
+  payload: string,
+  chargeId: string,
+  total: number,
+): Promise<{ outcome: "granted" | "already" | "unknown" | "amount_mismatch"; payment: PaymentRow | null }> {
+  const payment = await getPayment(sql, payload).catch(() => null);
+  if (!payment || payment.provider !== "telegram") return { outcome: "unknown", payment: null };
+  if (total < STAR_PRICES[payment.plan]) return { outcome: "amount_mismatch", payment };
+  await setPaymentExternalId(sql, payment.id, chargeId);
+  return { outcome: await markPaid(sql, payment.id, null), payment };
 }
 
 export async function markFailed(sql: SqlLike, id: string): Promise<void> {

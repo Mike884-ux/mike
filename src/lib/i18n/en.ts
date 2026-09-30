@@ -773,6 +773,8 @@ export const en: Record<MessageKey, string> = {
   "pay.year": "1 year",
   "pay.crypto": "Pay with crypto",
   "pay.card": "Pay by card",
+  "pay.stars": "Pay in Telegram",
+  "pay.starsMonthly": "Telegram Stars pay for one month — 30 days.",
   "pay.contact": "Pay by bank transfer",
   "pay.contactHint": "Message us your email {email}, plan {plan} and amount {price}. We'll send the card details for the transfer and switch your plan on right after payment.",
   "pay.err.unavailable": "This payment method isn't available right now.",

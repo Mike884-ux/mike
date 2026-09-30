@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { authMiddleware } from "@/lib/auth/middleware";
 import type { ExchangeRefs } from "./exchanges";
-import { asPaidPlan, asPeriod, PLANS, priceOf, type Billing, type PaymentOptions } from "./plans";
+import { asPaidPlan, asPeriod, PLAN_LABEL, PLANS, priceOf, STAR_PRICES, type Billing, type PaymentOptions } from "./plans";
 
 /** The member's plan, today's AI usage and referral info. */
 export const getBilling = createServerFn({ method: "GET" })
@@ -39,7 +39,7 @@ export const getSiteStatus = createServerFn({ method: "GET" }).handler(async ():
   const [pay, { dbSource }] = await Promise.all([import("./payments.server"), import("./db")]);
   const ref = (name: string) => process.env[name]?.trim() || null;
   return {
-    payments: pay.paymentOptions(await pay.storedDodo()),
+    payments: { ...pay.paymentOptions(await pay.storedDodo()), stars: Boolean(process.env.TELEGRAM_BOT_TOKEN?.trim()) },
     dbTemporary: Boolean(process.env.VERCEL || process.env.RENDER) && dbSource === "pglite",
     exchanges: {
       binance: ref("BINANCE_REF"),
@@ -104,6 +104,40 @@ export const startCheckout = createServerFn({ method: "POST" })
       return { ok: true, url: session.url };
     } catch (err) {
       console.error("[billing] checkout failed:", err);
+      await store.markFailed(sql, payment.id);
+      return { ok: false, error: "failed" };
+    }
+  });
+
+export type StarsCheckoutResult = { ok: true; url: string; stars: number } | { ok: false; error: "unavailable" | "failed" | "bad_input" };
+
+/**
+ * A Telegram Stars invoice for one month of a plan. Inside the Telegram app it
+ * opens with WebApp.openInvoice; in a browser the link opens Telegram.
+ */
+export const startStarsCheckout = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator((input: { plan?: string; lang?: string }) => ({ plan: asPaidPlan(input.plan), en: input.lang === "en" }))
+  .handler(async ({ data, context }): Promise<StarsCheckoutResult> => {
+    if (!data.plan) return { ok: false, error: "bad_input" };
+    if (!process.env.TELEGRAM_BOT_TOKEN?.trim()) return { ok: false, error: "unavailable" };
+    const [{ getSql }, store, tg] = await Promise.all([import("./db"), import("./billing-store.server"), import("./telegram.server")]);
+    const sql = await getSql();
+    const stars = STAR_PRICES[data.plan];
+    const payment = await store.createPayment(sql, context.userId, data.plan, "month", "telegram");
+    const name = `Скан ${PLAN_LABEL[data.plan]}`;
+    try {
+      const url = await tg.createStarsInvoice({
+        paymentId: payment.id,
+        title: data.en ? `${name} — 30 days` : `${name} — 30 дней`,
+        description: data.en
+          ? `The ${PLAN_LABEL[data.plan]} plan for 30 days: AI analysis, alerts and the screener. One-time payment, no auto-renewal.`
+          : `Тариф ${PLAN_LABEL[data.plan]} на 30 дней: разборы ИИ, уведомления и скринер. Разовая оплата, без автосписаний.`,
+        stars,
+      });
+      return { ok: true, url, stars };
+    } catch (err) {
+      console.error("[billing] stars invoice failed:", err instanceof Error ? err.message : err);
       await store.markFailed(sql, payment.id);
       return { ok: false, error: "failed" };
     }

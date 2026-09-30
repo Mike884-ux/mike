@@ -74,7 +74,17 @@ export const BOT_COMMANDS = [
   { command: "alerts", description: "Мои уведомления" },
   { command: "help", description: "Что умеет бот" },
   { command: "stop", description: "Отключить уведомления" },
+  { command: "paysupport", description: "Вопрос по оплате" },
 ];
+
+export const BOT_DESCRIPTION =
+  "📈 Скан — крипторынок в Telegram.\n\n" +
+  "• Цены и японские свечи 1000+ монет\n" +
+  "• ИИ разбирает график: покупать, продавать или ждать — с уровнями входа и стопа\n" +
+  "• Уведомления о цене и RSI прямо сюда\n" +
+  "• Pro оплачивается звёздами Telegram ⭐\n\n" +
+  "Нажмите «Старт», а потом «Открыть Скан».";
+export const BOT_SHORT_DESCRIPTION = "Цены, свечные графики и разбор ИИ по 1000+ криптовалютам. Pro — за звёзды ⭐";
 
 /* ------------------------------------------------------------------ texts */
 
@@ -91,7 +101,9 @@ const T = {
     noAlerts: "Уведомлений пока нет. Добавьте их на странице монеты — кнопка «🔔 Уведомить».",
     alerts: "🔔 Ваши уведомления:",
     unknown: "Не нашёл такую монету. Напишите тикер, например <b>btc</b>, <b>eth</b>, <b>sol</b>.",
-    help: "Что я умею:\n• тикер (<b>btc</b>, <b>/eth</b>) — цена, изменение за сутки, RSI и вывод ИИ\n• /alerts — ваши уведомления\n• /stop — отключить уведомления\n\nСайт: {site}",
+    help: "Что я умею:\n• тикер (<b>btc</b>, <b>/eth</b>) — цена, изменение за сутки, RSI и вывод ИИ\n• /alerts — ваши уведомления\n• /stop — отключить уведомления\n• /paysupport — вопрос по оплате\n\nСайт: {site}",
+    paid: "⭐ Спасибо за оплату! Тариф <b>{plan}</b> включён до {until}.\n\nОткройте сайт: {site}",
+    paySupport: "Вопрос по оплате или возврату? Напишите нам: {contact}\n\nПравила возврата: {site}/refund",
     change: "за 24ч",
     signal: "Сигнал (1ч)",
     ai: "🤖 ИИ: <b>{call}</b> · уверенность {n}%",
@@ -128,7 +140,9 @@ const T = {
     noAlerts: "No alerts yet. Add them on a coin page — the “🔔 Alert me” button.",
     alerts: "🔔 Your alerts:",
     unknown: "I don't know that coin. Send a ticker like <b>btc</b>, <b>eth</b>, <b>sol</b>.",
-    help: "What I can do:\n• a ticker (<b>btc</b>, <b>/eth</b>) — price, 24h change, RSI and the AI's call\n• /alerts — your alerts\n• /stop — turn alerts off\n\nSite: {site}",
+    help: "What I can do:\n• a ticker (<b>btc</b>, <b>/eth</b>) — price, 24h change, RSI and the AI's call\n• /alerts — your alerts\n• /stop — turn alerts off\n• /paysupport — a payment question\n\nSite: {site}",
+    paid: "⭐ Thank you! The <b>{plan}</b> plan is on until {until}.\n\nOpen the site: {site}",
+    paySupport: "A question about a payment or a refund? Write to us: {contact}\n\nRefund rules: {site}/refund",
     change: "24h",
     signal: "Signal (1h)",
     ai: "🤖 AI: <b>{call}</b> · confidence {n}%",
@@ -220,7 +234,7 @@ export function alertMessage(
 }
 
 /** Bump when connectBot sets up something new, so running bots get it once. */
-export const BOT_SETUP_VERSION = "2";
+export const BOT_SETUP_VERSION = "3";
 
 /** The bot's number — the public part of the token before the colon (not a secret). */
 export function botId(): string {
@@ -236,8 +250,11 @@ export async function connectBot(origin: string): Promise<{ username: string; we
   const [{ getSql }, store] = await Promise.all([import("./db"), import("./billing-store.server")]);
   const webhookUrl = `${origin}/api/telegram`;
   const me = await tg<{ username?: string }>("getMe");
-  await tg("setWebhook", { url: webhookUrl, secret_token: webhookSecret(), allowed_updates: ["message"], drop_pending_updates: true });
+  await tg("setWebhook", { url: webhookUrl, secret_token: webhookSecret(), allowed_updates: ["message", "pre_checkout_query"], drop_pending_updates: true });
   await tg("setMyCommands", { commands: BOT_COMMANDS });
+  // What people see before pressing Start, and on the bot's profile.
+  await tg("setMyDescription", { description: BOT_DESCRIPTION });
+  await tg("setMyShortDescription", { short_description: BOT_SHORT_DESCRIPTION });
   // Telegram only opens https pages as a Mini App.
   if (origin.startsWith("https://")) {
     await tg("setChatMenuButton", { menu_button: { type: "web_app", text: "Открыть Скан", web_app: { url: origin } } });
@@ -257,4 +274,19 @@ export async function savedSetup(): Promise<{ webhookUrl: string | null; botId: 
   const [{ getSql }, store] = await Promise.all([import("./db"), import("./billing-store.server")]);
   const saved = await store.getSettings(await getSql(), ["telegram:webhook_url", "telegram:bot_id", "telegram:setup"]);
   return { webhookUrl: saved["telegram:webhook_url"] ?? null, botId: saved["telegram:bot_id"] ?? null, setup: saved["telegram:setup"] ?? null };
+}
+
+/**
+ * A Telegram Stars invoice link for one pending payment. Stars ("XTR") need no
+ * payment provider; the payment id travels as the payload and comes back in
+ * pre_checkout_query and successful_payment.
+ */
+export async function createStarsInvoice(input: { paymentId: string; title: string; description: string; stars: number }): Promise<string> {
+  return tg<string>("createInvoiceLink", {
+    title: input.title.slice(0, 32),
+    description: input.description.slice(0, 255),
+    payload: input.paymentId,
+    currency: "XTR",
+    prices: [{ label: input.title.slice(0, 32), amount: input.stars }],
+  });
 }

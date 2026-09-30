@@ -69,6 +69,12 @@ export const REFERRAL_FRIENDS = 3;
 export const REFERRAL_BONUS_DAYS = 3;
 export const REFERRAL_BONUS_CAP = 30;
 
+/**
+ * Telegram Stars price for one month (Stars payments are monthly). Buyers pay
+ * about $0.02 a star; the owner receives about $0.013 a star.
+ */
+export const STAR_PRICES: Record<PaidPlan, number> = { pro: 1150, max: 3000 };
+
 export function priceOf(plan: PaidPlan, period: Period): number {
   return period === "year" ? PLANS[plan].year : PLANS[plan].month;
 }
@@ -104,4 +110,6 @@ export type PaymentOptions = {
    */
   cardMin: number | null;
   contact: string | null;
+  /** Telegram Stars through the site's bot (monthly plans). */
+  stars?: boolean;
 };
