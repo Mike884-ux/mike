@@ -110,6 +110,15 @@ export async function exchangePairs(base: string, now = Date.now()): Promise<Exc
   ) as ExchangePairs;
 }
 
+/** Coins Binance trades against USDT right now, or null when its list couldn't be read. */
+export async function binanceUsdtBases(now = Date.now()): Promise<Set<string> | null> {
+  const set = await pairsOf("binance", now);
+  if (!set) return null;
+  const bases = new Set<string>();
+  for (const p of set) if (p.endsWith("/USDT")) bases.add(p.slice(0, -5));
+  return bases;
+}
+
 /** Tests start from an empty cache. */
 export function resetExchangePairs(): void {
   cache.clear();

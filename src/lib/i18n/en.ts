@@ -178,7 +178,7 @@ export const en: Record<MessageKey, string> = {
   "launch.cta": "Open the BTC chart",
 
   "app.name": "Scan",
-  "app.tagline": "Market scan across 100 coins and stocks — chart, RSI and AI analysis",
+  "app.tagline": "Market scan across 200 coins and stocks — chart, RSI and AI analysis",
   "app.aiBadge": "AI analyst",
   "tabs.scan": "Scanner",
   "tabs.wallet": "Wallet",
@@ -212,7 +212,7 @@ export const en: Record<MessageKey, string> = {
   "fng.Extreme Greed": "Extreme greed",
 
   "scan.title": "AI market scanner",
-  "scan.subtitle": "Prices, RSI and trend for 100 assets. Tap “Ask AI” and the AI will analyze the coin and give its call.",
+  "scan.subtitle": "Prices, RSI and trend for 200 assets. Tap “Ask AI” and the AI will analyze the coin and give its call.",
   "scan.computing": "Computing indicators",
   "scan.stale": "Couldn't refresh — showing the previous scan.",
   "scan.search": "Search: BTC, bitcoin, apple",
@@ -418,8 +418,8 @@ export const en: Record<MessageKey, string> = {
 
   "login.eyebrow": "AI market scanner",
   "login.headline": "See the whole market. Decide calmly.",
-  "login.sub": "100 coins and stocks on one screen: chart, RSI, trend and AI analysis with entry, stop and targets.",
-  "login.f1": "AI scanner for 100 coins and stocks",
+  "login.sub": "200 coins and stocks on one screen: chart, RSI, trend and AI analysis with entry, stop and targets.",
+  "login.f1": "AI scanner for 200 coins and stocks",
   "login.f2": "Deep AI analysis with levels",
   "login.f3": "Wallet and trades saved to your account",
   "login.signup": "Sign up",
@@ -547,7 +547,7 @@ export const en: Record<MessageKey, string> = {
   "gate.signin": "I already have an account",
   "gate.free": "Sign-up is free and takes 10 seconds.",
   "gate.signals.title": "The AI scanner is for members",
-  "gate.signals.text": "The AI reads the chart of 100 coins and stocks and says it plainly: buy, sell or wait — with entry, stop and target levels.",
+  "gate.signals.text": "The AI reads the chart of 200 coins and stocks and says it plainly: buy, sell or wait — with entry, stop and target levels.",
   "gate.portfolio.title": "Portfolio is for members",
   "gate.portfolio.text": "Record buys and sells, track profit and your portfolio's history, and get an AI review of your holdings. Everything is saved to your account.",
   "gate.news.title": "News is for members",

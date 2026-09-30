@@ -170,7 +170,11 @@ const COINCAP_ICON = (symbol: string) => `https://assets.coincap.io/assets/icons
 
 /** Last resort for page 1: the Binance spot tape the scanner already follows. */
 async function binanceBoard(): Promise<MarketCoin[] | null> {
-  const symbols = TAPE_CRYPTOS.map((base) => assetOf(base)?.binance).filter((s): s is string => Boolean(s));
+  // Only pairs Binance lists: one unknown symbol fails the whole batched call.
+  const listed = await import("./exchange-pairs.server").then((m) => m.binanceUsdtBases()).catch(() => null);
+  const symbols = TAPE_CRYPTOS.filter((base) => !listed || listed.has(base))
+    .map((base) => assetOf(base)?.binance)
+    .filter((s): s is string => Boolean(s));
   const data = await binance(`/api/v3/ticker/24hr?symbols=${encodeURIComponent(JSON.stringify(symbols))}`);
   if (!Array.isArray(data)) return null;
   const coins: MarketCoin[] = [];

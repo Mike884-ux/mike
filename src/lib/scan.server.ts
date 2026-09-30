@@ -27,9 +27,21 @@ export function peekScan(interval: IntervalId, maxAgeMs = 10 * 60_000): CoinRow[
   return hit && Date.now() - hit.at < maxAgeMs ? hit.value : null;
 }
 
+/**
+ * The tape minus coins Binance doesn't list (delisted or never listed) — they
+ * would only cost requests and could fail the batched price call. When
+ * Binance's list can't be read, everything is tried.
+ */
+async function liveUniverse(): Promise<string[]> {
+  const listed = await import("./exchange-pairs.server").then((m) => m.binanceUsdtBases()).catch(() => null);
+  if (!listed) return UNIVERSE;
+  return UNIVERSE.filter((base) => assetOf(base)?.kind !== "crypto" || listed.has(base));
+}
+
 async function scan(interval: IntervalId): Promise<CoinRow[]> {
   const marketMod = await import("./market.server");
-  const symbols = UNIVERSE.map((base) => symbolOf(assetOf(base)!));
+  const universe = await liveUniverse();
+  const symbols = universe.map((base) => symbolOf(assetOf(base)!));
 
   // Runs alongside the klines loop below instead of after it — halves the
   // worst-case total time under a slow network.
@@ -40,8 +52,8 @@ async function scan(interval: IntervalId): Promise<CoinRow[]> {
   // than a handful of slower, spaced-out waves. A hard overall deadline
   // means a run of slow/timed-out symbols degrades to a partial result
   // instead of the whole request hanging until something upstream aborts it.
-  const BATCH = 6;
-  const DEADLINE_MS = 32_000;
+  const BATCH = 10;
+  const DEADLINE_MS = 40_000;
   const startedAt = Date.now();
   const klineLists: Candle[][] = [];
   let empty = 0;
@@ -61,7 +73,7 @@ async function scan(interval: IntervalId): Promise<CoinRow[]> {
   const priceBySymbol = new Map(tickers.map((t) => [t.symbol, t]));
 
   const rows: CoinRow[] = [];
-  UNIVERSE.forEach((base, i) => {
+  universe.forEach((base, i) => {
     const symbol = symbols[i]!;
     const candles = klineLists[i] ?? [];
     if (candles.length < 20) return;
