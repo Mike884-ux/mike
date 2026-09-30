@@ -141,6 +141,23 @@ export const adminSetPlan = createServerFn({ method: "POST" })
     return { ok: true as const, member: await memberInfo(data.email) };
   });
 
+/** Asks the payment provider about a pending payment and settles it (for when a webhook got lost). */
+export const adminCheckPayment = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator((input: { id?: string }) => ({ id: String(input.id ?? "").slice(0, 64) }))
+  .handler(async ({ data, context }) => {
+    await requireAdmin(context.email);
+    const [{ getSql }, store, { recheckPayment }] = await Promise.all([
+      import("./db"),
+      import("./billing-store.server"),
+      import("./webhook.server"),
+    ]);
+    const payment = await store.getPayment(await getSql(), data.id);
+    if (!payment) return { result: "error" as const };
+    if (payment.status === "paid") return { result: "already" as const };
+    return { result: await recheckPayment(payment) };
+  });
+
 export const MARKETING_CHANNELS = ["telegram", "instagram", "tiktok", "x"] as const;
 export const MARKETING_GOALS = ["signup", "pro", "referral", "market"] as const;
 export type MarketingChannel = (typeof MARKETING_CHANNELS)[number];

@@ -5,6 +5,7 @@ import {
   cardProvider,
   connectDodo,
   dodoCheckout,
+  dodoPaymentStatus,
   nowpaymentsCardCurrency,
   nowpaymentsCheckout,
   paymentOptions,
@@ -314,4 +315,33 @@ test("Dodo key: words pasted after the key are ignored", () => {
   withEnv({ DODO_API_KEY: "abc.DEF123  вот мой ключ" }, () =>
     assert.equal(resolveDodo({ productId: "pdt_1", webhookSecret: DODO_SECRET })?.apiKey, "abc.DEF123"),
   );
+});
+
+test("Dodo recheck: the checkout names the payment, whose metadata must be ours", async () => {
+  const realFetch = globalThis.fetch;
+  let status = "processing";
+  let owner = "pay-1";
+  globalThis.fetch = (async (url: string) => {
+    const u = String(url);
+    if (u.endsWith("/checkouts/cks_1")) return new Response(JSON.stringify({ id: "cks_1", payment_id: "pay_dodo" }), { status: 200 });
+    if (u.endsWith("/checkouts/cks_open")) return new Response(JSON.stringify({ id: "cks_open", payment_id: null }), { status: 200 });
+    if (u.endsWith("/payments/pay_dodo"))
+      return new Response(JSON.stringify({ status, total_amount: 1499, currency: "USD", metadata: { payment_id: owner } }), { status: 200 });
+    return new Response("{}", { status: 404 });
+  }) as typeof fetch;
+  const saved = process.env.DODO_API_KEY;
+  process.env.DODO_API_KEY = "dodo_key";
+  try {
+    assert.equal(await dodoPaymentStatus("cks_open", "pay-1"), null, "not paid yet");
+    assert.deepEqual(await dodoPaymentStatus("cks_1", "pay-1"), { paymentId: "pay-1", paid: false, failed: false, amount: 14.99 });
+    status = "succeeded";
+    assert.deepEqual(await dodoPaymentStatus("cks_1", "pay-1"), { paymentId: "pay-1", paid: true, failed: false, amount: 14.99 });
+    owner = "someone-else";
+    assert.equal(await dodoPaymentStatus("cks_1", "pay-1"), null, "another payment's checkout doesn't count");
+    await assert.rejects(dodoPaymentStatus("cks_missing", "pay-1"));
+  } finally {
+    globalThis.fetch = realFetch;
+    if (saved === undefined) delete process.env.DODO_API_KEY;
+    else process.env.DODO_API_KEY = saved;
+  }
 });

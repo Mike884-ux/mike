@@ -398,6 +398,28 @@ export async function dodoCheckout(input: CheckoutInput, config: DodoConfig): Pr
 }
 
 /**
+ * Asks Dodo directly whether a checkout was paid — the fallback when its
+ * webhook didn't reach the site (a sleeping server, a changed webhook URL).
+ * The checkout session names the payment; the payment carries our id in its
+ * metadata, which must match. Null when Dodo can't say yet.
+ */
+export async function dodoPaymentStatus(sessionId: string, paymentId: string): Promise<WebhookResult> {
+  const session = await dodoApi<{ payment_id?: string | null }>(`/checkouts/${encodeURIComponent(sessionId)}`);
+  if (!session.payment_id) return null;
+  const payment = await dodoApi<{
+    status?: string;
+    total_amount?: number;
+    currency?: string;
+    metadata?: Record<string, unknown>;
+  }>(`/payments/${encodeURIComponent(session.payment_id)}`);
+  if (String(payment.metadata?.payment_id ?? "") !== paymentId) return null;
+  const cents = Number(payment.total_amount);
+  const amount = String(payment.currency ?? "").toUpperCase() === "USD" && Number.isFinite(cents) ? cents / 100 : null;
+  const status = String(payment.status ?? "");
+  return { paymentId, paid: status === "succeeded", failed: status === "failed" || status === "cancelled", amount };
+}
+
+/**
  * Dodo signs webhooks the Standard Webhooks way: HMAC-SHA256 over
  * "id.timestamp.body" with the base64 secret after "whsec_", sent as
  * "v1,<base64>" (several may be space-separated); stale messages are refused.

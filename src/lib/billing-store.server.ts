@@ -332,6 +332,7 @@ export type PaymentRow = {
   createdAt: number;
   paidAt: number | null;
   email?: string;
+  externalId?: string;
 };
 
 export async function createPayment(
@@ -405,7 +406,18 @@ function toPayment(row: Record<string, unknown>): PaymentRow {
     createdAt: ms(row.created_at) ?? 0,
     paidAt: ms(row.paid_at),
     ...(row.email ? { email: String(row.email) } : {}),
+    ...(row.external_id ? { externalId: String(row.external_id) } : {}),
   };
+}
+
+/** A member's unsettled checkouts from the last two days that a provider can be asked about. */
+export async function pendingPayments(sql: SqlLike, userId: string, now = Date.now()): Promise<PaymentRow[]> {
+  const rows = await sql<Record<string, unknown>>`
+    select * from payments
+    where user_id = ${userId} and status = 'pending' and external_id is not null
+      and created_at > ${new Date(now - 2 * DAY_MS)}
+    order by created_at desc limit 3`;
+  return rows.map(toPayment);
 }
 
 export async function recentPayments(sql: SqlLike, limit = 50): Promise<PaymentRow[]> {

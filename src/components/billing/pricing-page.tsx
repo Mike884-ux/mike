@@ -19,7 +19,7 @@ import {
   Zap,
 } from "lucide-react";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
-import { joinWaitlist, startCheckout } from "@/lib/billing";
+import { confirmPayments, joinWaitlist, startCheckout } from "@/lib/billing";
 import { useT, type MessageKey } from "@/lib/i18n";
 import {
   AI_KINDS,
@@ -656,7 +656,13 @@ export function PricingPage({ paid, canceled }: { paid: boolean; canceled: boole
 
   useEffect(() => {
     if (!paid) return;
-    const id = setInterval(() => void client.invalidateQueries({ queryKey: BILLING_KEY }), 5000);
+    // Ask the payment provider too, in case its notification to the site got lost.
+    const check = () =>
+      void confirmPayments()
+        .catch(() => undefined)
+        .finally(() => void client.invalidateQueries({ queryKey: BILLING_KEY }));
+    check();
+    const id = setInterval(check, 8000);
     const stop = setTimeout(() => clearInterval(id), 120_000);
     return () => {
       clearInterval(id);

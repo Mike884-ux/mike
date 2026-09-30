@@ -23,6 +23,7 @@ import {
   adminConnectTelegram,
   adminFindMember,
   adminGrantWaitlist,
+  adminCheckPayment,
   adminSetPlan,
   generateMarketing,
   getAdminOverview,
@@ -632,6 +633,7 @@ export function AdminPage() {
                     >
                       {p.status}
                     </span>
+                    {p.status === "pending" && p.provider === "dodo" ? <RecheckPayment id={p.id} /> : null}
                   </td>
                 </tr>
               ))}
@@ -642,6 +644,30 @@ export function AdminPage() {
         )}
       </section>
     </div>
+  );
+}
+
+/** "Check payment": asks Dodo whether a pending checkout was paid and turns the plan on if so. */
+function RecheckPayment({ id }: { id: string }) {
+  const t = useT();
+  const client = useQueryClient();
+  const check = useMutation({
+    mutationFn: () => adminCheckPayment({ data: { id } }),
+    onSuccess: () => void client.invalidateQueries({ queryKey: ["admin-overview"] }),
+  });
+  const result = check.data?.result;
+  return (
+    <span className="ml-2 inline-flex items-center gap-1.5">
+      <button
+        type="button"
+        onClick={() => check.mutate()}
+        disabled={check.isPending}
+        className="rounded-lg bg-primary/12 px-2 py-0.5 text-[11px] font-semibold text-primary hover:bg-primary/20 disabled:opacity-50"
+      >
+        {t("admin.recheck")}
+      </button>
+      {result ? <span className="text-[11px] text-muted">{t(`admin.recheck.${result}` as MessageKey)}</span> : null}
+    </span>
   );
 }
 

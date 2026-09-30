@@ -23,3 +23,33 @@ export async function settlePayment(result: WebhookResult, provider: string): Pr
   // Always 200 once the signature checks out, so the provider stops retrying.
   return text("ok", 200);
 }
+
+export type Recheck = "granted" | "already" | "pending" | "failed" | "amount_mismatch" | "unsupported" | "error";
+
+/**
+ * Asks the provider about one unsettled payment and settles it the same way
+ * its webhook would. Only Dodo checkouts can be asked for now.
+ */
+export async function recheckPayment(payment: { id: string; provider: string; externalId?: string }): Promise<Recheck> {
+  if (payment.provider !== "dodo" || !payment.externalId) return "unsupported";
+  const [{ getSql }, store, pay] = await Promise.all([import("./db"), import("./billing-store.server"), import("./payments.server")]);
+  let result: WebhookResult;
+  try {
+    result = await pay.dodoPaymentStatus(payment.externalId, payment.id);
+  } catch (err) {
+    console.error(`[billing] dodo recheck ${payment.id} failed:`, err);
+    return "error";
+  }
+  if (!result) return "pending";
+  const sql = await getSql();
+  if (result.paid) {
+    const outcome = await store.markPaid(sql, payment.id, result.amount);
+    console.log(`[billing] dodo recheck ${payment.id}: ${outcome}`);
+    return outcome === "unknown" ? "error" : outcome;
+  }
+  if (result.failed) {
+    await store.markFailed(sql, payment.id);
+    return "failed";
+  }
+  return "pending";
+}

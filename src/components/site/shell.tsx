@@ -2,7 +2,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, useRouterState } from "@tanstack/react-router";
 import { AlertTriangle, Gift, Lock, Sparkles, X } from "lucide-react";
-import { claimReferral } from "@/lib/billing";
+import { claimReferral, confirmPayments } from "@/lib/billing";
 import { clearReferral, pendingReferral, rememberReferral } from "@/lib/referral";
 import { BILLING_KEY, daysLeft, useBilling, useSiteStatus } from "@/lib/use-billing";
 import { REFERRAL_BONUS_DAYS, REFERRAL_FRIENDS } from "@/lib/plans";
@@ -79,6 +79,22 @@ function BillingEffects() {
   const client = useQueryClient();
   const billing = useBilling().data;
   const [hidden, hide] = useDismissed("scan-trial-strip");
+  const signedIn = Boolean(billing);
+  useEffect(() => {
+    // Once per visit: settle a checkout whose payment notice never reached the site.
+    if (!signedIn) return;
+    try {
+      if (sessionStorage.getItem("scan-pay-checked")) return;
+      sessionStorage.setItem("scan-pay-checked", "1");
+    } catch {
+      return;
+    }
+    void confirmPayments()
+      .then((r) => {
+        if (r.granted) void client.invalidateQueries({ queryKey: BILLING_KEY });
+      })
+      .catch(() => undefined);
+  }, [signedIn, client]);
   useEffect(() => {
     const code = pendingReferral();
     if (!code) return;

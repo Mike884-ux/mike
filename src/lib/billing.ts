@@ -109,6 +109,24 @@ export const startCheckout = createServerFn({ method: "POST" })
     }
   });
 
+/**
+ * Back from checkout: asks the provider about this member's unsettled payments,
+ * so the plan switches on even when the provider's webhook didn't arrive.
+ */
+export const confirmPayments = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .handler(async ({ context }): Promise<{ granted: boolean }> => {
+    const [{ getSql }, store, { recheckPayment }] = await Promise.all([
+      import("./db"),
+      import("./billing-store.server"),
+      import("./webhook.server"),
+    ]);
+    const pending = await store.pendingPayments(await getSql(), context.userId);
+    let granted = false;
+    for (const payment of pending) if ((await recheckPayment(payment)) === "granted") granted = true;
+    return { granted };
+  });
+
 /** Links a fresh account to the friend who invited it (called once after sign-up). */
 export const claimReferral = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
