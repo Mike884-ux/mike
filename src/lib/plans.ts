@@ -61,10 +61,10 @@ export const WAITLIST_GIFT_DAYS = 14;
 
 export const PERIOD_DAYS: Record<Period, number> = { month: 30, year: 365 };
 
-/** Free Pro days for a new account, and for someone who joins by a friend's link. */
-export const TRIAL_DAYS = 3;
-export const REFERRED_TRIAL_DAYS = 7;
-/** Pro days the inviter earns per friend, up to the cap. */
+/** Free Pro days for a new account: none — Pro days are earned by inviting friends. */
+export const TRIAL_DAYS = 0;
+/** Every this many friends who join by a member's link earn the member Pro days, up to the cap. */
+export const REFERRAL_FRIENDS = 3;
 export const REFERRAL_BONUS_DAYS = 3;
 export const REFERRAL_BONUS_CAP = 30;
 

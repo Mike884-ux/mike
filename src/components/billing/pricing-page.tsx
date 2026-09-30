@@ -29,8 +29,7 @@ import {
   PLANS,
   REFERRAL_BONUS_CAP,
   REFERRAL_BONUS_DAYS,
-  REFERRED_TRIAL_DAYS,
-  TRIAL_DAYS,
+  REFERRAL_FRIENDS,
   YEAR_DISCOUNT_PCT,
   PLAN_LABEL,
   WAITLIST_GIFT_DAYS,
@@ -45,6 +44,9 @@ import { BILLING_KEY, daysLeft, useBilling, useSiteStatus } from "@/lib/use-bill
 import { cn } from "@/lib/utils";
 import { useHydrated } from "@/lib/use-hydrated";
 import { LegalConsent } from "@/components/site/legal-page";
+
+/** Placeholders for the "invite friends" texts. */
+const REFERRAL = { friends: REFERRAL_FRIENDS, days: REFERRAL_BONUS_DAYS, cap: REFERRAL_BONUS_CAP };
 
 const KIND_KEY: Record<AiKind, MessageKey> = {
   analysis: "pricing.f.analysis",
@@ -215,7 +217,7 @@ function PlanCard({
           search={{ mode: "signup", redirect: "/pricing" }}
           className="bg-brand mt-5 flex h-11 items-center justify-center gap-2 rounded-xl text-sm font-semibold text-white shadow-[var(--shadow-glow)] hover:opacity-95"
         >
-          {t("pricing.tryPro", { n: TRIAL_DAYS })}
+          {t("pricing.tryPro")}
         </Link>
       ) : (
         <button
@@ -475,6 +477,8 @@ export function ReferralCard({ className, id }: { className?: string; id?: strin
   const billing = useBilling().data;
   const [copied, setCopied] = useState(false);
   if (!billing) return null;
+  // Friends toward the next reward: 0, 1 or 2 of 3.
+  const step = billing.referrals % REFERRAL_FRIENDS;
   const link = `${typeof window === "undefined" ? "" : window.location.origin}/?ref=${billing.refCode}`;
   const copy = () => {
     void navigator.clipboard?.writeText(link).then(() => {
@@ -492,15 +496,19 @@ export function ReferralCard({ className, id }: { className?: string; id?: strin
           <Users className="size-5" />
         </span>
         <div className="min-w-0 flex-1">
-          <h2 className="font-display text-lg font-bold text-fg">{t("ref.title")}</h2>
-          <p className="mt-1 text-sm leading-relaxed text-muted">
-            {t("ref.text", {
-              friend: REFERRED_TRIAL_DAYS,
-              you: REFERRAL_BONUS_DAYS,
-              cap: REFERRAL_BONUS_CAP,
-            })}
-          </p>
+          <h2 className="font-display text-lg font-bold text-fg">{t("ref.title", REFERRAL)}</h2>
+          <p className="mt-1 text-sm leading-relaxed text-muted">{t("ref.text", REFERRAL)}</p>
         </div>
+      </div>
+      <div className="mt-4">
+        <div className="flex gap-1.5" aria-hidden>
+          {Array.from({ length: REFERRAL_FRIENDS }, (_, i) => (
+            <span key={i} className={cn("h-2 flex-1 rounded-full", i < step ? "bg-accent" : "bg-surface-2")} />
+          ))}
+        </div>
+        <p className="mt-2 text-xs font-semibold text-fg">
+          {t("ref.progress", { n: step, friends: REFERRAL_FRIENDS, left: REFERRAL_FRIENDS - step, days: REFERRAL_BONUS_DAYS })}
+        </p>
       </div>
       <div className="mt-4 flex gap-2">
         <input
@@ -546,7 +554,7 @@ function Faq() {
               onClick={() => setOpen(open === i ? null : i)}
               className="flex w-full items-center justify-between gap-3 px-5 py-4 text-left text-sm font-semibold text-fg"
             >
-              {t(`pfaq.q${i}` as MessageKey, { trial: TRIAL_DAYS })}
+              {t(`pfaq.q${i}` as MessageKey)}
               <ChevronDown
                 className={cn(
                   "size-4 shrink-0 text-faint transition-transform",
@@ -556,7 +564,7 @@ function Faq() {
             </button>
             {open === i ? (
               <p className="px-5 pb-4 text-sm leading-relaxed text-muted">
-                {t(`pfaq.a${i}` as MessageKey, { trial: TRIAL_DAYS, pct: YEAR_DISCOUNT_PCT })}
+                {t(`pfaq.a${i}` as MessageKey, { ...REFERRAL, pct: YEAR_DISCOUNT_PCT })}
               </p>
             ) : null}
           </div>
@@ -684,7 +692,7 @@ export function PricingPage({ paid, canceled }: { paid: boolean; canceled: boole
           {t("pricing.title")}
         </h1>
         <p className="mx-auto mt-3 max-w-2xl text-base leading-relaxed text-muted">
-          {t("pricing.subtitle", { n: TRIAL_DAYS })}
+          {t("pricing.subtitle", REFERRAL)}
         </p>
         {b?.trial ? (
           <p className="mx-auto mt-4 inline-flex items-center gap-2 rounded-full bg-wait/15 px-4 py-1.5 text-sm font-semibold text-fg">
@@ -718,7 +726,7 @@ export function PricingPage({ paid, canceled }: { paid: boolean; canceled: boole
         {(["trust.noRenew", "trust.crypto", "trust.trial"] as MessageKey[]).map((key) => (
           <p key={key} className="flex items-center justify-center gap-2 text-center text-muted">
             <ShieldCheck className="size-4 shrink-0 text-long" />
-            {t(key, { n: TRIAL_DAYS })}
+            {t(key, REFERRAL)}
           </p>
         ))}
       </div>
@@ -730,7 +738,7 @@ export function PricingPage({ paid, canceled }: { paid: boolean; canceled: boole
       <div className="bg-brand mx-auto mt-16 max-w-4xl rounded-3xl p-8 text-center text-white shadow-[var(--shadow-glow)]">
         <h2 className="font-display text-2xl font-bold">{t("pricing.finalTitle")}</h2>
         <p className="mx-auto mt-2 max-w-xl text-sm text-white/85">
-          {t("pricing.finalText", { n: TRIAL_DAYS })}
+          {t("pricing.finalText")}
         </p>
         {user ? (
           <button
@@ -748,7 +756,7 @@ export function PricingPage({ paid, canceled }: { paid: boolean; canceled: boole
             className="mt-5 inline-flex h-11 items-center gap-2 rounded-xl bg-white px-6 text-sm font-semibold text-primary hover:opacity-95"
           >
             <Sparkles className="size-4" />
-            {t("pricing.tryPro", { n: TRIAL_DAYS })}
+            {t("pricing.tryPro")}
           </Link>
         )}
       </div>

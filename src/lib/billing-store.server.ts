@@ -13,7 +13,7 @@ import {
   PLANS,
   REFERRAL_BONUS_CAP,
   REFERRAL_BONUS_DAYS,
-  REFERRED_TRIAL_DAYS,
+  REFERRAL_FRIENDS,
   TRIAL_DAYS,
   priceOf,
   type AiKind,
@@ -258,8 +258,10 @@ export async function revokePlan(sql: SqlLike, userId: string): Promise<void> {
 export type ReferralResult = "ok" | "ok_no_bonus" | "already" | "bad_code" | "self" | "too_late";
 
 /**
- * A new member who arrived by a friend's link: they get a longer trial, the
- * friend earns Pro days (capped, and not when both use the same IP address).
+ * A new member who arrived by a friend's link. The friend gets nothing extra;
+ * every REFERRAL_FRIENDS counted friends earn the inviter REFERRAL_BONUS_DAYS
+ * of Pro (capped). A friend sharing an IP address with the inviter is linked
+ * but not counted — likely the same person on a second account.
  */
 export async function claimReferral(
   sql: SqlLike,
@@ -281,19 +283,21 @@ export async function claimReferral(
   if (!inviter) return "bad_code";
   if (inviter.user_id === userId) return "self";
 
-  const updated = await sql`
-    update user_plan set referred_by = ${inviter.user_id},
-      trial_until = greatest(coalesce(trial_until, now()), ${new Date(createdAt + REFERRED_TRIAL_DAYS * DAY_MS)}),
-      updated_at = now()
-    where user_id = ${userId} and referred_by is null
-    returning user_id`;
-  if (!updated.length) return "already";
-
+  let counted = true;
   if (opts.ip) {
     const sameIp =
       await sql`select 1 from "session" where "userId" = ${inviter.user_id} and "ipAddress" = ${opts.ip} limit 1`;
-    if (sameIp.length) return "ok_no_bonus";
+    if (sameIp.length) counted = false;
   }
+  const updated = await sql`
+    update user_plan set referred_by = ${inviter.user_id}, ref_counted = ${counted}, updated_at = now()
+    where user_id = ${userId} and referred_by is null
+    returning user_id`;
+  if (!updated.length) return "already";
+  if (!counted) return "ok_no_bonus";
+
+  const friends = await referralCount(sql, inviter.user_id);
+  if (friends % REFERRAL_FRIENDS !== 0) return "ok";
   if ((Number(inviter.ref_bonus_days) || 0) + REFERRAL_BONUS_DAYS > REFERRAL_BONUS_CAP)
     return "ok_no_bonus";
   const state = effectivePlan(inviter, now);
@@ -309,10 +313,11 @@ export async function claimReferral(
   return "ok";
 }
 
+/** Friends who joined by the member's link and count toward the reward. */
 export async function referralCount(sql: SqlLike, userId: string): Promise<number> {
   const [row] = await sql<{
     n: number;
-  }>`select count(*)::int as n from user_plan where referred_by = ${userId}`;
+  }>`select count(*)::int as n from user_plan where referred_by = ${userId} and ref_counted`;
   return Number(row?.n ?? 0);
 }
 

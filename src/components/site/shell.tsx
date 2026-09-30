@@ -5,7 +5,7 @@ import { AlertTriangle, Gift, Lock, Sparkles, X } from "lucide-react";
 import { claimReferral } from "@/lib/billing";
 import { clearReferral, pendingReferral, rememberReferral } from "@/lib/referral";
 import { BILLING_KEY, daysLeft, useBilling, useSiteStatus } from "@/lib/use-billing";
-import { TRIAL_DAYS } from "@/lib/plans";
+import { REFERRAL_BONUS_DAYS, REFERRAL_FRIENDS } from "@/lib/plans";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import { useT, type MessageKey } from "@/lib/i18n";
 import { useAccount } from "@/lib/use-account";
@@ -119,7 +119,7 @@ function GuestOffer() {
   if (hidden || pathname === "/pricing") return null;
   return (
     <Strip tone="promo" icon={<Gift className="size-4" />} onClose={hide}>
-      {t("guest.strip", { n: TRIAL_DAYS })}{" "}
+      {t("guest.strip", { friends: REFERRAL_FRIENDS, days: REFERRAL_BONUS_DAYS })}{" "}
       <Link
         to="/login"
         search={{ mode: "signup", redirect: pathname }}

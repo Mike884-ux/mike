@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Gift, History, KeyRound, Loader2, Lock, Mail, ShieldCheck, Sparkles, Wallet } from "lucide-react";
-import { REFERRED_TRIAL_DAYS, TRIAL_DAYS } from "@/lib/plans";
+import { REFERRAL_BONUS_DAYS, REFERRAL_FRIENDS } from "@/lib/plans";
 import { pendingReferral, rememberReferral } from "@/lib/referral";
 import { authClient } from "@/lib/auth/client";
 import { getAuthProviders, type AuthProviders } from "@/lib/auth/providers";
@@ -73,7 +73,7 @@ function SocialButtons({ redirect, busy, onError }: { redirect: string; busy: bo
   );
 }
 
-/** The sign-up gift: Pro days, more when a friend's invite link brought the visitor here. */
+/** What sign-up leads to: Pro days for inviting friends (a plain welcome when a friend's link brought the visitor). */
 function SignupBonus() {
   const t = useT();
   const [invited, setInvited] = useState(false);
@@ -84,7 +84,7 @@ function SignupBonus() {
   return (
     <p className="mt-4 flex items-center gap-2 rounded-xl bg-wait/12 px-3 py-2 text-xs font-medium text-fg">
       <Gift className="size-4 shrink-0 text-wait" />
-      {invited ? t("login.bonusInvited", { n: REFERRED_TRIAL_DAYS }) : t("login.bonus", { n: TRIAL_DAYS })}
+      {invited ? t("login.bonusInvited") : t("login.bonus", { friends: REFERRAL_FRIENDS, days: REFERRAL_BONUS_DAYS })}
     </p>
   );
 }

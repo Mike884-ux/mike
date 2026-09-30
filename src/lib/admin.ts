@@ -8,8 +8,8 @@ import { findDatabaseUrl } from "../../scripts/database-url.mjs";
 import {
   asPaidPlan,
   PLANS,
-  TRIAL_DAYS,
   REFERRAL_BONUS_DAYS,
+  REFERRAL_FRIENDS,
   YEAR_DISCOUNT_PCT,
   type AiKind,
   type PlanId,
@@ -157,9 +157,9 @@ const CHANNEL_BRIEF: Record<MarketingChannel, string> = {
 };
 
 const GOAL_BRIEF: Record<MarketingGoal, string> = {
-  signup: `get people to create a free account (new accounts get ${TRIAL_DAYS} days of Pro free)`,
+  signup: `get people to create a free account (free forever; ${REFERRAL_FRIENDS} invited friends earn ${REFERRAL_BONUS_DAYS} days of Pro)`,
   pro: `sell the Pro plan ($${PLANS.pro.month}/month, or ${YEAR_DISCOUNT_PCT}% off yearly) — focus on what the AI analyst saves the trader: time, emotional mistakes, missed levels`,
-  referral: `get members to invite friends: each friend gets 7 days of Pro, the inviter gets +${REFERRAL_BONUS_DAYS} days of Pro per friend`,
+  referral: `get members to invite friends: every ${REFERRAL_FRIENDS} friends who sign up by a member's link earn that member ${REFERRAL_BONUS_DAYS} days of Pro; the friend gets no gift, only the free plan`,
   market:
     "a quick market update built on today's numbers that ends by inviting readers to get the full AI breakdown on the site",
 };
