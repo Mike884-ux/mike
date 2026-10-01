@@ -789,6 +789,8 @@ export const en: Record<MessageKey, string> = {
   "pay.crypto": "Pay with crypto",
   "pay.card": "Pay by card",
   "pay.stars": "Pay in Telegram",
+  "pfaq.a3tg": "With Telegram Stars, right here in Telegram. If you don't have enough Stars, Telegram offers to buy them in the payment window. Your plan turns on automatically after payment.",
+  "pay.starsBuy": "No Stars? Telegram offers to buy them right in the payment window.",
   "pay.starsMonthly": "Telegram Stars pay for one month — 30 days.",
   "pay.contact": "Pay by bank transfer",
   "pay.contactHint": "Message us your email {email}, plan {plan} and amount {price}. We'll send the card details for the transfer and switch your plan on right after payment.",

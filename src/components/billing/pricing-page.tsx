@@ -22,7 +22,7 @@ import {
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import { useSettings } from "@/lib/settings-store";
 import { confirmPayments, joinWaitlist, startCheckout, startStarsCheckout } from "@/lib/billing";
-import { openStarsInvoice } from "@/lib/telegram-webapp";
+import { inTelegram, openStarsInvoice } from "@/lib/telegram-webapp";
 import { useT, type MessageKey } from "@/lib/i18n";
 import {
   AI_KINDS,
@@ -284,10 +284,16 @@ function PayDialog({
     return () => document.removeEventListener("keydown", onKey);
   }, [onClose]);
   const price = priceOf(plan, period);
+  // Telegram allows only Stars for digital goods inside its Mini Apps, so cards,
+  // crypto and transfers are offered on the website only.
+  const tg = inTelegram();
+  const crypto = !tg && Boolean(options?.crypto);
+  const card = !tg && Boolean(options?.card);
+  const contact = tg ? null : (options?.contact ?? null);
   // Online payment not connected yet: collect emails instead (the waiting list).
-  const online = Boolean(options?.crypto || options?.card || options?.stars);
+  const online = Boolean(crypto || card || options?.stars);
   // Plans are switched on for an account, so every way to pay starts with one.
-  const payable = online || Boolean(options?.contact);
+  const payable = online || Boolean(contact);
   // Cards through NOWPayments' on-ramp have a minimum set by its card partner.
   const cardMin = options?.cardMin ?? null;
   const cardTooSmall = cardMin !== null && price < cardMin;
@@ -337,7 +343,8 @@ function PayDialog({
             </Link>
           ) : null}
           {user && options?.stars ? <StarsButton plan={plan} period={period} className={method} onDone={onClose} /> : null}
-          {user && options?.crypto ? (
+          {user && tg && options?.stars ? <p className="px-1 text-xs leading-relaxed text-muted">{t("pay.starsBuy")}</p> : null}
+          {user && crypto ? (
             <button
               type="button"
               disabled={checkout.isPending}
@@ -353,7 +360,7 @@ function PayDialog({
               <span className="text-xs font-medium opacity-80">USDT · BTC · ETH</span>
             </button>
           ) : null}
-          {user && options?.card ? (
+          {user && card ? (
             <button
               type="button"
               disabled={checkout.isPending || cardTooSmall}
@@ -369,13 +376,13 @@ function PayDialog({
               <span className="text-xs font-medium opacity-80">Visa · Mastercard</span>
             </button>
           ) : null}
-          {user && options?.card && cardTooSmall && cardMin !== null ? (
+          {user && card && cardTooSmall && cardMin !== null ? (
             <p className="px-1 text-xs leading-relaxed text-muted">{t("pay.cardMin", { min: money(cardMin) })}</p>
           ) : null}
-          {user && options?.contact ? (
+          {user && contact ? (
             <div className="rounded-xl bg-surface-2 p-4">
               <a
-                href={contactHref(options.contact)}
+                href={contactHref(contact)}
                 target="_blank"
                 rel="noreferrer"
                 className={cn(
@@ -596,6 +603,8 @@ function Faq() {
   const t = useT();
   const [open, setOpen] = useState<number | null>(0);
   const items = [1, 2, 3, 4, 5, 6];
+  // Inside Telegram the only way to pay is Stars (see PayDialog).
+  const tg = useHydrated() && inTelegram();
   return (
     <div className="mx-auto mt-16 max-w-3xl">
       <h2 className="text-center font-display text-2xl font-bold text-fg">{t("pfaq.title")}</h2>
@@ -618,7 +627,7 @@ function Faq() {
             </button>
             {open === i ? (
               <p className="px-5 pb-4 text-sm leading-relaxed text-muted">
-                {t(`pfaq.a${i}` as MessageKey, { ...REFERRAL, pct: YEAR_DISCOUNT_PCT })}
+                {t(tg && i === 3 ? "pfaq.a3tg" : (`pfaq.a${i}` as MessageKey), { ...REFERRAL, pct: YEAR_DISCOUNT_PCT })}
               </p>
             ) : null}
           </div>
