@@ -1,0 +1,117 @@
+//@version=6
+// Скан — стратегия «Тренд + Поддержка/Сопротивление».
+// Покупка: тренд вверх, цена откатилась к поддержке и отскочила.
+// Продажа: тренд вниз, цена подошла к сопротивлению и развернулась.
+// Стоп — за уровнем, цель — в X раз больше риска. Не инвестиционная рекомендация.
+strategy("Скан — Тренд + Поддержка/Сопротивление", shorttitle = "Скан S/R", overlay = true,
+     initial_capital = 1000, default_qty_type = strategy.percent_of_equity, default_qty_value = 10,
+     commission_type = strategy.commission.percent, commission_value = 0.1, slippage = 2, pyramiding = 0)
+
+// ---------- Настройки ----------
+grpT       = "Тренд"
+emaFastLen = input.int(50, "Быстрая EMA", minval = 1, group = grpT)
+emaSlowLen = input.int(200, "Медленная EMA (тренд)", minval = 1, group = grpT)
+
+grpL     = "Уровни"
+pivLen   = input.int(10, "Сила уровня (свечей слева и справа)", minval = 2, group = grpL)
+zoneMult = input.float(0.5, "Ширина зоны уровня (× ATR)", minval = 0.1, step = 0.1, group = grpL)
+
+grpE       = "Вход"
+rsiLen     = input.int(14, "RSI", minval = 2, group = grpE)
+useVol     = input.bool(true, "Только при объёме выше среднего", group = grpE)
+volLen     = input.int(20, "Период среднего объёма", minval = 1, group = grpE)
+allowShort = input.bool(true, "Разрешить продажу (шорт)", group = grpE)
+
+grpR   = "Риск"
+atrLen = input.int(14, "ATR", minval = 1, group = grpR)
+slMult = input.float(1.0, "Стоп за уровнем (× ATR)", minval = 0.1, step = 0.1, group = grpR)
+rr     = input.float(2.0, "Цель: прибыль = риск × X", minval = 0.5, step = 0.1, group = grpR)
+useBE  = input.bool(true, "Стоп в безубыток, когда прибыль = риск", group = grpR)
+
+// ---------- Расчёты ----------
+emaFast = ta.ema(close, emaFastLen)
+emaSlow = ta.ema(close, emaSlowLen)
+atr     = ta.atr(atrLen)
+rsi     = ta.rsi(close, rsiLen)
+volOk   = not useVol or na(volume) or volume > ta.sma(volume, volLen)
+
+// Уровни — подтверждённые развороты (не перерисовываются).
+ph = ta.pivothigh(high, pivLen, pivLen)
+pl = ta.pivotlow(low, pivLen, pivLen)
+var float res = na
+var float sup = na
+if not na(ph)
+    res := ph
+if not na(pl)
+    sup := pl
+
+zone      = atr * zoneMult
+upTrend   = close > emaSlow and emaFast > emaSlow
+downTrend = close < emaSlow and emaFast < emaSlow
+flat      = strategy.position_size == 0
+
+longSig  = flat and upTrend and not na(sup) and low <= sup + zone and close > sup and close > open and rsi < 60 and volOk
+shortSig = flat and allowShort and downTrend and not na(res) and high >= res - zone and close < res and close < open and rsi > 40 and volOk
+
+// ---------- Сделки ----------
+var float stopPrice = na
+var float takePrice = na
+var float risk      = na
+
+if longSig
+    stopPrice := math.min(sup, low) - atr * slMult
+    risk      := close - stopPrice
+    takePrice := close + risk * rr
+    strategy.entry("Long", strategy.long)
+    strategy.exit("Выход L", "Long", stop = stopPrice, limit = takePrice)
+    alert("Скан: ПОКУПКА " + syminfo.ticker + " по " + str.tostring(close, format.mintick) + ", стоп " + str.tostring(stopPrice, format.mintick) + ", цель " + str.tostring(takePrice, format.mintick), alert.freq_once_per_bar_close)
+
+if shortSig
+    stopPrice := math.max(res, high) + atr * slMult
+    risk      := stopPrice - close
+    takePrice := close - risk * rr
+    strategy.entry("Short", strategy.short)
+    strategy.exit("Выход S", "Short", stop = stopPrice, limit = takePrice)
+    alert("Скан: ПРОДАЖА " + syminfo.ticker + " по " + str.tostring(close, format.mintick) + ", стоп " + str.tostring(stopPrice, format.mintick) + ", цель " + str.tostring(takePrice, format.mintick), alert.freq_once_per_bar_close)
+
+// Безубыток: когда цена прошла расстояние, равное риску, стоп переносится на цену входа.
+if useBE and strategy.position_size > 0 and high >= strategy.position_avg_price + risk
+    stopPrice := math.max(stopPrice, strategy.position_avg_price)
+    strategy.exit("Выход L", "Long", stop = stopPrice, limit = takePrice)
+if useBE and strategy.position_size < 0 and low <= strategy.position_avg_price - risk
+    stopPrice := math.min(stopPrice, strategy.position_avg_price)
+    strategy.exit("Выход S", "Short", stop = stopPrice, limit = takePrice)
+
+// ---------- Рисование ----------
+plot(emaFast, "EMA быстрая", color = color.new(color.orange, 0))
+plot(emaSlow, "EMA тренд", color = upTrend ? color.green : downTrend ? color.red : color.gray, linewidth = 2)
+
+pSup    = plot(sup, "Поддержка", color = color.new(color.green, 0), style = plot.style_stepline, linewidth = 2)
+pSupTop = plot(sup + zone, "Зона поддержки", display = display.none)
+fill(pSup, pSupTop, color = color.new(color.green, 85))
+pRes    = plot(res, "Сопротивление", color = color.new(color.red, 0), style = plot.style_stepline, linewidth = 2)
+pResBot = plot(res - zone, "Зона сопротивления", display = display.none)
+fill(pRes, pResBot, color = color.new(color.red, 85))
+
+inTrade = strategy.position_size != 0
+plot(inTrade ? stopPrice : na, "Стоп", color = color.red, style = plot.style_linebr)
+plot(inTrade ? takePrice : na, "Цель", color = color.lime, style = plot.style_linebr)
+
+plotshape(longSig, "Покупка", shape.labelup, location.belowbar, color.green, text = "BUY", textcolor = color.white, size = size.small)
+plotshape(shortSig, "Продажа", shape.labeldown, location.abovebar, color.red, text = "SELL", textcolor = color.white, size = size.small)
+
+// ---------- Панель ----------
+var table dash = table.new(position.top_right, 2, 5, bgcolor = color.new(color.black, 20), border_width = 1)
+if barstate.islast
+    total = strategy.closedtrades
+    wins  = strategy.wintrades
+    table.cell(dash, 0, 0, "Тренд", text_color = color.white)
+    table.cell(dash, 1, 0, upTrend ? "Вверх ▲" : downTrend ? "Вниз ▼" : "Боковик", text_color = upTrend ? color.lime : downTrend ? color.red : color.gray)
+    table.cell(dash, 0, 1, "RSI", text_color = color.white)
+    table.cell(dash, 1, 1, str.tostring(rsi, "#.0"), text_color = color.white)
+    table.cell(dash, 0, 2, "Поддержка", text_color = color.white)
+    table.cell(dash, 1, 2, str.tostring(sup, format.mintick), text_color = color.lime)
+    table.cell(dash, 0, 3, "Сопротивление", text_color = color.white)
+    table.cell(dash, 1, 3, str.tostring(res, format.mintick), text_color = color.red)
+    table.cell(dash, 0, 4, "Сделок / в плюс", text_color = color.white)
+    table.cell(dash, 1, 4, str.tostring(total) + " / " + (total > 0 ? str.tostring(100.0 * wins / total, "#") + "%" : "—"), text_color = color.white)
