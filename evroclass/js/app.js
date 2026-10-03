@@ -394,6 +394,7 @@
   };
 
   function toneOf(f) {
+    if (f.tone) return f.tone; // тон для фильтра можно задать у цвета в data.js
     const c = T.hex(f.color);
     const L = T.luma(c);
     const mx = Math.max(c[0], c[1], c[2]);
