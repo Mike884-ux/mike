@@ -53,12 +53,15 @@
   --brand-1: #0c66e0;
   --brand-2: #0a4fb8;
   --font-display: "Unbounded", "Onest", system-ui, sans-serif;
+  /* название «€ВРО КЛАСС» в шапке и визитке — одним шрифтом во всех вариантах */
+  --font-logo: "Unbounded", "Onest", system-ui, sans-serif;
   --font-body: "Onest", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   --r-xl: 30px;
   --r-lg: 22px;
   --r-md: 16px;
   --r-sm: 12px;
+  --r-btn: 999px;
   --gutter: 16px;
   --top: env(safe-area-inset-top, 0px);
 }
@@ -361,7 +364,7 @@ main:focus {
   min-height: 48px;
   padding: 0 22px;
   border: 0;
-  border-radius: 999px;
+  border-radius: var(--r-btn);
   font: 600 15px/1.1 var(--font-body);
   letter-spacing: 0.01em;
   color: var(--ink);
@@ -508,7 +511,7 @@ main:focus {
 
 .logo-name {
   display: block;
-  font: 600 17px/1 var(--font-display);
+  font: 600 17px/1 var(--font-logo);
   letter-spacing: 0.04em;
 }
 
@@ -3845,7 +3848,7 @@ select.field option {
 }
 
 .brand-name {
-  font: 600 clamp(24px, 2.7vw, 36px)/1.08 var(--font-display);
+  font: 600 clamp(24px, 2.7vw, 36px)/1.08 var(--font-logo);
   letter-spacing: 0.03em;
 }
 
@@ -4068,6 +4071,243 @@ select.field option {
 .models canvas {
   width: 40px;
   height: 78px;
+}
+
+/* ------------------------------------------------------------------ варианты оформления */
+
+/*
+ * Вариант выбирается в js/data.js полем design:
+ * "blue"    — всё, что выше: белый фон, синяя шапка и подвал;
+ * "premium" — слоновая кость, тёмно-синий и золото, заголовки с засечками;
+ * "light"   — белый и строгий: белая шапка, тонкие рамки, без стекла.
+ * Тёмная тема (кнопка с луной) работает в любом варианте.
+ */
+
+/* ---------- премиум */
+
+:root[data-skin="premium"] {
+  --font-display: "Prata", Georgia, "Times New Roman", serif;
+  --r-xl: 20px;
+  --r-lg: 14px;
+  --r-md: 12px;
+  --r-sm: 9px;
+  --r-btn: 10px;
+  --gold-hi: #f0d896;
+  --gold: #cfa64f;
+  --gold-lo: #a67c2c;
+}
+
+:root[data-skin="premium"]:not([data-theme="dark"]) {
+  --bg: #f4efe5;
+  --bg-2: #fffdf8;
+  --ink: #141b2b;
+  --ink-2: #464d5d;
+  --ink-3: #7b808e;
+  --line: rgba(80, 62, 25, 0.12);
+  --line-2: rgba(80, 62, 25, 0.22);
+  --glass-1: rgba(255, 253, 247, 0.94);
+  --glass-2: rgba(255, 251, 242, 0.8);
+  --glass-hi: rgba(207, 166, 79, 0.6);
+  --glass-lo: rgba(207, 166, 79, 0.22);
+  --glass-solid: rgba(255, 252, 245, 0.97);
+  --field: rgba(222, 208, 178, 0.38);
+  --shadow-1: 0 30px 60px -36px rgba(50, 36, 10, 0.34), 0 10px 24px -16px rgba(50, 36, 10, 0.16);
+  --shadow-2: 0 16px 34px -22px rgba(50, 36, 10, 0.28);
+  --accent: #96702a;
+  --accent-2: #7b5b1f;
+  --accent-hi: #d9b766;
+  --accent-ink: #ffffff;
+  --accent-soft: rgba(176, 134, 50, 0.12);
+  --cta-hi: var(--gold-hi);
+  --cta: var(--gold);
+  --cta-2: var(--gold-lo);
+  --cta-ink: #1a1405;
+  --amb-1: rgba(214, 176, 98, 0.2);
+  --amb-2: rgba(255, 240, 210, 0.7);
+  --amb-3: rgba(20, 30, 60, 0.05);
+  --veil-1: rgba(255, 252, 245, 0.9);
+  --veil-2: rgba(255, 252, 245, 0.74);
+  --veil-ink: #141b2b;
+  --veil-ink-2: #4a5060;
+  --veil-field: rgba(80, 62, 25, 0.07);
+  --brand-1: #1b2439;
+  --brand-2: #0f1627;
+}
+
+/* тёмная тема премиума — тёмно-синяя с золотом */
+:root[data-skin="premium"][data-theme="dark"] {
+  --accent: #e2c37a;
+  --accent-hi: #f0d896;
+  --accent-ink: #1a1405;
+  --accent-soft: rgba(226, 195, 122, 0.15);
+  --cta-hi: var(--gold-hi);
+  --cta: var(--gold);
+  --cta-2: var(--gold-lo);
+  --cta-ink: #1a1405;
+}
+
+/* шапка и подвал тёмно-синие с золотой линией по краю */
+:root[data-skin="premium"]:not([data-theme="dark"]) .site-header .header-bar {
+  --glass-hi: rgba(240, 216, 150, 0.75);
+  --glass-lo: rgba(240, 216, 150, 0.3);
+  --accent: var(--gold-hi);
+  --accent-soft: rgba(240, 216, 150, 0.16);
+  box-shadow:
+    0 18px 40px -22px rgba(10, 15, 35, 0.75),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+:root[data-skin="premium"]:not([data-theme="dark"]) .site-header .lang-pop {
+  --ink: #141b2b;
+  --ink-2: #464d5d;
+  --ink-3: #7b808e;
+  --field: rgba(80, 62, 25, 0.07);
+  --accent: #96702a;
+  --accent-soft: rgba(176, 134, 50, 0.12);
+}
+
+:root[data-skin="premium"]:not([data-theme="dark"]) .footer-grid {
+  --glass-hi: rgba(240, 216, 150, 0.6);
+  --glass-lo: rgba(240, 216, 150, 0.2);
+}
+
+:root[data-skin="premium"] .brand-card {
+  background:
+    radial-gradient(60% 90% at 0% 0%, rgba(240, 216, 150, 0.16), rgba(240, 216, 150, 0) 60%),
+    linear-gradient(150deg, #222d47, #161e33 65%, #0e1425);
+  box-shadow:
+    0 30px 60px -30px rgba(10, 15, 35, 0.8),
+    inset 0 0 0 1px rgba(240, 216, 150, 0.35);
+}
+
+:root[data-skin="premium"] .ph-call {
+  color: var(--cta-ink);
+}
+
+:root[data-skin="premium"] .tag-new {
+  background: linear-gradient(180deg, var(--gold-hi), var(--gold));
+  color: #1a1405;
+}
+
+/* у шрифта с засечками один вес, и плотная разрядка ему не нужна */
+:root[data-skin="premium"]
+  :is(
+    .display,
+    .h2,
+    .page-title h1,
+    .buy h1,
+    .buy-price b,
+    .buy-total b,
+    .hero-facts dt,
+    .sheet-head h2,
+    .menu-links a,
+    .ig-text b,
+    .calc-total b,
+    .empty h3,
+    .panel h2,
+    .cart-sum b,
+    .step::after
+  ) {
+  font-weight: 400;
+  letter-spacing: 0;
+}
+
+/* ---------- светлый */
+
+:root[data-skin="light"] {
+  --font-display: "Manrope", "Onest", system-ui, sans-serif;
+  --r-xl: 22px;
+  --r-lg: 16px;
+  --r-md: 12px;
+  --r-sm: 10px;
+  --r-btn: 12px;
+}
+
+:root[data-skin="light"]:not([data-theme="dark"]) {
+  --bg: #ffffff;
+  --bg-2: #f4f5f7;
+  --ink: #0f1218;
+  --ink-2: #454b56;
+  --ink-3: #828892;
+  --line: rgba(15, 18, 24, 0.08);
+  --line-2: rgba(15, 18, 24, 0.14);
+  --glass-1: #ffffff;
+  --glass-2: #ffffff;
+  --glass-hi: rgba(15, 18, 24, 0.12);
+  --glass-lo: rgba(15, 18, 24, 0.12);
+  --glass-solid: #ffffff;
+  --field: #f2f3f5;
+  --shadow-1: 0 1px 2px rgba(15, 18, 24, 0.04), 0 18px 40px -26px rgba(15, 18, 24, 0.22);
+  --shadow-2: 0 1px 2px rgba(15, 18, 24, 0.04), 0 8px 20px -16px rgba(15, 18, 24, 0.16);
+  --accent: #0c66e0;
+  --accent-2: #0a4fb8;
+  --accent-hi: #5d9bff;
+  --accent-soft: rgba(12, 102, 224, 0.08);
+  --cta-hi: #1a72ea;
+  --cta: #0c66e0;
+  --cta-2: #0a58c8;
+  --amb-1: rgba(255, 255, 255, 0);
+  --amb-2: rgba(255, 255, 255, 0);
+  --amb-3: rgba(255, 255, 255, 0);
+  --veil-1: rgba(255, 255, 255, 0.95);
+  --veil-2: rgba(255, 255, 255, 0.88);
+  --veil-ink: #0f1218;
+  --veil-ink-2: #454b56;
+  --veil-field: #f2f3f5;
+}
+
+/* ровная тонкая рамка вместо стеклянного блика, без размытия и зерна */
+:root[data-skin="light"]:not([data-theme="dark"]) :is(.glass, .glass-soft)::before {
+  background: var(--line-2);
+}
+
+:root[data-skin="light"]:not([data-theme="dark"]) .glass {
+  background-image: linear-gradient(var(--glass-1), var(--glass-2));
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+:root[data-skin="light"]:not([data-theme="dark"]) .ambient::after {
+  opacity: 0;
+}
+
+/* белая шапка с тёмным текстом */
+:root[data-skin="light"]:not([data-theme="dark"]) .site-header .header-bar {
+  --glass-1: #ffffff;
+  --glass-2: #ffffff;
+  --glass-hi: rgba(15, 18, 24, 0.12);
+  --glass-lo: rgba(15, 18, 24, 0.12);
+  --ink: #0f1218;
+  --ink-2: #454b56;
+  --ink-3: #828892;
+  --field: #f2f3f5;
+  --accent: #0c66e0;
+  --accent-soft: rgba(12, 102, 224, 0.08);
+  color: #0f1218;
+  box-shadow:
+    0 1px 2px rgba(15, 18, 24, 0.04),
+    0 14px 34px -24px rgba(15, 18, 24, 0.3);
+}
+
+/* светлый подвал */
+:root[data-skin="light"]:not([data-theme="dark"]) .footer-grid {
+  --ink: #0f1218;
+  --ink-2: #454b56;
+  --ink-3: #828892;
+  --glass-hi: var(--line-2);
+  --glass-lo: var(--line-2);
+  background-image: none;
+  background-color: var(--bg-2);
+  color: var(--ink);
+}
+
+:root[data-skin="light"]:not([data-theme="dark"]) .footer-grid .f-phone small {
+  color: var(--ink-3);
+}
+
+:root[data-skin="light"] :is(.display, .h2, .page-title h1, .buy h1) {
+  font-weight: 700;
+  letter-spacing: -0.035em;
 }
 
 @media (prefers-reduced-motion: reduce) {

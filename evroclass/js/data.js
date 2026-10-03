@@ -17,6 +17,10 @@ window.SHOP_CONFIG = {
   tagline: "Двери и ламинат",
   city: "Душанбе",
 
+  // ДИЗАЙН: "blue" — белый с синей шапкой, "premium" — слоновая кость, тёмно-синий и золото,
+  // "light" — белый и строгий, с белой шапкой. Тёмная тема включается кнопкой с луной в любом.
+  design: "blue",
+
   // Логотип: круглая картинка (в подвале, в контактах, в блоке Instagram).
   logo: "img/logo.webp",
   // true — первая буква названия в шапке рисуется красным «€», как на вывеске: €ВРО КЛАСС.
@@ -156,10 +160,10 @@ window.SHOP_DOORS = [
       {
         name: "Слоновая кость",
         type: "paint",
-        color: "#E2DECB",
+        color: "#E8E2D2",
         cutout: "img/doors/classic-cream.webp",
       },
-      { name: "Белый", type: "paint", color: "#EEF0EE", cutout: "img/doors/classic-white.webp" },
+      { name: "Белый", type: "paint", color: "#F0F0EE", cutout: "img/doors/classic-white.webp" },
     ],
     sizes: ["600×2000", "700×2000", "800×2000", "900×2000"],
     description:
@@ -181,8 +185,8 @@ window.SHOP_DOORS = [
     glass: null,
     handle: "gold",
     finishes: [
-      { name: "Слоновая кость", type: "paint", color: "#E2DECB", cutout: "img/doors/gold-cream.webp" },
-      { name: "Белый", type: "paint", color: "#EEF0EE", cutout: "img/doors/gold-white.webp" },
+      { name: "Слоновая кость", type: "paint", color: "#E8E2D2", cutout: "img/doors/gold-cream.webp" },
+      { name: "Белый", type: "paint", color: "#F0F0EE", cutout: "img/doors/gold-white.webp" },
     ],
     sizes: ["600×2000", "700×2000", "800×2000", "900×2000"],
     description:
@@ -207,12 +211,12 @@ window.SHOP_DOORS = [
       {
         name: "Слоновая кость",
         type: "paint",
-        color: "#E2DECB",
+        color: "#E8E2D2",
         cutout: "img/doors/diag-cream.webp",
         // на этом фото золотая полоса справа, на белой двери — слева
         photoHinge: "right",
       },
-      { name: "Белый", type: "paint", color: "#EEF0EE", cutout: "img/doors/diag-white.webp" },
+      { name: "Белый", type: "paint", color: "#F0F0EE", cutout: "img/doors/diag-white.webp" },
     ],
     sizes: ["600×2000", "700×2000", "800×2000", "900×2000"],
     description:
@@ -237,13 +241,13 @@ window.SHOP_DOORS = [
       {
         name: "Слоновая кость, патина золото",
         type: "paint",
-        color: "#E2DECB",
+        color: "#E8E2D2",
         cutout: "img/doors/ornament-cream.webp",
       },
       {
         name: "Белый, патина серебро",
         type: "paint",
-        color: "#EEF0EE",
+        color: "#F0F0EE",
         cutout: "img/doors/ornament-white.webp",
       },
     ],

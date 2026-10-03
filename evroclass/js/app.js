@@ -40,6 +40,22 @@
     window.SHOP_CONFIG || {},
   );
 
+  // Вариант оформления (поле design в data.js): свои цвета в css/style.css и свой шрифт заголовков.
+  const DESIGNS = {
+    premium: { font: "Prata", color: "#1b2439" },
+    light: { font: "Manrope:wght@500;600;700;800", color: "#ffffff" },
+  };
+  const DESIGN = DESIGNS[CFG.design];
+  if (DESIGN) {
+    document.documentElement.setAttribute("data-skin", CFG.design);
+    const font = document.createElement("link");
+    font.rel = "stylesheet";
+    font.href = "https://fonts.googleapis.com/css2?family=" + DESIGN.font + "&display=swap";
+    document.head.appendChild(font);
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.setAttribute("content", DESIGN.color);
+  }
+
   // Телефоны: список из data.js или один номер из поля phone. Первый — главный.
   const PHONES = (CFG.phones && CFG.phones.length ? CFG.phones : [{ phone: CFG.phone }]).filter(
     (p) => p && p.phone,
