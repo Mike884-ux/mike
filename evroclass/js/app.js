@@ -395,12 +395,18 @@
   }
 
   function bevelName(b) {
-    return { "4V": "фаска 4V", "2V": "фаска 2V" }[b] || "без фаски";
+    return { "4V": "фаска 4V", "2V": "фаска 2V", v: "с фаской" }[b] || "без фаски";
   }
 
   const AC = { 31: "AC3", 32: "AC4", 33: "AC5", 34: "AC6" };
 
   const round3 = (n) => Math.round(n * 1000) / 1000;
+
+  // Цена из data.js: 0 или пусто — «по запросу». NaN, чтобы и суммы с ней были «по запросу».
+  const priced = (n) => (n > 0 ? +n : NaN);
+  for (const k of [].concat(CFG.doorKit || [], CFG.entranceKit || [])) k.price = priced(k.price);
+  if (CFG.underlay) CFG.underlay.price = priced(CFG.underlay.price);
+  if (CFG.plinth) CFG.plinth.price = priced(CFG.plinth.price);
 
   const DOORS = (window.SHOP_DOORS || []).map((raw) => {
     const d = Object.assign(
@@ -424,6 +430,7 @@
       raw,
     );
     d.cat = "door";
+    d.price = priced(d.price);
     d.kit = raw.kit || (d.kind === "entrance" ? CFG.entranceKit : CFG.doorKit) || [];
     d.typeName = d.kind === "entrance" ? "Входная дверь" : "Межкомнатная дверь";
     d.search = norm(
@@ -453,12 +460,17 @@
         badge: "",
         collection: "",
         description: "",
-        class: 32,
+        class: 0, // 0 — класс не указан
         thickness: 8,
       },
       raw,
     );
     l.cat = "lam";
+    l.price = priced(l.price);
+    // размер доски и влагостойкость показываем, только если они есть в data.js
+    l.plankKnown = !!raw.plank;
+    l.waterKnown = raw.water !== undefined;
+    if (!raw.plank && l.pattern === "herringbone") l.plank = [600, 100]; // для рисунка ёлочки
     l.pack = Object.assign({ pcs: 8 }, l.pack);
     l.packM2 = l.pack.m2 || round3((l.pack.pcs * l.plank[0] * l.plank[1]) / 1e6);
     l.packPrice = l.packM2 * l.price;
@@ -467,7 +479,7 @@
         .map(allLangs)
         .concat(
           "ламинат пол laminate floor фарш",
-          l.class + " класс class синф",
+          l.class ? l.class + " класс class синф" : "",
           l.thickness + " мм mm",
         )
         .join(" "),
@@ -514,8 +526,14 @@
     return Number(n).toLocaleString("ru-RU", { maximumFractionDigits: d === undefined ? 2 : d });
   }
 
+  // Цена или «по запросу», если в data.js цена не указана.
   function money(n) {
-    return num(Math.round(n), 0) + " " + CFG.currency;
+    return isFinite(n) ? num(Math.round(n), 0) + " " + CFG.currency : "по запросу";
+  }
+
+  // «128 смн/м²» или «цена по запросу».
+  function per(n, unit) {
+    return isFinite(n) ? money(n) + unit : "цена по запросу";
   }
 
   function plural(n, one, few, many) {
@@ -1074,12 +1092,15 @@
 
   /* ------------------------------------------------------------------ оболочка */
 
+  // Входные двери: пока их нет в data.js, раздел нигде не показываем.
+  const HAS_ENTRANCE = DOORS.some((d) => d.kind === "entrance");
+
   const NAV = [
     { id: "doors-interior", label: "Межкомнатные" },
-    { id: "doors-entrance", label: "Входные" },
+    HAS_ENTRANCE && { id: "doors-entrance", label: "Входные" },
     { id: "laminate", label: "Ламинат" },
     { id: "contacts", label: "Контакты" },
-  ];
+  ].filter(Boolean);
 
   // Часы работы для шапки. Каждая строка не переносится внутри себя, поэтому длинные
   // названия дней (по-таджикски) уходят на вторую строку целиком.
@@ -1238,7 +1259,9 @@
       "</a><p>" +
       esc(CFG.about) +
       "</p></div>" +
-      '<div><h4>Каталог</h4><a href="#doors-interior">Межкомнатные двери</a><a href="#doors-entrance">Входные двери</a><a href="#laminate">Ламинат</a><a href="#favorites">Избранное</a></div>' +
+      '<div><h4>Каталог</h4><a href="#doors-interior">Межкомнатные двери</a>' +
+      (HAS_ENTRANCE ? '<a href="#doors-entrance">Входные двери</a>' : "") +
+      '<a href="#laminate">Ламинат</a><a href="#favorites">Избранное</a></div>' +
       "<div><h4>Салон</h4>" +
       (CFG.address ? '<span class="f-line">' + esc(CFG.address) + "</span>" : "") +
       (CFG.hours || [])
@@ -1284,14 +1307,16 @@
     updateCounts();
   }
 
+  const mbarPrice = (n) => (isFinite(n) ? " · " + money(n) : "");
+
   /* Нижняя панель на телефоне. На странице двери главная кнопка добавляет её в заявку. */
   function renderMbar(price) {
     const main =
       price !== undefined
         ? '<button class="main" data-act="p-add">' +
           icon("plus") +
-          '<span>В заявку · <span id="mbarPrice">' +
-          money(price) +
+          '<span>В заявку<span id="mbarPrice">' +
+          mbarPrice(price) +
           "</span></span></button>"
         : '<button class="main" data-act="cart">' +
           icon("list") +
@@ -1382,7 +1407,7 @@
     }
     const meta = isDoor
       ? [p.cover, p.glass ? "стекло" : "", p.style].filter(Boolean).join(" · ")
-      : p.class + " класс · " + p.thickness + " мм · " + bevelName(p.bevel);
+      : (p.class ? p.class + " класс · " : "") + p.thickness + " мм · " + bevelName(p.bevel);
     const sw = isDoor
       ? '<div class="swatch-row">' +
         p.finishes
@@ -1399,15 +1424,18 @@
         " · " +
         patternName(p) +
         "</span></div>";
-    const price = isDoor
-      ? "<b>" +
-        money(p.price) +
-        "</b>" +
-        (p.oldPrice > p.price ? "<s>" + money(p.oldPrice) + "</s>" : "") +
-        "<small>" +
-        (p.kind === "entrance" ? "с коробкой" : "за полотно") +
-        "</small>"
-      : "<b>" + money(p.price) + "</b><small>за м² · упаковка " + money(p.packPrice) + "</small>";
+    const price = !isFinite(p.price)
+      ? '<b class="ask">Цена по запросу</b>' +
+        (isDoor ? "" : "<small>упаковка " + num(p.packM2, 3) + " м²</small>")
+      : isDoor
+        ? "<b>" +
+          money(p.price) +
+          "</b>" +
+          (p.oldPrice > p.price ? "<s>" + money(p.oldPrice) + "</s>" : "") +
+          "<small>" +
+          (p.kind === "entrance" ? "с коробкой" : "за полотно") +
+          "</small>"
+        : "<b>" + money(p.price) + "</b><small>за м² · упаковка " + money(p.packPrice) + "</small>";
     const btn = isDoor
       ? '<button class="add" data-act="quick-add" data-id="' +
         p.id +
@@ -1530,8 +1558,8 @@
               ">" +
               esc(x.name) +
               " — " +
-              money(x.price) +
-              "/м²</option>",
+              per(x.price, "/м²") +
+              "</option>",
           ).join("") +
           "</select></label>"
         : "") +
@@ -1596,8 +1624,8 @@
       " /><span>" +
       esc(CFG.underlay.name) +
       "<small>" +
-      money(CFG.underlay.price) +
-      " за м²</small></span></label>" +
+      per(CFG.underlay.price, " за м²") +
+      "</small></span></label>" +
       '<label class="check"><input type="checkbox" data-calc="' +
       key +
       '" data-k="plinth"' +
@@ -1605,16 +1633,16 @@
       " /><span>" +
       esc(CFG.plinth.name) +
       "<small>" +
-      money(CFG.plinth.price) +
-      " за штуку</small></span></label>" +
+      per(CFG.plinth.price, " за штуку") +
+      "</small></span></label>" +
       '<p class="hint">Упаковка: ' +
       l.pack.pcs +
       " " +
       plural(l.pack.pcs, "доска", "доски", "досок") +
       ' · <span class="mono">' +
       num(l.packM2, 3) +
-      " м²</span> · " +
-      money(l.packPrice) +
+      " м²</span>" +
+      (isFinite(l.packPrice) ? " · " + money(l.packPrice) : "") +
       "</p></div>"
     );
   }
@@ -1674,16 +1702,15 @@
       esc(d.name) +
       "</b> · " +
       esc(f.name) +
-      " · от " +
-      money(d.price) +
+      (isFinite(d.price) ? " · от " + money(d.price) : "") +
       "</a>" +
       '<a href="#' +
       l.id +
       '"><b>' +
       esc(l.name) +
-      "</b> · " +
-      money(l.price) +
-      "/м²</a>"
+      "</b>" +
+      (isFinite(l.price) ? " · " + money(l.price) + "/м²" : "") +
+      "</a>"
     );
   }
 
@@ -1765,12 +1792,8 @@
   }
 
   function catCard(href, title, list, sceneAttrs, note) {
-    const min = list.length
-      ? Math.min.apply(
-          null,
-          list.map((p) => p.price),
-        )
-      : 0;
+    const prices = list.map((p) => p.price).filter(isFinite);
+    const min = prices.length ? Math.min.apply(null, prices) : NaN;
     return (
       '<a class="cat glass-soft" href="#' +
       href +
@@ -1783,9 +1806,7 @@
       list.length +
       " " +
       plural(list.length, "модель", "модели", "моделей") +
-      " · от " +
-      money(min) +
-      (note || "") +
+      (isFinite(min) ? " · от " + money(min) + (note || "") : "") +
       '</p></div><span class="go">' +
       icon("arrow") +
       "</span></div></a>"
@@ -1995,14 +2016,18 @@
           l.id +
           '" data-wall="#D9CFC2" data-open="1"',
       ) +
-      catCard(
-        "doors-entrance",
-        "Входные двери",
-        entrance,
-        'data-scene="card-door" data-door="' +
-          entranceDoor.id +
-          '" data-floor="lam-fog" data-wall="#C9C4BD"',
-      ) +
+      (entrance.length
+        ? catCard(
+            "doors-entrance",
+            "Входные двери",
+            entrance,
+            'data-scene="card-door" data-door="' +
+              entranceDoor.id +
+              '" data-floor="' +
+              l.id +
+              '" data-wall="#C9C4BD"',
+          )
+        : "") +
       catCard(
         "laminate",
         "Ламинат",
@@ -2252,6 +2277,8 @@
 
   function priceFilter(cat, prices) {
     const f = F[cat];
+    prices = prices.filter(isFinite);
+    if (!prices.length) return "";
     const mn = prices.length ? Math.min.apply(null, prices) : 0;
     const mx = prices.length ? Math.max.apply(null, prices) : 0;
     return (
@@ -2304,7 +2331,10 @@
       checks(
         "lam",
         "cls",
-        countBy(LAMS, (p) => String(p.class)).sort(),
+        countBy(
+          LAMS.filter((p) => p.class),
+          (p) => String(p.class),
+        ).sort(),
         (v) => v + " класс (" + (AC[v] || "") + ")",
       ) +
       "</div>" +
@@ -2330,7 +2360,12 @@
         "bevel",
         countBy(LAMS, (p) => p.bevel),
         (v) =>
-          ({ "4V": "С четырёх сторон (4V)", "2V": "По длинным сторонам (2V)", none: "Без фаски" })[
+          ({
+            "4V": "С четырёх сторон (4V)",
+            "2V": "По длинным сторонам (2V)",
+            v: "С фаской",
+            none: "Без фаски",
+          })[
             v
           ] || v,
       ) +
@@ -2354,6 +2389,9 @@
     const f = F[cat];
     const min = f.min === "" ? -Infinity : parseNum(f.min);
     const max = f.max === "" ? Infinity : parseNum(f.max) || Infinity;
+    // товары без цены видны, пока фильтр по цене не задан
+    const inPrice = (p) =>
+      isFinite(p.price) ? p.price >= min && p.price <= max : f.min === "" && f.max === "";
     if (cat === "door") {
       return DOORS.filter(
         (p) =>
@@ -2362,8 +2400,7 @@
           (!f.cover.size || f.cover.has(p.cover)) &&
           (f.glass === "all" || (f.glass === "yes" ? !!p.glass : !p.glass)) &&
           (!f.tone.size || p.finishes.some((x) => f.tone.has(toneOf(x)))) &&
-          p.price >= min &&
-          p.price <= max &&
+          inPrice(p) &&
           (!f.stock || p.inStock),
       );
     }
@@ -2375,16 +2412,24 @@
         (!f.pattern.size || f.pattern.has(p.pattern)) &&
         (!f.bevel.size || f.bevel.has(p.bevel)) &&
         (!f.water || p.water) &&
-        p.price >= min &&
-        p.price <= max &&
+        inPrice(p) &&
         (!f.stock || p.inStock),
     );
   }
 
   function sorted(list, how) {
     const a = list.slice();
-    if (how === "cheap") a.sort((x, y) => x.price - y.price);
-    else if (how === "dear") a.sort((x, y) => y.price - x.price);
+    // товары без цены — в конце списка
+    const byPrice = (dir) => (x, y) =>
+      isFinite(x.price) !== isFinite(y.price)
+        ? isFinite(x.price)
+          ? -1
+          : 1
+        : isFinite(x.price)
+          ? dir * (x.price - y.price)
+          : 0;
+    if (how === "cheap") a.sort(byPrice(1));
+    else if (how === "dear") a.sort(byPrice(-1));
     else if (how === "new") a.sort((x, y) => (y.badge === "Новинка") - (x.badge === "Новинка"));
     else if (how === "sale") a.sort((x, y) => (y.oldPrice > y.price) - (x.oldPrice > x.price));
     else return popular(a);
@@ -2442,8 +2487,9 @@
         [
           ["doors", "Все двери"],
           ["doors-interior", "Межкомнатные"],
-          ["doors-entrance", "Входные"],
+          HAS_ENTRANCE && ["doors-entrance", "Входные"],
         ]
+          .filter(Boolean)
           .map(
             (s) =>
               '<a href="#' +
@@ -2690,9 +2736,11 @@
       '<div class="buy-price"><b id="pPrice"></b>' +
       (p.oldPrice > p.price ? "<s>" + money(p.oldPrice) + "</s>" : "") +
       "<span>" +
-      (p.kind === "entrance"
-        ? "Цена двери с коробкой и замками"
-        : "Цена полотна без коробки и фурнитуры") +
+      (!isFinite(p.price)
+        ? "Цену назовёт менеджер по телефону или в WhatsApp"
+        : p.kind === "entrance"
+          ? "Цена двери с коробкой и замками"
+          : "Цена полотна без коробки и фурнитуры") +
       "</span></div>" +
       '<div class="opt"><div class="opt-head"><span>Цвет</span><b id="pFinish">' +
       esc(f.name) +
@@ -2748,8 +2796,8 @@
                 " /><span>" +
                 esc(k.name) +
                 (k.note ? "<small>" + esc(k.note) + "</small>" : "") +
-                '</span><span class="mono">+' +
-                money(k.price) +
+                '</span><span class="mono">' +
+                (isFinite(k.price) ? "+" + money(k.price) : "") +
                 "</span></label>",
             )
             .join("") +
@@ -2881,13 +2929,14 @@
     const { p, st } = page;
     const unit = doorUnit(p, st);
     const leaf = p.price + ((p.sizeExtra && p.sizeExtra[st.size]) || 0);
-    $("#pPrice").textContent = money(leaf);
+    $("#pPrice").textContent = isFinite(leaf) ? money(leaf) : "Цена по запросу";
+    $("#pPrice").classList.toggle("ask", !isFinite(leaf));
     const kitSum = p.kit.filter((k) => st.kit.indexOf(k.id) >= 0).reduce((s, k) => s + k.price, 0);
     const kitEl = $("#pKit");
     if (kitEl) kitEl.textContent = kitSum ? "+" + money(kitSum) : "";
     $("#pTotal").textContent = money(unit * st.qty);
     const mp = $("#mbarPrice");
-    if (mp) mp.textContent = money(unit * st.qty);
+    if (mp) mp.textContent = mbarPrice(unit * st.qty);
     $("#pTotalLabel").textContent = st.qty > 1 ? "Итого за " + st.qty + " шт." : "Итого за дверь";
     $("#pQty").textContent = st.qty;
     $("#pOpening").innerHTML =
@@ -2910,19 +2959,25 @@
     calcState[key].lam = p.id;
     const st = { door: CFG.cardDoor };
     page = { type: "lam", p, st, key };
-    const tabs = [
-      { id: "room", label: "В интерьере", thumb: icon("sofa") },
-      {
-        id: "close",
-        label: "Крупно",
-        thumb: '<canvas data-floor="' + p.id + '" data-mm="500"></canvas>',
-      },
-      { id: "plank", label: "Доска и сечение", thumb: icon("plank") },
-    ];
+    // с фото рисованные «Крупно» и «Доска» не нужны; без размеров доски нет и схемы
+    const drawn = !p.photos.length;
+    const tabs = [{ id: "room", label: "В интерьере", thumb: icon("sofa") }]
+      .concat(
+        drawn
+          ? [
+              {
+                id: "close",
+                label: "Крупно",
+                thumb: '<canvas data-floor="' + p.id + '" data-mm="500"></canvas>',
+              },
+            ]
+          : [],
+      )
+      .concat(p.plankKnown ? [{ id: "plank", label: "Доска и сечение", thumb: icon("plank") }] : []);
     const specs = [
-      ["Класс", p.class + (AC[p.class] ? " (" + AC[p.class] + ")" : "")],
+      p.class ? ["Класс", p.class + (AC[p.class] ? " (" + AC[p.class] + ")" : "")] : null,
       ["Толщина", p.thickness + " мм"],
-      ["Размер доски", p.plank[0] + " × " + p.plank[1] + " мм"],
+      p.plankKnown ? ["Размер доски", p.plank[0] + " × " + p.plank[1] + " мм"] : null,
       [
         "В упаковке",
         p.pack.pcs +
@@ -2933,12 +2988,15 @@
       ],
       [
         "Фаска",
-        { "4V": "С четырёх сторон (4V)", "2V": "По длинным сторонам (2V)" }[p.bevel] || "Нет",
+        { "4V": "С четырёх сторон (4V)", "2V": "По длинным сторонам (2V)", v: "Есть" }[p.bevel] ||
+          "Нет",
       ],
-      ["Влагостойкость", p.water ? "Да" : "Обычная"],
+      p.waterKnown ? ["Влагостойкость", p.water ? "Да" : "Обычная"] : null,
       ["Рисунок", patternName(p)],
-      ["Цена упаковки", money(p.packPrice)],
-    ].concat(p.specs || []);
+      isFinite(p.packPrice) ? ["Цена упаковки", money(p.packPrice)] : null,
+    ]
+      .filter(Boolean)
+      .concat(p.specs || []);
     const doorPick = DOORS.filter((d) => d.kind === "interior").slice(0, 8);
 
     app.innerHTML =
@@ -2947,18 +3005,22 @@
       "</div>" +
       '<div class="product-top"><div class="gallery"><div class="g-stage" id="gStage">' +
       '<div class="g-view is-active" data-view="room"><div id="pScene"></div></div>' +
-      '<div class="g-view view-plain" data-view="close"><canvas data-floor="' +
-      p.id +
-      '" data-mm="1100"></canvas></div>' +
-      '<div class="g-view view-plank" data-view="plank"><div class="plank-top"><span class="dim-w">' +
-      p.plank[0] +
-      ' мм</span><canvas data-plank="' +
-      p.id +
-      '"></canvas><span class="dim-h">' +
-      p.plank[1] +
-      " мм</span></div>" +
-      sectionSVG(p) +
-      "</div>" +
+      (drawn
+        ? '<div class="g-view view-plain" data-view="close"><canvas data-floor="' +
+          p.id +
+          '" data-mm="1100"></canvas></div>'
+        : "") +
+      (p.plankKnown
+        ? '<div class="g-view view-plank" data-view="plank"><div class="plank-top"><span class="dim-w">' +
+          p.plank[0] +
+          ' мм</span><canvas data-plank="' +
+          p.id +
+          '"></canvas><span class="dim-h">' +
+          p.plank[1] +
+          " мм</span></div>" +
+          sectionSVG(p) +
+          "</div>"
+        : "") +
       photoViews(p) +
       "</div>" +
       galleryTabs(tabs.concat(photoTabs(p))) +
@@ -2991,24 +3053,22 @@
       '">' +
       (p.inStock ? "В наличии" : "Под заказ") +
       "</span></div>" +
-      '<div class="buy-price"><b>' +
-      money(p.price) +
+      '<div class="buy-price"><b' +
+      (isFinite(p.price) ? ">" + money(p.price) : ' class="ask">Цена по запросу') +
       "</b>" +
       (p.oldPrice > p.price ? "<s>" + money(p.oldPrice) + "</s>" : "") +
-      "<span>за м² · упаковка " +
-      num(p.packM2, 3) +
-      " м² — " +
-      money(p.packPrice) +
+      "<span>" +
+      (isFinite(p.price)
+        ? "за м² · упаковка " + num(p.packM2, 3) + " м² — " + money(p.packPrice)
+        : "упаковка " + num(p.packM2, 3) + " м² · цену назовёт менеджер") +
       "</span></div>" +
-      '<div class="chips-line"><span>' +
-      p.class +
-      " класс</span><span>" +
+      '<div class="chips-line">' +
+      (p.class ? "<span>" + p.class + " класс</span>" : "") +
+      "<span>" +
       p.thickness +
-      " мм</span><span>" +
-      p.plank[0] +
-      "×" +
-      p.plank[1] +
-      "</span><span>" +
+      " мм</span>" +
+      (p.plankKnown ? "<span>" + p.plank[0] + "×" + p.plank[1] + "</span>" : "") +
+      "<span>" +
       bevelName(p.bevel) +
       "</span>" +
       (p.water ? "<span>влагостойкий</span>" : "") +
@@ -3056,7 +3116,8 @@
     });
     hydrate(app);
     return {
-      title: p.name + " — ламинат " + p.class + " класса — " + CFG.name,
+      title:
+        p.name + " — " + (p.class ? "ламинат " + p.class + " класса" : "Ламинат") + " — " + CFG.name,
       desc: p.description,
     };
   }
@@ -4031,11 +4092,10 @@
             esc(
               p.cat === "door"
                 ? p.typeName + (p.collection ? " · " + p.collection : "")
-                : "Ламинат · " + p.class + " класс · " + p.thickness + " мм",
+                : "Ламинат · " + (p.class ? p.class + " класс · " : "") + p.thickness + " мм",
             ) +
             '</small></span><span class="mono">' +
-            money(p.price) +
-            (p.cat === "lam" ? "/м²" : "") +
+            (isFinite(p.price) ? money(p.price) + (p.cat === "lam" ? "/м²" : "") : "по запросу") +
             "</span></a>"
           );
         })
@@ -4056,11 +4116,12 @@
         '<nav class="menu-links" aria-label="Разделы">' +
           [
             ["doors-interior", "Межкомнатные двери"],
-            ["doors-entrance", "Входные двери"],
+            HAS_ENTRANCE && ["doors-entrance", "Входные двери"],
             ["laminate", "Ламинат"],
             ["favorites", "Избранное" + (state.fav.size ? " · " + state.fav.size : "")],
             ["contacts", "Контакты"],
           ]
+            .filter(Boolean)
             .map(
               (l) =>
                 '<a href="#' + l[0] + '" data-act="close-layer">' + l[1] + icon("chev") + "</a>",
@@ -4158,7 +4219,7 @@
         " " +
         quote(tr(p.name)) +
         " — " +
-        tr(money(p.price) + (p.cat === "lam" ? "/м²" : "")) +
+        tr(isFinite(p.price) ? money(p.price) + (p.cat === "lam" ? "/м²" : "") : "Цена по запросу") +
         ". " +
         tr(CFG.name);
       if (navigator.share) {

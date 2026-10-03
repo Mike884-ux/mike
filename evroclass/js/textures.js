@@ -558,7 +558,7 @@
   function plankEdges(ctx, x, y, w, h, bevel, px, ends) {
     const b = Math.max(1, 2.6 * px);
     const line = Math.max(0.6, 0.35 * px);
-    const long = bevel === "4V" || bevel === "2V";
+    const long = bevel === "4V" || bevel === "2V" || bevel === "v"; // v — фаска есть, вид не указан
     const short = bevel === "4V";
     if (long) {
       let g = ctx.createLinearGradient(0, y, 0, y + b);
