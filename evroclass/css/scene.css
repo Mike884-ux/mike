@@ -1,0 +1,258 @@
+/*
+ * Сцена «стена + дверь + пол». Размеры и перспективу считает js/render.js,
+ * здесь — материалы, свет и анимация открывания двери.
+ */
+
+.scene {
+  --wall: #dcd6ce;
+  --open: 26deg;
+  --ajar: 16deg;
+  --gloss: 0.12;
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  background: var(--wall);
+  contain: layout paint;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.sc-wall,
+.sc-floor,
+.sc-plane,
+.sc-spill,
+.sc-floor-light,
+.sc-reflect,
+.sc-base,
+.sc-contact,
+.sc-door,
+.sc-hole,
+.sc-opening,
+.sc-leaf,
+.sc-leaf-shade,
+.sc-tint {
+  position: absolute;
+}
+
+.sc-wall {
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 72%;
+  background-color: var(--wall);
+  background-image:
+    radial-gradient(110% 85% at 50% 0%, rgba(255, 255, 255, 0.24), rgba(255, 255, 255, 0) 62%),
+    linear-gradient(
+      to bottom,
+      rgba(0, 0, 0, 0.1),
+      rgba(0, 0, 0, 0) 20%,
+      rgba(0, 0, 0, 0) 76%,
+      rgba(0, 0, 0, 0.17)
+    );
+}
+
+.sc-wall::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: var(--noise, none);
+  background-size: 180px 180px;
+  opacity: 0.4;
+}
+
+.sc-floor {
+  left: 0;
+  right: 0;
+  top: 72%;
+  bottom: 0;
+  overflow: hidden;
+  background: linear-gradient(#8a7259, #5c4633);
+}
+
+.sc-plane {
+  top: 0;
+  transform-origin: 50% 0;
+  transform: rotateX(90deg);
+}
+
+.sc-plane canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.sc-spill {
+  top: 0;
+  opacity: 0;
+  background: linear-gradient(
+    to bottom,
+    rgba(255, 216, 158, 0.95),
+    rgba(255, 206, 140, 0.35) 45%,
+    rgba(255, 206, 140, 0)
+  );
+  clip-path: polygon(12% 0, 88% 0, 130% 100%, -30% 100%);
+  mix-blend-mode: screen;
+  transition: opacity 1s ease;
+}
+
+.sc-floor-light {
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(to bottom, rgba(0, 0, 0, 0.36), rgba(0, 0, 0, 0) 12%),
+    radial-gradient(80% 55% at 50% 0%, rgba(255, 240, 222, 0.12), rgba(255, 240, 222, 0) 70%);
+}
+
+.sc-reflect {
+  pointer-events: none;
+  opacity: var(--gloss);
+  transform: scaleY(-1);
+  filter: blur(1.2px);
+  -webkit-mask-image: linear-gradient(to top, rgba(0, 0, 0, 0.85), rgba(0, 0, 0, 0) 42%);
+  mask-image: linear-gradient(to top, rgba(0, 0, 0, 0.85), rgba(0, 0, 0, 0) 42%);
+  transition: opacity 0.9s ease;
+}
+
+.sc-reflect canvas,
+.sc-frame {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.sc-base {
+  background: linear-gradient(to bottom, #fdfcf9 0, #f1eee8 14%, #e6e2db 78%, #cdc8bf 100%);
+  box-shadow: 0 2px 3px rgba(0, 0, 0, 0.22);
+}
+
+.sc-contact {
+  pointer-events: none;
+  background: radial-gradient(50% 50% at 50% 50%, rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0));
+}
+
+.sc-door {
+  transition: opacity 0.35s ease;
+}
+
+.sc-frame {
+  position: absolute;
+  inset: 0;
+  filter: drop-shadow(2px 4px 5px rgba(0, 0, 0, 0.26));
+}
+
+.sc-hole {
+  overflow: hidden;
+}
+
+.sc-opening {
+  inset: 0;
+  background:
+    linear-gradient(to right, rgba(60, 38, 22, 0.55), rgba(60, 38, 22, 0) 16%),
+    radial-gradient(130% 80% at 50% 22%, #fff4de 0%, #f5d4a0 28%, #c38c5a 68%, #5e3e27 100%);
+}
+
+.sc-leaf {
+  inset: 0;
+  transform-origin: 0 50%;
+  transform: rotateY(0deg);
+  transition: transform 1.3s cubic-bezier(0.3, 0.7, 0.2, 1);
+}
+
+.hinge-right .sc-leaf {
+  transform-origin: 100% 50%;
+}
+
+.sc-leaf canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.sc-leaf-shade {
+  inset: 0;
+  opacity: 0;
+  background: linear-gradient(to right, rgba(0, 0, 0, 0.06), rgba(0, 0, 0, 0.3));
+  transition: opacity 1.3s ease;
+}
+
+.hinge-right .sc-leaf-shade {
+  background: linear-gradient(to left, rgba(0, 0, 0, 0.06), rgba(0, 0, 0, 0.3));
+}
+
+.is-open .sc-leaf {
+  transform: rotateY(var(--open));
+}
+
+.is-open .sc-leaf-shade {
+  opacity: 1;
+}
+
+.is-open .sc-spill {
+  opacity: 0.6;
+}
+
+.is-open .sc-reflect {
+  opacity: calc(var(--gloss) * 0.4);
+}
+
+/* дверь с настоящим фото: полотно не открывается, свет из проёма не нужен */
+.is-photo .sc-hole,
+.is-photo .sc-spill {
+  display: none;
+}
+
+.sc-decor {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.scene:not(.has-decor) .sc-decor {
+  display: none;
+}
+
+.sc-tint {
+  inset: 0;
+  pointer-events: none;
+  background: var(--scene-tint);
+}
+
+.scene:not(.is-ready) .sc-door,
+.scene:not(.is-ready) .sc-reflect,
+.is-swapping-door .sc-door,
+.is-swapping-door .sc-reflect {
+  opacity: 0;
+}
+
+.sc-plane {
+  transition: opacity 0.3s ease;
+}
+
+.is-swapping-floor .sc-plane {
+  opacity: 0;
+}
+
+@media (hover: hover) {
+  .ajar-on-hover:hover .sc-leaf {
+    transform: rotateY(var(--ajar));
+  }
+  .ajar-on-hover:hover .sc-leaf-shade {
+    opacity: 0.65;
+  }
+  .ajar-on-hover:hover .sc-spill {
+    opacity: 0.35;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sc-leaf,
+  .sc-leaf-shade,
+  .sc-spill,
+  .sc-reflect,
+  .sc-door,
+  .sc-plane {
+    transition: none;
+  }
+}
